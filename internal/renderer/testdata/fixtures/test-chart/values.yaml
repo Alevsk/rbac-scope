@@ -1,0 +1,6 @@
+rbac:
+  name: test-role
+  rules:
+    - apiGroups: [""]
+      resources: ["pods"]
+      verbs: ["get", "list"]

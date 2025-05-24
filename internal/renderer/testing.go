@@ -26,29 +26,12 @@ func (h *testHelper) readFixture(name string) []byte {
 	return content
 }
 
-// createTempDir creates a temporary directory with the given files
-func (h *testHelper) createTempDir(files map[string][]byte) string {
-	tempDir, err := os.MkdirTemp("", "renderer-test-*")
+// loadFixture loads a fixture file from testdata/fixtures
+func (h *testHelper) loadFixture(name string) []byte {
+	path := filepath.Join("testdata", "fixtures", name)
+	content, err := os.ReadFile(path)
 	if err != nil {
-		h.t.Fatalf("failed to create temp dir: %v", err)
+		h.t.Fatalf("failed to load fixture %s: %v", name, err)
 	}
-
-	for name, content := range files {
-		path := filepath.Join(tempDir, name)
-		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-			h.t.Fatalf("failed to create dir %s: %v", filepath.Dir(path), err)
-		}
-		if err := os.WriteFile(path, content, 0644); err != nil {
-			h.t.Fatalf("failed to write file %s: %v", path, err)
-		}
-	}
-
-	return tempDir
-}
-
-// cleanupTemp removes a temporary directory and its contents
-func (h *testHelper) cleanupTemp(dir string) {
-	if err := os.RemoveAll(dir); err != nil {
-		h.t.Fatalf("failed to cleanup temp dir %s: %v", dir, err)
-	}
+	return content
 }

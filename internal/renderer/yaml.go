@@ -6,7 +6,7 @@ import (
 	"io"
 	"strings"
 
-	"gopkg.in/yaml.v3"
+	yaml "gopkg.in/yaml.v3"
 )
 
 // YAMLRenderer implements the Renderer interface for YAML/JSON files

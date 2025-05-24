@@ -22,29 +22,29 @@ func TestYAMLRenderer(t *testing.T) {
 			input:         "cluster-role.yaml",
 			wantManifests: 2, // Role and RoleBinding
 			wantWarnings:  0,
-			wantErr:      false,
+			wantErr:       false,
 		},
 		{
 			name:          "valid role with json output",
 			input:         "role.yaml",
-			opts:         &Options{OutputFormat: "json"},
+			opts:          &Options{OutputFormat: "json"},
 			wantManifests: 2, // Role and RoleBinding
 			wantWarnings:  0,
-			wantErr:      false,
+			wantErr:       false,
 		},
 		{
 			name:          "invalid yaml",
 			input:         "invalid.yaml",
 			wantManifests: 0,
 			wantWarnings:  0,
-			wantErr:      true,
+			wantErr:       true,
 		},
 		{
 			name:          "empty input",
 			input:         "",
 			wantManifests: 0,
 			wantWarnings:  0,
-			wantErr:      true,
+			wantErr:       true,
 		},
 	}
 
@@ -85,12 +85,27 @@ func TestYAMLRenderer(t *testing.T) {
 				if m.Name == "" {
 					t.Error("manifest name is empty")
 				}
-				if m.Kind == "" {
-					t.Error("manifest kind is empty")
+				// Verify kind exists
+				kind, ok := m.Content["kind"].(string)
+				if !ok || kind == "" {
+					t.Error("manifest kind is empty or not a string")
 				}
-				if len(m.Content) == 0 {
-					t.Error("manifest content is empty")
+
+				// Verify required fields based on kind
+				switch kind {
+				case "Role", "ClusterRole":
+					if _, ok := m.Content["rules"]; !ok {
+						t.Error("Role/ClusterRole manifest does not contain rules")
+					}
+				case "RoleBinding", "ClusterRoleBinding":
+					if _, ok := m.Content["subjects"]; !ok {
+						t.Error("RoleBinding/ClusterRoleBinding manifest does not contain subjects")
+					}
+					if _, ok := m.Content["roleRef"]; !ok {
+						t.Error("RoleBinding/ClusterRoleBinding manifest does not contain roleRef")
+					}
 				}
+
 				if r.opts.IncludeMetadata && m.Metadata == nil {
 					t.Error("manifest metadata is nil when IncludeMetadata is true")
 				}
@@ -103,27 +118,27 @@ func TestYAMLRendererValidation(t *testing.T) {
 	h := newTestHelper(t)
 
 	tests := []struct {
-		name      string
-		input     string
-		wantErr   bool
-		errType   error
+		name    string
+		input   string
+		wantErr bool
+		errType error
 	}{
 		{
-			name:     "valid cluster role",
-			input:    "cluster-role.yaml",
-			wantErr:  false,
+			name:    "valid cluster role",
+			input:   "cluster-role.yaml",
+			wantErr: false,
 		},
 		{
-			name:     "invalid yaml",
-			input:    "invalid.yaml",
-			wantErr:  true,
-			errType:  ErrInvalidFormat,
+			name:    "invalid yaml",
+			input:   "invalid.yaml",
+			wantErr: true,
+			errType: ErrInvalidFormat,
 		},
 		{
-			name:     "empty input",
-			input:    "",
-			wantErr:  true,
-			errType:  ErrInvalidInput,
+			name:    "empty input",
+			input:   "",
+			wantErr: true,
+			errType: ErrInvalidInput,
 		},
 	}
 
@@ -158,23 +173,23 @@ func TestYAMLRendererOptions(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "valid yaml format",
-			opts: &Options{OutputFormat: "yaml"},
+			name:    "valid yaml format",
+			opts:    &Options{OutputFormat: "yaml"},
 			wantErr: false,
 		},
 		{
-			name: "valid json format",
-			opts: &Options{OutputFormat: "json"},
+			name:    "valid json format",
+			opts:    &Options{OutputFormat: "json"},
 			wantErr: false,
 		},
 		{
-			name: "invalid format",
-			opts: &Options{OutputFormat: "invalid"},
+			name:    "invalid format",
+			opts:    &Options{OutputFormat: "invalid"},
 			wantErr: true,
 		},
 		{
-			name: "nil options",
-			opts: nil,
+			name:    "nil options",
+			opts:    nil,
 			wantErr: true,
 		},
 	}

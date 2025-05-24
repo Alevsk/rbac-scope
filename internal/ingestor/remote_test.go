@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/alevsk/rbac-ops/internal/renderer"
 )
 
 func TestRemoteYAMLResolver_CanResolve(t *testing.T) {
@@ -113,7 +115,7 @@ rules:
 				}))
 			},
 			wantErr: true,
-			errType: ErrInvalidYAML,
+			errType: renderer.ErrInvalidFormat,
 		},
 		{
 			name:     "server error",
@@ -169,7 +171,7 @@ rules:
 			}
 
 			if tt.wantErr {
-				if tt.errType != nil && err != tt.errType {
+				if tt.errType != nil && !strings.Contains(err.Error(), tt.errType.Error()) {
 					t.Errorf("RemoteYAMLResolver.Resolve() error = %v, want %v", err, tt.errType)
 				}
 				return

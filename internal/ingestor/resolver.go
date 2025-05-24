@@ -43,10 +43,12 @@ type ResolverMetadata struct {
 	Type SourceType
 	// Path is the normalized path or URL of the source
 	Path string
-	// Size is the size in bytes (if available)
+	// Size is the size in bytes of the source
 	Size int64
-	// ModTime is the last modification time (if available)
+	// ModTime is the last modification time of the source
 	ModTime int64
+	// Extra contains additional metadata from resolvers
+	Extra map[string]interface{}
 }
 
 // SourceResolver defines the interface that all source resolvers must implement

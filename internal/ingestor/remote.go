@@ -9,6 +9,8 @@ import (
 	"path"
 	"strings"
 	"time"
+
+	"github.com/alevsk/rbac-ops/internal/renderer"
 )
 
 // defaultHTTPClient is the default HTTP client used by RemoteYAMLResolver
@@ -20,10 +22,11 @@ const defaultHTTPTimeout = 30 * time.Second
 
 // RemoteYAMLResolver implements SourceResolver for remote HTTP/HTTPS resources
 type RemoteYAMLResolver struct {
-	source  string
-	opts    *Options
-	client  *http.Client
-	baseURL *url.URL
+	source   string
+	opts     *Options
+	client   *http.Client
+	baseURL  *url.URL
+	renderer renderer.Renderer
 }
 
 // isValidURL checks if a string is a valid URL
@@ -59,11 +62,25 @@ func NewRemoteYAMLResolver(source string, opts *Options, client *http.Client) (*
 		}
 	}
 
+	// Create renderer with default options
+	rf := renderer.NewRendererFactory(&renderer.Options{
+		ValidateOutput:  opts != nil && opts.ValidateYAML,
+		IncludeMetadata: true,
+		OutputFormat:    "yaml",
+	})
+
+	r, err := rf.GetRenderer(renderer.RendererTypeYAML)
+	if err != nil {
+		// This should never happen with default options
+		panic(fmt.Sprintf("failed to create renderer: %v", err))
+	}
+
 	return &RemoteYAMLResolver{
-		source:  source,
-		opts:    opts,
-		client:  client,
-		baseURL: baseURL,
+		source:   source,
+		opts:     opts,
+		client:   client,
+		baseURL:  baseURL,
+		renderer: r,
 	}, nil
 }
 
@@ -108,37 +125,43 @@ func (r *RemoteYAMLResolver) Resolve(ctx context.Context) (io.ReadCloser, *Resol
 		return nil, nil, fmt.Errorf("HTTP request failed with status: %s", resp.Status)
 	}
 
-	// If YAML validation is enabled
-	if r.opts != nil && r.opts.ValidateYAML {
-		// Read the entire body for validation
-		content, err := io.ReadAll(resp.Body)
-		if err != nil {
-			resp.Body.Close()
-			return nil, nil, fmt.Errorf("failed to read response body: %w", err)
-		}
-
-		// Basic YAML validation
-		if !isValidYAML(string(content)) {
-			resp.Body.Close()
-			return nil, nil, ErrInvalidYAML
-		}
-
-		// Create a new reader from the content
-		return io.NopCloser(strings.NewReader(string(content))), &ResolverMetadata{
-			Type:    SourceTypeRemote,
-			Path:    r.source,
-			Size:    int64(len(content)),
-			ModTime: time.Now().Unix(),
-		}, nil
+	// Always read the entire body for validation and rendering
+	content, err := io.ReadAll(resp.Body)
+	if err != nil {
+		resp.Body.Close()
+		return nil, nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	// Create metadata from response
+	// Use renderer to validate and process the content
+	if err := r.renderer.Validate(content); err != nil {
+		resp.Body.Close()
+		return nil, nil, err
+	}
+
+	// Render the content to ensure it's valid RBAC
+	result, err := r.renderer.Render(ctx, content)
+	if err != nil {
+		resp.Body.Close()
+		return nil, nil, err
+	}
+
+	// Create metadata with renderer results
 	metadata := &ResolverMetadata{
 		Type:    SourceTypeRemote,
 		Path:    r.source,
-		Size:    resp.ContentLength,
+		Size:    int64(len(content)),
 		ModTime: time.Now().Unix(),
 	}
 
-	return resp.Body, metadata, nil
+	// Add renderer metadata if available
+	if len(result.Manifests) > 0 {
+		metadata.Extra = map[string]interface{}{
+			"manifests": len(result.Manifests),
+			"warnings":  result.Warnings,
+		}
+	}
+
+	// Create a new reader from the content
+	return io.NopCloser(strings.NewReader(string(content))), metadata, nil
+
 }

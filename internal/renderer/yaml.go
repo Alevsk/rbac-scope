@@ -60,39 +60,30 @@ func (r *YAMLRenderer) Render(ctx context.Context, input []byte) (*Result, error
 			continue
 		}
 
-		// Extract metadata
-		kind, ok := obj["kind"].(string)
-		if !ok {
-			result.Warnings = append(result.Warnings,
-				fmt.Sprintf("document %d: missing or invalid 'kind' field", docNum))
-			continue
+		// Get name from metadata if available
+		var name string
+		if metadata, ok := obj["metadata"].(map[string]interface{}); ok {
+			if n, ok := metadata["name"].(string); ok {
+				name = n
+			}
 		}
 
-		metadata, ok := obj["metadata"].(map[string]interface{})
-		if !ok {
-			result.Warnings = append(result.Warnings,
-				fmt.Sprintf("document %d: missing or invalid 'metadata' field", docNum))
-			continue
-		}
-
-		name, ok := metadata["name"].(string)
-		if !ok {
-			result.Warnings = append(result.Warnings,
-				fmt.Sprintf("document %d: missing or invalid 'metadata.name' field", docNum))
-			continue
+		// If no name found, generate one based on document number
+		if name == "" {
+			name = fmt.Sprintf("document-%d", docNum+1)
 		}
 
 		// Re-encode the document based on output format
-		var content []byte
+		var raw []byte
 		if r.opts.OutputFormat == "json" {
-			content, err = yaml.Marshal(obj)
+			raw, err = yaml.Marshal(obj)
 			if err != nil {
 				result.Warnings = append(result.Warnings,
 					fmt.Sprintf("document %d: failed to encode as JSON: %v", docNum, err))
 				continue
 			}
 		} else {
-			content, err = yaml.Marshal(obj)
+			raw, err = yaml.Marshal(obj)
 			if err != nil {
 				result.Warnings = append(result.Warnings,
 					fmt.Sprintf("document %d: failed to encode as YAML: %v", docNum, err))
@@ -102,12 +93,14 @@ func (r *YAMLRenderer) Render(ctx context.Context, input []byte) (*Result, error
 
 		manifest := &Manifest{
 			Name:    name,
-			Kind:    kind,
-			Content: content,
+			Content: obj,
+			Raw:     raw,
 		}
 
 		if r.opts.IncludeMetadata {
-			manifest.Metadata = metadata
+			manifest.Metadata = map[string]interface{}{
+				"docNum": docNum + 1,
+			}
 		}
 
 		result.Manifests = append(result.Manifests, manifest)
@@ -125,15 +118,30 @@ func (r *YAMLRenderer) Validate(input []byte) error {
 	// Basic YAML syntax validation
 	var obj interface{}
 	decoder := yaml.NewDecoder(strings.NewReader(string(input)))
+	docCount := 0
+
 	for {
 		err := decoder.Decode(&obj)
-		if err == nil {
-			continue
-		}
 		if err == io.EOF {
 			break
 		}
-		return fmt.Errorf("%w: %v", ErrInvalidFormat, err)
+		if err != nil {
+			return fmt.Errorf("%w: %v", ErrInvalidFormat, err)
+		}
+
+		// Ensure we have a valid YAML structure (map or array)
+		switch v := obj.(type) {
+		case map[string]interface{}, []interface{}:
+			// Valid YAML structure
+			docCount++
+		default:
+			return fmt.Errorf("%w: document must be a YAML map or array, got %T", ErrInvalidFormat, v)
+		}
+	}
+
+	// Ensure we found at least one document
+	if docCount == 0 {
+		return fmt.Errorf("%w: no valid YAML documents found", ErrInvalidFormat)
 	}
 
 	return nil

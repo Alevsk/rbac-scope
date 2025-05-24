@@ -32,8 +32,8 @@ A curated database of RBAC policies used by popular Kubernetes Operators, with s
 - [x] **D402** Implement **YAMLRenderer** (using `yaml`/`json` libs)
 <!-- - [ ] **D403** Implement **HelmRenderer** (using `chartutil`/`engine`)  
 - [ ] **D404** Implement **KustomizeRenderer** (using `kust build` libs)   -->
-- [ ] **D405** Ingestor integrate **YAMLRenderer** when **LocalYAMLResolver** is used
-- [ ] **D406** Ingestor integrate **YAMLRenderer** when **RemoteYAMLResolver** is used
+- [x] **D405** Ingestor integrate **YAMLRenderer** when **LocalYAMLResolver** is used
+- [x] **D406** Ingestor integrate **YAMLRenderer** when **RemoteYAMLResolver** is used
 - [ ] **D407** Create unit tests + golden files for renderers
 
 ### 🔍 Extractor

@@ -26,21 +26,21 @@ func DefaultOptions() *Options {
 	}
 }
 
-// Manifest represents a single rendered RBAC manifest
+// Manifest represents a single YAML manifest
 type Manifest struct {
 	// Name is a unique identifier for the manifest
 	Name string `json:"name"`
-	// Kind is the Kubernetes kind (e.g., Role, ClusterRole)
-	Kind string `json:"kind"`
-	// Content is the rendered manifest content
-	Content []byte `json:"content"`
+	// Content is the parsed YAML content as a map
+	Content map[string]interface{} `json:"content"`
+	// Raw contains the original YAML bytes
+	Raw []byte `json:"raw,omitempty"`
 	// Metadata contains additional information about the manifest
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // Result contains the output of a render operation
 type Result struct {
-	// Manifests is a list of rendered RBAC manifests
+	// Manifests is a list of rendered YAML manifests
 	Manifests []*Manifest
 	// Warnings contains non-fatal issues encountered during rendering
 	Warnings []string

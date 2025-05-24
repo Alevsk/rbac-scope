@@ -5,7 +5,10 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/alevsk/rbac-ops/internal/renderer"
 )
 
 func TestLocalYAMLResolver_CanResolve(t *testing.T) {
@@ -75,13 +78,14 @@ func TestLocalYAMLResolver_Resolve(t *testing.T) {
 			source:   "testdata/invalid.yaml",
 			validate: true,
 			wantErr:  true,
-			errType:  ErrInvalidYAML,
+			errType:  renderer.ErrInvalidFormat,
 		},
 		{
 			name:     "non-yaml file",
 			source:   "testdata/invalid.txt",
 			validate: true,
 			wantErr:  true,
+			errType:  renderer.ErrInvalidFormat,
 		},
 		{
 			name:     "non-existent file",
@@ -103,8 +107,8 @@ func TestLocalYAMLResolver_Resolve(t *testing.T) {
 			}
 
 			if tt.wantErr {
-				if tt.errType != nil && err != tt.errType {
-					t.Errorf("LocalYAMLResolver.Resolve() error = %v, want %v", err, tt.errType)
+				if tt.errType != nil && !strings.Contains(err.Error(), tt.errType.Error()) {
+					t.Errorf("LocalYAMLResolver.Resolve() error = %v, want error containing %v", err, tt.errType)
 				}
 				return
 			}

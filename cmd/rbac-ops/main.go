@@ -48,6 +48,9 @@ func init() {
 
 	// Add cobra completion command
 	rootCmd.AddCommand(completionCmd)
+
+	// Add ingest command to root command
+	rootCmd.AddCommand(ingestCmd)
 }
 
 func main() {

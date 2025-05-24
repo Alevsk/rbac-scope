@@ -1,0 +1,2 @@
+This is not a YAML file
+It's just plain text without any YAML markers

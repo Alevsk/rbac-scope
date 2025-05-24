@@ -1,0 +1,15 @@
+server:
+  host: "0.0.0.0"
+  port: 8080
+  timeout: "30s"
+  log_level: "info"
+
+database:
+  host: "localhost"
+  port: 5432
+  name: "rbac_ops"
+  user: "postgres"
+  password: ""  # Set via environment variable RBAC_OPS_DATABASE_PASSWORD
+  ssl_mode: "disable"
+
+

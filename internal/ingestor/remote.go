@@ -150,7 +150,7 @@ func (r *RemoteYAMLResolver) Resolve(ctx context.Context) (io.ReadCloser, *Resol
 		Type:    SourceTypeRemote,
 		Path:    r.source,
 		Size:    int64(len(content)),
-		ModTime: time.Now().Unix(),
+		ModTime: time.Now(),
 	}
 
 	// Add renderer metadata if available

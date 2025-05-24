@@ -9,20 +9,6 @@ import (
 	"strings"
 )
 
-// SourceType represents the type of source being resolved
-type SourceType int
-
-const (
-	// SourceTypeUnknown represents an unknown source type
-	SourceTypeUnknown SourceType = iota
-	// SourceTypeFile represents a single YAML file
-	SourceTypeFile
-	// SourceTypeRemote represents a remote HTTP/HTTPS resource
-	SourceTypeRemote
-	// SourceTypeFolder represents a directory containing YAML files
-	SourceTypeFolder
-)
-
 // String returns the string representation of a SourceType
 func (st SourceType) String() string {
 	switch st {
@@ -35,20 +21,6 @@ func (st SourceType) String() string {
 	default:
 		return "unknown"
 	}
-}
-
-// ResolverMetadata contains metadata about a resolved source
-type ResolverMetadata struct {
-	// Type indicates the type of source being resolved
-	Type SourceType
-	// Path is the normalized path or URL of the source
-	Path string
-	// Size is the size in bytes of the source
-	Size int64
-	// ModTime is the last modification time of the source
-	ModTime int64
-	// Extra contains additional metadata from resolvers
-	Extra map[string]interface{}
 }
 
 // SourceResolver defines the interface that all source resolvers must implement

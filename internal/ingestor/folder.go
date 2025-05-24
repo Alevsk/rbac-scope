@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // FolderResolver implements SourceResolver for directories containing YAML files
@@ -58,10 +59,20 @@ func (r *FolderResolver) Resolve(ctx context.Context) (io.ReadCloser, *ResolverM
 		return nil, nil, fmt.Errorf("failed to detect renderer type: %w", err)
 	}
 
-	// Get the appropriate renderer
+	// Get the appropriate renderer and metadata
 	renderer, err := GetRendererForType(rendererType)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get renderer: %w", err)
+	}
+
+	// Create resolver metadata
+	meta := &ResolverMetadata{
+		Type:         SourceTypeFolder,
+		RendererType: rendererType,
+		Path:         r.source,
+		Size:         0, // Will be updated after reading files
+		ModTime:      time.Now(),
+		Extra:        make(map[string]interface{}),
 	}
 
 	// If it's a Helm chart or Kustomize directory, read all files and pass them to the appropriate renderer
@@ -119,7 +130,7 @@ func (r *FolderResolver) Resolve(ctx context.Context) (io.ReadCloser, *ResolverM
 			buf.WriteString("\n---\n")
 		}
 
-		return io.NopCloser(strings.NewReader(buf.String())), nil, nil
+		return io.NopCloser(strings.NewReader(buf.String())), meta, nil
 	}
 
 	// For YAML files, use the existing logic
@@ -229,7 +240,7 @@ func (r *FolderResolver) Resolve(ctx context.Context) (io.ReadCloser, *ResolverM
 		Type:    SourceTypeFolder,
 		Path:    r.source,
 		Size:    totalSize,
-		ModTime: info.ModTime().Unix(),
+		ModTime: time.Now(),
 	}
 
 	return io.NopCloser(strings.NewReader(builder.String())), metadata, nil

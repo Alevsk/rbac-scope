@@ -108,7 +108,7 @@ func (r *LocalYAMLResolver) Resolve(ctx context.Context) (io.ReadCloser, *Resolv
 		Type:    SourceTypeFile,
 		Path:    r.source,
 		Size:    info.Size(),
-		ModTime: info.ModTime().Unix(),
+		ModTime: info.ModTime(),
 	}
 
 	// Add renderer metadata if available

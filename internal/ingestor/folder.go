@@ -52,7 +52,77 @@ func (r *FolderResolver) Resolve(ctx context.Context) (io.ReadCloser, *ResolverM
 		return nil, nil, fmt.Errorf("not a directory: %s", r.source)
 	}
 
-	// Create channels for parallel processing
+	// Detect the renderer type
+	rendererType, err := DetectRendererType(r.source)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to detect renderer type: %w", err)
+	}
+
+	// Get the appropriate renderer
+	renderer, err := GetRendererForType(rendererType)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get renderer: %w", err)
+	}
+
+	// If it's a Helm chart or Kustomize directory, read all files and pass them to the appropriate renderer
+	if rendererType == RendererTypeHelm || rendererType == RendererTypeKustomize {
+		// Read the entire directory
+		files := make(map[string][]byte)
+		err := filepath.Walk(r.source, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if !info.IsDir() {
+				content, err := os.ReadFile(path)
+				if err != nil {
+					return fmt.Errorf("failed to read file %s: %w", path, err)
+				}
+				relPath, err := filepath.Rel(r.source, path)
+				if err != nil {
+					return fmt.Errorf("failed to get relative path for %s: %w", path, err)
+				}
+				files[relPath] = content
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to walk directory: %w", err)
+		}
+
+		// Get the main file content based on renderer type
+		var mainFile string
+		if rendererType == RendererTypeHelm {
+			mainFile = "Chart.yaml"
+		} else {
+			mainFile = "kustomization.yaml"
+		}
+
+		// Add all files to the renderer
+		for name, content := range files {
+			if name != mainFile {
+				if err := renderer.AddFile(name, content); err != nil {
+					return nil, nil, fmt.Errorf("failed to add file %s: %w", name, err)
+				}
+			}
+		}
+
+		// Render using the appropriate renderer
+		result, err := renderer.Render(ctx, files[mainFile])
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to render: %w", err)
+		}
+
+		// Convert result to reader
+		var buf strings.Builder
+		for _, manifest := range result.Manifests {
+			buf.Write(manifest.Raw)
+			buf.WriteString("\n---\n")
+		}
+
+		return io.NopCloser(strings.NewReader(buf.String())), nil, nil
+	}
+
+	// For YAML files, use the existing logic
 	filesChan := make(chan yamlFile)
 	errorsChan := make(chan error, 1)
 

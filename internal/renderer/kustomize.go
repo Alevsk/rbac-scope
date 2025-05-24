@@ -150,3 +150,9 @@ func (r *KustomizeRenderer) SetOptions(opts *Options) error {
 func (r *KustomizeRenderer) GetOptions() *Options {
 	return r.opts
 }
+
+// AddFile adds a file to the renderer's context
+func (r *KustomizeRenderer) AddFile(name string, content []byte) error {
+	// TODO: Implement file handling for Kustomize
+	return nil
+}

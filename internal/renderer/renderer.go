@@ -92,4 +92,7 @@ type Renderer interface {
 	// This allows inspection of the current configuration without
 	// exposing internal state.
 	GetOptions() *Options
+
+	// AddFile adds a file to the renderer's context
+	AddFile(name string, content []byte) error
 }

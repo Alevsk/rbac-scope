@@ -219,8 +219,11 @@ func (r *YAMLRenderer) SetOptions(opts *Options) error {
 
 // GetOptions returns the current renderer options
 func (r *YAMLRenderer) GetOptions() *Options {
-	if r.opts == nil {
-		return DefaultOptions()
-	}
 	return r.opts
+}
+
+// AddFile adds a file to the renderer's context
+func (r *YAMLRenderer) AddFile(name string, content []byte) error {
+	// YAMLRenderer doesn't need additional files
+	return nil
 }

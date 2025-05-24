@@ -26,6 +26,31 @@ func NewHelmRenderer(opts *Options) *HelmRenderer {
 	return &HelmRenderer{opts: opts}
 }
 
+// SetOptions configures the renderer with the provided options
+func (r *HelmRenderer) SetOptions(opts *Options) error {
+	if opts == nil {
+		return fmt.Errorf("options cannot be nil")
+	}
+	r.opts = opts
+	return nil
+}
+
+// GetOptions returns the current renderer options
+func (r *HelmRenderer) GetOptions() *Options {
+	return r.opts
+}
+
+// AddFile adds a file to the renderer's context
+func (r *HelmRenderer) AddFile(name string, content []byte) error {
+	// TODO: Implement file handling for Helm charts
+	return nil
+}
+
+// ValidateSchema checks if the input matches the expected schema
+func (r *HelmRenderer) ValidateSchema(input []byte) error {
+	return r.Validate(input)
+}
+
 // Validate checks if the input is a valid Helm chart
 func (r *HelmRenderer) Validate(input []byte) error {
 	// Create a temporary directory for the chart

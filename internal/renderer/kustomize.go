@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	yaml "gopkg.in/yaml.v3"
 	"sigs.k8s.io/kustomize/api/krusty"
@@ -14,7 +15,9 @@ import (
 
 // KustomizeRenderer implements Renderer for Kustomize manifests
 type KustomizeRenderer struct {
-	opts *Options
+	opts  *Options
+	files map[string][]byte // Map to store files where key is the file name and value is the content
+	mux   sync.RWMutex      // Mutex to protect concurrent access to files map
 }
 
 // NewKustomizeRenderer creates a new KustomizeRenderer
@@ -22,7 +25,10 @@ func NewKustomizeRenderer(opts *Options) *KustomizeRenderer {
 	if opts == nil {
 		opts = DefaultOptions()
 	}
-	return &KustomizeRenderer{opts: opts}
+	return &KustomizeRenderer{
+		opts:  opts,
+		files: make(map[string][]byte),
+	}
 }
 
 // Render processes a Kustomize directory and returns the rendered manifests
@@ -151,8 +157,16 @@ func (r *KustomizeRenderer) GetOptions() *Options {
 	return r.opts
 }
 
-// AddFile adds a file to the renderer's context
+// AddFile adds a file to the renderer's context in a thread-safe manner
 func (r *KustomizeRenderer) AddFile(name string, content []byte) error {
-	// TODO: Implement file handling for Kustomize
+	if name == "" {
+		return fmt.Errorf("file name cannot be empty")
+	}
+	if content == nil {
+		return fmt.Errorf("file content cannot be nil")
+	}
+	r.mux.Lock()
+	defer r.mux.Unlock()
+	r.files[name] = content
 	return nil
 }

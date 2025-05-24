@@ -1,0 +1,22 @@
+# These owners will be the default owners for everything in
+# the repo. Unless a later match takes precedence,
+# they will be requested for review when someone opens a pull request.
+*       @project-maintainers
+
+# Go source code
+*.go    @go-team-maintainers
+
+# Documentation
+/docs/  @docs-maintainers
+*.md    @docs-maintainers
+
+# Security-related files
+/internal/security/   @security-team
+SECURITY.md          @security-team
+
+# CI/CD configuration
+/.github/            @devops-team
+/Dockerfile          @devops-team
+/Makefile           @devops-team
+
+# Replace with actual GitHub usernames when the teams are created

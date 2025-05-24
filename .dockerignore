@@ -1,0 +1,48 @@
+# Version control
+.git
+.gitignore
+
+# Go specific
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+/vendor/
+/dist/
+
+# IDE specific
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment variables and secrets
+.env
+*.env
+!.env.example
+
+# Test files
+*_test.go
+coverage.txt
+coverage.html
+
+# Documentation
+README.md
+docs/
+*.md
+
+# Development artifacts
+/bin/
+/build/
+/tmp/
+
+# Docker
+Dockerfile
+.docker/
+
+# Misc
+.DS_Store
+Thumbs.db

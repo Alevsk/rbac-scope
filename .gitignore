@@ -1,0 +1,42 @@
+# Go specific
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+/vendor/
+/dist/
+
+# IDE specific
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment variables and secrets
+.env
+*.env
+!.env.example
+
+# Test coverage
+coverage.txt
+coverage.html
+
+# Binary output
+/bin/
+/build/
+
+# Dependency directories
+vendor/
+
+# Docker
+.docker/
+
+# Log files
+*.log
+
+# OS specific
+.DS_Store
+Thumbs.db

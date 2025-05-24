@@ -27,20 +27,24 @@ A curated database of RBAC policies used by popular Kubernetes Operators, with s
 
 ### 🛠 Renderer
 
-- [ ] **D400** Create renderer package
-- [ ] **D401** Define `Renderer` interface (input → rendered manifests)  
-- [ ] **D402** Implement **HelmRenderer** (using `chartutil`/`engine`)  
-- [ ] **D403** Implement **KustomizeRenderer** (using `kust build` libs)  
-- [ ] **D404** Create unit tests + golden files for renderers
+- [x] **D400** Create renderer package
+- [x] **D401** Define `Renderer` interface (input → rendered manifests)  
+- [x] **D402** Implement **YAMLRenderer** (using `yaml`/`json` libs)
+<!-- - [ ] **D403** Implement **HelmRenderer** (using `chartutil`/`engine`)  
+- [ ] **D404** Implement **KustomizeRenderer** (using `kust build` libs)   -->
+- [ ] **D405** Ingestor integrate **YAMLRenderer** when **LocalYAMLResolver** is used
+- [ ] **D406** Ingestor integrate **YAMLRenderer** when **RemoteYAMLResolver** is used
+- [ ] **D407** Create unit tests + golden files for renderers
 
 ### 🔍 Extractor
 
 - [ ] **E500** Create extractor package
 - [ ] **E501** Define `Extractor` interface (rendered → structured data)  
-- [ ] **E502** Implement **RBACExtractor** (service accounts, roles, verbs, scopes)  
-- [ ] **E503** Capture workload → container-image mapping  
-- [ ] **E504** Correlate roles/verbs to namespaces & CRDs  
-- [ ] **E505** Add comprehensive extractor tests (edge cases, malformed YAML)  
+- [ ] **E502** Implement **RBACExtractor** (service accounts, roles, verbs, scopes) prioritizing the use of Kubernetes libraries
+- [ ] **E503** Extract identities: What service accounts or identities are being defined or used?: Who are the identities? ServiceAccounts and any impersonated identities
+- [ ] **E504** Extract workload: Where are they used? Namespace + Pod/Deployment association and their container image version and workload metadata
+- [ ] **E505** Correlate roles/verbs to namespaces & CRDs: What privileges do they have? Roles, RoleBindings, ClusterRoles + verbs/resources, Scope: namespace vs cluster
+- [ ] **E506** Add comprehensive extractor tests (edge cases, malformed YAML)
 
 ### 🧩 Normalizer
 

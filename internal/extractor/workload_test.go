@@ -144,14 +144,22 @@ metadata:
 				return
 			}
 
-			workloads, ok := result.Raw.([]Workload)
+			workloadData, ok := result.Data["workloads"].(map[string]map[string][]Workload)
 			if !ok {
-				t.Errorf("WorkloadExtractor.Extract() result.Raw is not []Workload")
+				t.Errorf("WorkloadExtractor.Extract() result.Data[\"workloads\"] is not map[string]map[string][]Workload")
 				return
 			}
 
-			if count := len(workloads); count != tt.want {
-				t.Errorf("WorkloadExtractor.Extract() got %d workloads, want %d", count, tt.want)
+			// Count total workloads across all service accounts and namespaces
+			totalWorkloads := 0
+			for _, saMap := range workloadData {
+				for _, nsWorkloads := range saMap {
+					totalWorkloads += len(nsWorkloads)
+				}
+			}
+
+			if totalWorkloads != tt.want {
+				t.Errorf("WorkloadExtractor.Extract() got %d workloads, want %d", totalWorkloads, tt.want)
 			}
 
 			// Verify metadata

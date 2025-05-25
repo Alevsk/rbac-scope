@@ -122,7 +122,21 @@ func (e *WorkloadExtractor) Extract(ctx context.Context, manifests []*renderer.M
 	}
 
 	result := NewResult()
-	result.Raw = workloads
+	result.Data = make(map[string]interface{})
+	workloadMap := make(map[string]map[string][]Workload)
+
+	// Group workloads by ServiceAccount and Namespace
+	for _, workload := range workloads {
+		if _, exists := workloadMap[workload.ServiceAccount]; !exists {
+			workloadMap[workload.ServiceAccount] = make(map[string][]Workload)
+		}
+		workloadMap[workload.ServiceAccount][workload.Namespace] = append(
+			workloadMap[workload.ServiceAccount][workload.Namespace],
+			workload,
+		)
+	}
+
+	result.Data["workloads"] = workloadMap
 	result.Metadata["count"] = len(workloads)
 
 	return result, nil

@@ -2,34 +2,37 @@ package renderer
 
 import (
 	"context"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"testing"
 )
 
 func TestHelmRenderer(t *testing.T) {
-	// Create a test helper
-	h := &testHelper{t: t}
-
-	// Load test chart
-	chartBytes := h.loadFixture("test-chart-0.1.0.tgz")
-
 	tests := []struct {
 		name    string
-		input   []byte
+		files   map[string][]byte
 		opts    *Options
 		wantErr bool
 	}{
 		{
-			name:    "valid chart",
-			input:   chartBytes,
+			name: "valid chart",
+			files: map[string][]byte{
+				"Chart.yaml": []byte(`apiVersion: v2
+name: test-chart
+version: 0.1.0`),
+				"templates/role.yaml": []byte(`apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: test-role
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list"]`),
+			},
 			opts:    DefaultOptions(),
 			wantErr: false,
 		},
 		{
 			name:    "invalid chart",
-			input:   []byte("not a helm chart"),
+			files:   map[string][]byte{"invalid.yaml": []byte("not a helm chart")},
 			opts:    DefaultOptions(),
 			wantErr: true,
 		},
@@ -40,8 +43,15 @@ func TestHelmRenderer(t *testing.T) {
 			// Create renderer
 			r := NewHelmRenderer(tt.opts)
 
+			// Add files to the renderer
+			for name, content := range tt.files {
+				if err := r.AddFile(name, content); err != nil {
+					t.Fatalf("failed to add file %s: %v", name, err)
+				}
+			}
+
 			// Test validation
-			err := r.Validate(tt.input)
+			err := r.Validate(nil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("HelmRenderer.Validate() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -52,7 +62,7 @@ func TestHelmRenderer(t *testing.T) {
 			}
 
 			// Test rendering
-			result, err := r.Render(context.Background(), tt.input)
+			result, err := r.Render(context.Background(), nil)
 			if err != nil {
 				t.Fatalf("HelmRenderer.Render() error = %v", err)
 			}
@@ -97,87 +107,37 @@ func TestHelmRenderer(t *testing.T) {
 }
 
 func TestHelmRendererWithValues(t *testing.T) {
-
 	// Create test files
 	files := map[string][]byte{
-		"Chart.yaml": []byte(`
-apiVersion: v2
+		"Chart.yaml": []byte(`apiVersion: v2
 name: test-chart
-version: 0.1.0
-`),
-		"values.yaml": []byte(`
-rbac:
+version: 0.1.0`),
+		"values.yaml": []byte(`rbac:
   name: test-role
   rules:
     - apiGroups: [""]
       resources: ["pods"]
-      verbs: ["get", "list"]
-`),
-		"templates/role.yaml": []byte(`
-apiVersion: rbac.authorization.k8s.io/v1
+      verbs: ["get", "list"]`),
+		"templates/role.yaml": []byte(`apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: {{ .Values.rbac.name }}
 rules:
-{{- toYaml .Values.rbac.rules | nindent 2 }}
-`),
-	}
-
-	// Create temp dir
-	tempDir, err := os.MkdirTemp("", "helm-test-*")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tempDir)
-
-	// Write files
-	for name, content := range files {
-		path := filepath.Join(tempDir, name)
-		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-			t.Fatalf("failed to create dir %s: %v", filepath.Dir(path), err)
-		}
-		if err := os.WriteFile(path, content, 0644); err != nil {
-			t.Fatalf("failed to write file %s: %v", path, err)
-		}
+{{- toYaml .Values.rbac.rules | nindent 2 }}`),
 	}
 
 	// Create renderer
 	r := NewHelmRenderer(DefaultOptions())
 
-	// Create a temporary chart directory
-	chartDir := filepath.Join(tempDir, "chart")
-	if err := os.MkdirAll(filepath.Join(chartDir, "templates"), 0755); err != nil {
-		t.Fatalf("failed to create chart dir: %v", err)
-	}
-
-	// Write chart files
+	// Add files to the renderer
 	for name, content := range files {
-		path := filepath.Join(chartDir, name)
-		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-			t.Fatalf("failed to create dir %s: %v", filepath.Dir(path), err)
+		if err := r.AddFile(name, content); err != nil {
+			t.Fatalf("failed to add file %s: %v", name, err)
 		}
-		if err := os.WriteFile(path, content, 0644); err != nil {
-			t.Fatalf("failed to write file %s: %v", path, err)
-		}
-	}
-
-	// Package chart
-	cmd := exec.Command("helm", "package", chartDir, "--destination", tempDir)
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("failed to package chart: %v", err)
-	}
-
-	// Extract chart path from output
-	chartPath := filepath.Join(tempDir, "test-chart-0.1.0.tgz")
-
-	// Read chart
-	chartBytes, err := os.ReadFile(chartPath)
-	if err != nil {
-		t.Fatalf("failed to read chart: %v", err)
 	}
 
 	// Test rendering
-	result, err := r.Render(context.Background(), chartBytes)
+	result, err := r.Render(context.Background(), nil)
 	if err != nil {
 		t.Fatalf("HelmRenderer.Render() error = %v", err)
 	}

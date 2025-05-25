@@ -4,8 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
+	"sync"
 
 	yaml "gopkg.in/yaml.v3"
 	"helm.sh/helm/v3/pkg/chart/loader"
@@ -15,7 +14,10 @@ import (
 
 // HelmRenderer implements Renderer for Helm charts
 type HelmRenderer struct {
-	opts *Options
+	opts  *Options
+	files map[string][]byte // Map to store files where key is the file name and value is the content
+	mux   sync.RWMutex      // Mutex to protect concurrent access to files map
+
 }
 
 // NewHelmRenderer creates a new HelmRenderer
@@ -23,7 +25,10 @@ func NewHelmRenderer(opts *Options) *HelmRenderer {
 	if opts == nil {
 		opts = DefaultOptions()
 	}
-	return &HelmRenderer{opts: opts}
+	return &HelmRenderer{
+		opts:  opts,
+		files: make(map[string][]byte),
+	}
 }
 
 // SetOptions configures the renderer with the provided options
@@ -42,7 +47,15 @@ func (r *HelmRenderer) GetOptions() *Options {
 
 // AddFile adds a file to the renderer's context
 func (r *HelmRenderer) AddFile(name string, content []byte) error {
-	// TODO: Implement file handling for Helm charts
+	if name == "" {
+		return fmt.Errorf("file name cannot be empty")
+	}
+	if content == nil {
+		return fmt.Errorf("file content cannot be nil")
+	}
+	r.mux.Lock()
+	defer r.mux.Unlock()
+	r.files[name] = content
 	return nil
 }
 
@@ -53,21 +66,18 @@ func (r *HelmRenderer) ValidateSchema(input []byte) error {
 
 // Validate checks if the input is a valid Helm chart
 func (r *HelmRenderer) Validate(input []byte) error {
-	// Create a temporary directory for the chart
-	tempDir, err := os.MkdirTemp("", "helm-validate-*")
-	if err != nil {
-		return fmt.Errorf("failed to create temp dir: %w", err)
-	}
-	defer os.RemoveAll(tempDir)
+	// Lock the files map for reading
+	r.mux.RLock()
+	defer r.mux.RUnlock()
 
-	// Write the input to a temporary file
-	chartPath := filepath.Join(tempDir, "chart.tgz")
-	if err := os.WriteFile(chartPath, input, 0644); err != nil {
-		return fmt.Errorf("failed to write chart file: %w", err)
+	// Convert files map to BufferedFile slice
+	files := make([]*loader.BufferedFile, 0, len(r.files))
+	for name, content := range r.files {
+		files = append(files, &loader.BufferedFile{Name: name, Data: content})
 	}
 
-	// Try to load the chart
-	_, err = loader.Load(chartPath)
+	// Try to load the chart from memory
+	_, err := loader.LoadFiles(files)
 	if err != nil {
 		return fmt.Errorf("invalid helm chart: %w", err)
 	}
@@ -77,21 +87,18 @@ func (r *HelmRenderer) Validate(input []byte) error {
 
 // Render processes a Helm chart and returns the rendered manifests
 func (r *HelmRenderer) Render(ctx context.Context, input []byte) (*Result, error) {
-	// Create a temporary directory for the chart
-	tempDir, err := os.MkdirTemp("", "helm-render-*")
-	if err != nil {
-		return nil, fmt.Errorf("failed to create temp dir: %w", err)
-	}
-	defer os.RemoveAll(tempDir)
+	// Lock the files map for reading
+	r.mux.RLock()
+	defer r.mux.RUnlock()
 
-	// Write the input to a temporary file
-	chartPath := filepath.Join(tempDir, "chart.tgz")
-	if err := os.WriteFile(chartPath, input, 0644); err != nil {
-		return nil, fmt.Errorf("failed to write chart file: %w", err)
+	// Convert files map to BufferedFile slice
+	files := make([]*loader.BufferedFile, 0, len(r.files))
+	for name, content := range r.files {
+		files = append(files, &loader.BufferedFile{Name: name, Data: content})
 	}
 
-	// Load the chart
-	chart, err := loader.Load(chartPath)
+	// Load the chart from memory
+	chart, err := loader.LoadFiles(files)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load chart: %w", err)
 	}
@@ -154,7 +161,7 @@ func (r *HelmRenderer) Render(ctx context.Context, input []byte) (*Result, error
 
 		// Create manifest for each document
 		for i, doc := range docs {
-			manifestName := fmt.Sprintf("%s-%d", filepath.Base(name), i+1)
+			manifestName := fmt.Sprintf("%s-%d", name, i+1)
 
 			// Re-encode as YAML
 			raw, err := yaml.Marshal(doc)

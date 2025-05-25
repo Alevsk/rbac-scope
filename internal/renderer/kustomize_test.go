@@ -2,54 +2,40 @@ package renderer
 
 import (
 	"context"
-	"os"
-	"path/filepath"
 	"testing"
 )
 
 func TestKustomizeRenderer(t *testing.T) {
-	// Create temporary directory
-	tempDir, err := os.MkdirTemp("", "kustomize-test-*")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tempDir)
-
-	// Create test files
-	files := map[string][]byte{
-		"kustomization.yaml": []byte(`apiVersion: kustomize.config.k8s.io/v1beta1
+	// Create test files content
+	kustomizationContent := []byte(`apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-- role.yaml`),
-		"role.yaml": []byte(`apiVersion: rbac.authorization.k8s.io/v1
+- role.yaml`)
+
+	roleContent := []byte(`apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: test-role
 rules:
 - apiGroups: [""]
   resources: ["pods"]
-  verbs: ["get", "list"]`),
-	}
-
-	// Write test files
-	for name, content := range files {
-		path := filepath.Join(tempDir, name)
-		if err := os.WriteFile(path, content, 0644); err != nil {
-			t.Fatalf("failed to write file %s: %v", path, err)
-		}
-	}
+  verbs: ["get", "list"]`)
 
 	// Create renderer
 	r := NewKustomizeRenderer(DefaultOptions())
 
-	// Read kustomization directory
-	input, err := os.ReadFile(filepath.Join(tempDir, "kustomization.yaml"))
-	if err != nil {
-		t.Fatalf("failed to read kustomization: %v", err)
+	// Add files to the renderer
+	if err := r.AddFile("role.yaml", roleContent); err != nil {
+		t.Fatalf("failed to add role.yaml: %v", err)
+	}
+
+	// Add kustomization file
+	if err := r.AddFile("kustomization.yaml", kustomizationContent); err != nil {
+		t.Fatalf("failed to add kustomization.yaml: %v", err)
 	}
 
 	// Render
-	result, err := r.Render(context.Background(), input)
+	result, err := r.Render(context.Background(), kustomizationContent)
 	if err != nil {
 		t.Fatalf("failed to render: %v", err)
 	}

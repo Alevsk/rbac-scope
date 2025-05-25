@@ -20,8 +20,7 @@ func (f *defaultExtractorFactory) NewExtractor(t ExtractorType, opts *Options) (
 	case ExtractorTypeIdentity:
 		return NewIdentityExtractor(opts), nil
 	case ExtractorTypeWorkload:
-		// Will be implemented in E503
-		return nil, fmt.Errorf("workload extractor not yet implemented")
+		return NewWorkloadExtractor(opts), nil
 	case ExtractorTypeRBAC:
 		// Will be implemented in E504
 		return nil, fmt.Errorf("rbac extractor not yet implemented")

@@ -1,15 +1,14 @@
 package extractor
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 
+	"github.com/alevsk/rbac-ops/internal/renderer"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"sigs.k8s.io/yaml"
 )
 
 // Identity represents a service account identity
@@ -55,26 +54,20 @@ func NewIdentityExtractor(opts *Options) *IdentityExtractor {
 	}
 }
 
-// Extract processes the input and returns structured identity data
-func (e *IdentityExtractor) Extract(ctx context.Context, input []byte) (*Result, error) {
-	if err := e.Validate(input); err != nil {
+// Extract processes the manifests and returns structured identity data
+func (e *IdentityExtractor) Extract(ctx context.Context, manifests []*renderer.Manifest) (*Result, error) {
+	if err := e.Validate(manifests); err != nil {
 		return nil, fmt.Errorf("validation failed: %w", err)
-	}
-
-	// Split multi-document YAML
-	documents := bytes.Split(input, []byte("\n---\n"))
-	if len(documents) == 0 {
-		documents = [][]byte{input}
 	}
 
 	var identities []Identity
 
-	for _, doc := range documents {
+	for _, manifest := range manifests {
 		// Try to decode as ServiceAccount
-		obj, gvk, err := e.decoder.Decode(doc, nil, nil)
+		obj, gvk, err := e.decoder.Decode(manifest.Raw, nil, nil)
 		if err != nil {
 			if e.opts.StrictParsing {
-				return nil, fmt.Errorf("failed to decode document: %w", err)
+				return nil, fmt.Errorf("failed to decode manifest: %w", err)
 			}
 			continue
 		}
@@ -118,16 +111,16 @@ func (e *IdentityExtractor) Extract(ctx context.Context, input []byte) (*Result,
 	return result, nil
 }
 
-// Validate checks if the input can be processed
-func (e *IdentityExtractor) Validate(input []byte) error {
-	if len(input) == 0 {
+// Validate checks if the manifests can be processed
+func (e *IdentityExtractor) Validate(manifests []*renderer.Manifest) error {
+	if len(manifests) == 0 {
 		return ErrInvalidInput
 	}
 
-	// Try to unmarshal as YAML
-	var data interface{}
-	if err := yaml.Unmarshal(input, &data); err != nil {
-		return fmt.Errorf("%w: invalid YAML: %v", ErrInvalidInput, err)
+	for _, manifest := range manifests {
+		if len(manifest.Raw) == 0 {
+			return fmt.Errorf("%w: empty manifest", ErrInvalidInput)
+		}
 	}
 
 	return nil

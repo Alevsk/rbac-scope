@@ -4,6 +4,8 @@ package extractor
 import (
 	"context"
 	"fmt"
+
+	"github.com/alevsk/rbac-ops/internal/renderer"
 )
 
 // Options contains configuration options for extractors
@@ -47,10 +49,10 @@ var (
 
 // Extractor defines the interface for extracting information from Kubernetes resources
 type Extractor interface {
-	// Extract processes the input and returns structured data
-	Extract(ctx context.Context, input []byte) (*Result, error)
-	// Validate checks if the input can be processed by this extractor
-	Validate(input []byte) error
+	// Extract processes the manifests and returns structured data
+	Extract(ctx context.Context, manifests []*renderer.Manifest) (*Result, error)
+	// Validate checks if the manifests can be processed by this extractor
+	Validate(manifests []*renderer.Manifest) error
 	// SetOptions configures the extractor with the given options
 	SetOptions(opts *Options)
 	// GetOptions returns the current options

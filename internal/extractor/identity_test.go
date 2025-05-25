@@ -1,20 +1,23 @@
 package extractor
 
 import (
+	"bytes"
 	"context"
 	"testing"
+
+	"github.com/alevsk/rbac-ops/internal/renderer"
 )
 
 func TestIdentityExtractor_Extract(t *testing.T) {
 	tests := []struct {
-		name    string
-		input   string
-		want    int
-		wantErr bool
+		name     string
+		manifest string
+		want     int
+		wantErr  bool
 	}{
 		{
 			name: "valid service account",
-			input: `apiVersion: v1
+			manifest: `apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: test-sa
@@ -33,7 +36,7 @@ imagePullSecrets:
 		},
 		{
 			name: "multiple service accounts",
-			input: `apiVersion: v1
+			manifest: `apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: sa1
@@ -49,7 +52,7 @@ metadata:
 		},
 		{
 			name: "non-service account resource",
-			input: `apiVersion: v1
+			manifest: `apiVersion: v1
 kind: ConfigMap
 metadata:
   name: test-cm
@@ -58,23 +61,29 @@ metadata:
 			wantErr: false,
 		},
 		{
-			name:    "empty input",
-			input:   "",
-			want:    0,
-			wantErr: true,
+			name:     "empty input",
+			manifest: "",
+			want:     0,
+			wantErr:  true,
 		},
 		{
-			name:    "invalid yaml",
-			input:   "invalid: [yaml",
-			want:    0,
-			wantErr: true,
+			name:     "invalid yaml",
+			manifest: "invalid: [yaml",
+			want:     0,
+			wantErr:  true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			e := NewIdentityExtractor(nil)
-			result, err := e.Extract(context.Background(), []byte(tt.input))
+			// Split manifest into multiple documents if needed
+			docs := bytes.Split([]byte(tt.manifest), []byte("\n---\n"))
+			var manifests []*renderer.Manifest
+			for _, doc := range docs {
+				manifests = append(manifests, &renderer.Manifest{Raw: doc})
+			}
+			result, err := e.Extract(context.Background(), manifests)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("IdentityExtractor.Extract() error = %v, wantErr %v", err, tt.wantErr)

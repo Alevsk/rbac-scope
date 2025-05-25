@@ -26,8 +26,6 @@ func DefaultOptions() *Options {
 
 // Result represents the output of an extractor
 type Result struct {
-	// Raw contains the raw extracted data
-	Raw interface{}
 	// Data contains the structured extracted data
 	Data map[string]interface{} `json:"data"`
 	// Metadata contains additional information about the extraction

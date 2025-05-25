@@ -94,9 +94,9 @@ metadata:
 				return
 			}
 
-			identityData, ok := result.Data["identities"].(map[string]map[string]interface{})
+			identityData, ok := result.Data["identities"].(map[string]map[string]Identity)
 			if !ok {
-				t.Errorf("IdentityExtractor.Extract() result.Data[\"identities\"] is not map[string]map[string]interface{}")
+				t.Errorf("IdentityExtractor.Extract() result.Data[\"identities\"] is not map[string]map[string]Identity")
 				return
 			}
 

@@ -105,7 +105,17 @@ func (e *IdentityExtractor) Extract(ctx context.Context, manifests []*renderer.M
 	}
 
 	result := NewResult()
-	result.Raw = identities
+	result.Data = make(map[string]interface{})
+	identityMap := make(map[string]map[string]interface{})
+
+	for _, identity := range identities {
+		if _, exists := identityMap[identity.Name]; !exists {
+			identityMap[identity.Name] = make(map[string]interface{})
+		}
+		identityMap[identity.Name][identity.Namespace] = identity
+	}
+
+	result.Data["identities"] = identityMap
 	result.Metadata["count"] = len(identities)
 
 	return result, nil

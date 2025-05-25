@@ -94,14 +94,20 @@ metadata:
 				return
 			}
 
-			identities, ok := result.Raw.([]Identity)
+			identityData, ok := result.Data["identities"].(map[string]map[string]interface{})
 			if !ok {
-				t.Errorf("IdentityExtractor.Extract() result.Raw is not []Identity")
+				t.Errorf("IdentityExtractor.Extract() result.Data[\"identities\"] is not map[string]map[string]interface{}")
 				return
 			}
 
-			if count := len(identities); count != tt.want {
-				t.Errorf("IdentityExtractor.Extract() got %d identities, want %d", count, tt.want)
+			// Count total identities across all namespaces
+			totalIdentities := 0
+			for _, namespaceMap := range identityData {
+				totalIdentities += len(namespaceMap)
+			}
+
+			if totalIdentities != tt.want {
+				t.Errorf("IdentityExtractor.Extract() got %d identities, want %d", totalIdentities, tt.want)
 			}
 
 			// Verify metadata

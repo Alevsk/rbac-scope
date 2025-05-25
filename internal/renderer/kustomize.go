@@ -3,7 +3,6 @@ package renderer
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -33,12 +32,8 @@ func NewKustomizeRenderer(opts *Options) *KustomizeRenderer {
 
 // Render processes a Kustomize directory and returns the rendered manifests
 func (r *KustomizeRenderer) Render(ctx context.Context, input []byte) (*Result, error) {
-	// Create a temporary directory
-	tempDir, err := os.MkdirTemp("", "kustomize-*")
-	if err != nil {
-		return nil, fmt.Errorf("failed to create temp dir: %w", err)
-	}
-	defer os.RemoveAll(tempDir)
+	// Create an in-memory filesystem
+	fs := filesys.MakeFsInMemory()
 
 	// Parse input to get referenced files
 	var kustomization struct {
@@ -50,27 +45,28 @@ func (r *KustomizeRenderer) Render(ctx context.Context, input []byte) (*Result, 
 		return nil, fmt.Errorf("failed to parse kustomization: %w", err)
 	}
 
-	// Write the kustomization file
-	if err := os.WriteFile(filepath.Join(tempDir, "kustomization.yaml"), input, 0644); err != nil {
+	// Lock the files map for reading
+	r.mux.RLock()
+	defer r.mux.RUnlock()
+
+	// Write the kustomization file to the in-memory filesystem
+	if err := fs.WriteFile("/kustomization.yaml", input); err != nil {
 		return nil, fmt.Errorf("failed to write kustomization: %w", err)
 	}
 
-	// Write referenced files
-	for _, resource := range kustomization.Resources {
-		// Read the resource from testdata/fixtures/test-kustomize
-		fixtureContent, err := os.ReadFile(filepath.Join("testdata", "fixtures", "test-kustomize", resource))
-		if err != nil {
-			return nil, fmt.Errorf("failed to read fixture %s: %w", resource, err)
+	// Write all files from the map to the in-memory filesystem
+	for name, content := range r.files {
+		// Create parent directories if they don't exist
+		dir := filepath.Dir("/" + name)
+		if err := fs.MkdirAll(dir); err != nil {
+			return nil, fmt.Errorf("failed to create directory %s: %w", dir, err)
 		}
 
-		// Write the resource to the temp directory
-		if err := os.WriteFile(filepath.Join(tempDir, resource), fixtureContent, 0644); err != nil {
-			return nil, fmt.Errorf("failed to write %s: %w", resource, err)
+		// Write the file
+		if err := fs.WriteFile("/"+name, content); err != nil {
+			return nil, fmt.Errorf("failed to write file %s: %w", name, err)
 		}
 	}
-
-	// Create a filesystem for kustomize
-	fs := filesys.MakeFsOnDisk()
 
 	// Create kustomize builder
 	k := krusty.MakeKustomizer(
@@ -78,7 +74,7 @@ func (r *KustomizeRenderer) Render(ctx context.Context, input []byte) (*Result, 
 	)
 
 	// Build the resources
-	resources, err := k.Run(fs, tempDir)
+	resources, err := k.Run(fs, "/")
 	if err != nil {
 		return nil, fmt.Errorf("failed to build resources: %w", err)
 	}

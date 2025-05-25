@@ -25,13 +25,3 @@ func (h *testHelper) readFixture(name string) []byte {
 	}
 	return content
 }
-
-// loadFixture loads a fixture file from testdata/fixtures
-func (h *testHelper) loadFixture(name string) []byte {
-	path := filepath.Join("testdata", "fixtures", name)
-	content, err := os.ReadFile(path)
-	if err != nil {
-		h.t.Fatalf("failed to load fixture %s: %v", name, err)
-	}
-	return content
-}

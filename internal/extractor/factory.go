@@ -16,14 +16,19 @@ func (f *defaultExtractorFactory) NewExtractor(t ExtractorType, opts *Options) (
 		opts = DefaultOptions()
 	}
 
+	const (
+		ExtractorTypeIdentity ExtractorType = "identity"
+		ExtractorTypeWorkload ExtractorType = "workload"
+		ExtractorTypeRBAC     ExtractorType = "rbac"
+	)
+
 	switch t {
 	case ExtractorTypeIdentity:
 		return NewIdentityExtractor(opts), nil
 	case ExtractorTypeWorkload:
 		return NewWorkloadExtractor(opts), nil
 	case ExtractorTypeRBAC:
-		// Will be implemented in E504
-		return nil, fmt.Errorf("rbac extractor not yet implemented")
+		return NewRBACExtractor(opts), nil
 	default:
 		return nil, fmt.Errorf("unknown extractor type: %s", t)
 	}

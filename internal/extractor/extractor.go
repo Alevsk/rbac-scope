@@ -24,18 +24,21 @@ func DefaultOptions() *Options {
 	}
 }
 
-// Result represents the structured output from an extractor
+// Result represents the output of an extractor
 type Result struct {
 	// Raw contains the raw extracted data
 	Raw interface{}
+	// Data contains the structured extracted data
+	Data map[string]interface{} `json:"data"`
 	// Metadata contains additional information about the extraction
-	Metadata map[string]interface{}
+	Metadata map[string]interface{} `json:"metadata"`
 }
 
 // NewResult creates a new Result with initialized fields
 func NewResult() *Result {
 	return &Result{
 		Metadata: make(map[string]interface{}),
+		Data:     make(map[string]interface{}),
 	}
 }
 

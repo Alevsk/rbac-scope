@@ -110,10 +110,8 @@ func (r *FolderResolver) Resolve(ctx context.Context) (io.ReadCloser, *ResolverM
 
 		// Add all files to the renderer
 		for name, content := range files {
-			if name != mainFile {
-				if err := renderer.AddFile(name, content); err != nil {
-					return nil, nil, fmt.Errorf("failed to add file %s: %w", name, err)
-				}
+			if err := renderer.AddFile(name, content); err != nil {
+				return nil, nil, fmt.Errorf("failed to add file %s: %w", name, err)
 			}
 		}
 

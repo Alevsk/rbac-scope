@@ -3,6 +3,8 @@ package extractor
 import (
 	"bytes"
 	"context"
+	"errors"
+	"reflect"
 	"testing"
 
 	"github.com/alevsk/rbac-ops/internal/renderer"
@@ -115,5 +117,56 @@ metadata:
 				t.Errorf("IdentityExtractor.Extract() metadata count = %v, want %d", count, tt.want)
 			}
 		})
+	}
+}
+
+func TestIdentityExtractor_Validate(t *testing.T) {
+	e := NewIdentityExtractor(nil)
+
+	if err := e.Validate(nil); !errors.Is(err, ErrInvalidInput) {
+		t.Errorf("Validate(nil) error = %v, want %v", err, ErrInvalidInput)
+	}
+
+	err := e.Validate([]*renderer.Manifest{{}})
+	if err == nil || !errors.Is(err, ErrInvalidInput) {
+		t.Errorf("Validate(empty manifest) error = %v, want %v", err, ErrInvalidInput)
+	}
+
+	if err := e.Validate([]*renderer.Manifest{{Raw: []byte("a: b")}}); err != nil {
+		t.Errorf("Validate(valid) unexpected error: %v", err)
+	}
+}
+
+func TestIdentityExtractor_SetGetOptions(t *testing.T) {
+	e := NewIdentityExtractor(nil)
+	def := e.GetOptions()
+	custom := &Options{StrictParsing: false, IncludeMetadata: false}
+	e.SetOptions(custom)
+	if e.GetOptions() != custom {
+		t.Errorf("GetOptions() did not return set options")
+	}
+
+	e.SetOptions(nil)
+	if e.GetOptions() != custom {
+		t.Errorf("SetOptions(nil) should not modify options")
+	}
+
+	if reflect.DeepEqual(def, custom) {
+		t.Errorf("default and custom options unexpectedly equal")
+	}
+}
+
+func TestIdentityExtractor_Extract_NonStrict(t *testing.T) {
+	e := NewIdentityExtractor(nil)
+	opts := e.GetOptions()
+	opts.StrictParsing = false
+	e.SetOptions(opts)
+	manifests := []*renderer.Manifest{{Raw: []byte("invalid: [yaml")}}
+	result, err := e.Extract(context.Background(), manifests)
+	if err != nil {
+		t.Fatalf("Extract() unexpected error: %v", err)
+	}
+	if count, ok := result.Metadata["count"].(int); !ok || count != 0 {
+		t.Errorf("metadata count = %v, want 0", result.Metadata["count"])
 	}
 }

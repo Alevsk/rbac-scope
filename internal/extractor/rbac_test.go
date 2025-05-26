@@ -3,6 +3,8 @@ package extractor
 import (
 	"bytes"
 	"context"
+	"errors"
+	"reflect"
 	"testing"
 
 	"github.com/alevsk/rbac-ops/internal/renderer"
@@ -285,5 +287,111 @@ roleRef:
 	}
 	if len(anotherSARBAC.Roles) != 1 {
 		t.Errorf("another-sa has %d roles, want 1", len(anotherSARBAC.Roles))
+	}
+}
+
+func TestRBACExtractor_Validate(t *testing.T) {
+	e := NewRBACExtractor(nil)
+
+	if err := e.Validate(nil); !errors.Is(err, ErrInvalidInput) {
+		t.Errorf("Validate(nil) error = %v, want %v", err, ErrInvalidInput)
+	}
+
+	err := e.Validate([]*renderer.Manifest{{}})
+	if err == nil || !errors.Is(err, ErrInvalidInput) {
+		t.Errorf("Validate(empty) error = %v, want %v", err, ErrInvalidInput)
+	}
+
+	if err := e.Validate([]*renderer.Manifest{{Raw: []byte("kind: Pod")}}); err != nil {
+		t.Errorf("Validate(valid) unexpected error: %v", err)
+	}
+}
+
+func TestRBACExtractor_SetGetOptions(t *testing.T) {
+	e := NewRBACExtractor(nil)
+	def := e.GetOptions()
+	custom := &Options{StrictParsing: false}
+	e.SetOptions(custom)
+	if e.GetOptions() != custom {
+		t.Errorf("GetOptions did not return custom value")
+	}
+	e.SetOptions(nil)
+	if e.GetOptions() != custom {
+		t.Errorf("SetOptions(nil) modified options")
+	}
+	if reflect.DeepEqual(def, custom) {
+		t.Errorf("default and custom options unexpectedly equal")
+	}
+}
+
+func TestRBACExtractor_Extract_NonStrict(t *testing.T) {
+	e := NewRBACExtractor(nil)
+	opts := e.GetOptions()
+	opts.StrictParsing = false
+	e.SetOptions(opts)
+	manifests := []*renderer.Manifest{{Raw: []byte("invalid: [yaml")}}
+	result, err := e.Extract(context.Background(), manifests)
+	if err != nil {
+		t.Fatalf("Extract non strict error: %v", err)
+	}
+	rbacMap := result.Data["rbac"].(map[string]map[string]ServiceAccountRBAC)
+	if len(rbacMap) != 0 {
+		t.Errorf("expected empty rbac map, got %v", rbacMap)
+	}
+}
+
+func TestRBACExtractor_DeduplicateRoles(t *testing.T) {
+	manifest := `apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pod-reader
+  namespace: default
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: read-pods-1
+  namespace: default
+subjects:
+- kind: ServiceAccount
+  name: sa
+  namespace: default
+roleRef:
+  kind: Role
+  name: pod-reader
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: read-pods-2
+  namespace: default
+subjects:
+- kind: ServiceAccount
+  name: sa
+  namespace: default
+roleRef:
+  kind: Role
+  name: pod-reader
+  apiGroup: rbac.authorization.k8s.io`
+
+	e := NewRBACExtractor(nil)
+	docs := bytes.Split([]byte(manifest), []byte("\n---\n"))
+	var manifests []*renderer.Manifest
+	for _, d := range docs {
+		manifests = append(manifests, &renderer.Manifest{Raw: d})
+	}
+	res, err := e.Extract(context.Background(), manifests)
+	if err != nil {
+		t.Fatalf("Extract error: %v", err)
+	}
+	rbacMap := res.Data["rbac"].(map[string]map[string]ServiceAccountRBAC)
+	roles := rbacMap["sa"]["default"].Roles
+	if len(roles) != 1 {
+		t.Errorf("expected 1 role, got %d", len(roles))
 	}
 }

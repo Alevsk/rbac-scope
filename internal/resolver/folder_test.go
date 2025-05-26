@@ -1,4 +1,4 @@
-package ingestor
+package resolver
 
 import (
 	"context"
@@ -84,7 +84,6 @@ func TestFolderResolver_Resolve(t *testing.T) {
 			opts := &Options{
 				ValidateYAML:   true,
 				FollowSymlinks: tt.followSymlinks,
-				MaxConcurrency: 4,
 			}
 
 			r := NewFolderResolver(tt.source, opts)
@@ -193,7 +192,6 @@ rules:
 			opts := &Options{
 				ValidateYAML:   true,
 				FollowSymlinks: tt.followSymlinks,
-				MaxConcurrency: 4,
 			}
 
 			r := NewFolderResolver(tt.source, opts)

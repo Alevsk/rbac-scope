@@ -5,6 +5,8 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	"github.com/alevsk/rbac-ops/internal/resolver"
 )
 
 // Options holds configuration for the ingestor
@@ -62,8 +64,12 @@ func (i *Ingestor) Ingest(ctx context.Context, source string) (*Result, error) {
 		return nil, ErrInvalidSource
 	}
 
+	opts := &resolver.Options{
+		ValidateYAML:   i.opts.ValidateYAML,
+		FollowSymlinks: i.opts.FollowSymlinks,
+	}
 	// Get the appropriate resolver for this source
-	resolver, err := ResolverFactory(source, i.opts)
+	resolver, err := resolver.ResolverFactory(source, opts)
 	if err != nil {
 		return nil, err
 	}

@@ -1,4 +1,4 @@
-package ingestor
+package resolver
 
 import (
 	"context"
@@ -8,6 +8,22 @@ import (
 	"path/filepath"
 	"strings"
 )
+
+// Options holds configuration for the resolver
+type Options struct {
+	// FollowSymlinks determines if symlinks should be followed during directory traversal
+	FollowSymlinks bool
+	// ValidateYAML enables strict YAML validation during ingestion
+	ValidateYAML bool
+}
+
+// DefaultOptions returns the default resolver options
+func DefaultOptions() *Options {
+	return &Options{
+		FollowSymlinks: false,
+		ValidateYAML:   true,
+	}
+}
 
 // String returns the string representation of a SourceType
 func (st SourceType) String() string {

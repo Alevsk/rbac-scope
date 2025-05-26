@@ -5,10 +5,6 @@ import (
 	"fmt"
 
 	"github.com/alevsk/rbac-ops/internal/renderer"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/serializer"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 )
 
 // Identity represents a service account identity
@@ -31,9 +27,7 @@ type Identity struct {
 
 // IdentityExtractor implements Extractor for ServiceAccount resources
 type IdentityExtractor struct {
-	opts    *Options
-	scheme  *runtime.Scheme
-	decoder runtime.Decoder
+	opts *Options
 }
 
 // NewIdentityExtractor creates a new IdentityExtractor
@@ -42,15 +36,8 @@ func NewIdentityExtractor(opts *Options) *IdentityExtractor {
 		opts = DefaultOptions()
 	}
 
-	scheme := runtime.NewScheme()
-	utilruntime.Must(corev1.AddToScheme(scheme))
-
-	decoder := serializer.NewCodecFactory(scheme).UniversalDeserializer()
-
 	return &IdentityExtractor{
-		opts:    opts,
-		scheme:  scheme,
-		decoder: decoder,
+		opts: opts,
 	}
 }
 
@@ -63,42 +50,73 @@ func (e *IdentityExtractor) Extract(ctx context.Context, manifests []*renderer.M
 	var identities []Identity
 
 	for _, manifest := range manifests {
-		// Try to decode as ServiceAccount
-		obj, gvk, err := e.decoder.Decode(manifest.Raw, nil, nil)
-		if err != nil {
+		// Check if it's a ServiceAccount
+		kind, ok := manifest.Content["kind"].(string)
+		if !ok {
 			if e.opts.StrictParsing {
-				return nil, fmt.Errorf("failed to decode manifest: %w", err)
+				return nil, fmt.Errorf("missing kind field in manifest")
 			}
 			continue
 		}
-
-		// Check if it's a ServiceAccount
-		if gvk.Kind != "ServiceAccount" {
+		if kind != "ServiceAccount" {
 			continue
 		}
 
-		sa, ok := obj.(*corev1.ServiceAccount)
+		metadata, ok := manifest.Content["metadata"].(map[string]interface{})
 		if !ok {
+			if e.opts.StrictParsing {
+				return nil, fmt.Errorf("invalid metadata in ServiceAccount manifest")
+			}
 			continue
 		}
 
 		// Convert ServiceAccount to Identity
 		identity := Identity{
-			Name:           sa.Name,
-			Namespace:      sa.Namespace,
-			AutomountToken: sa.AutomountServiceAccountToken != nil && *sa.AutomountServiceAccountToken,
-			Labels:         sa.Labels,
-			Annotations:    sa.Annotations,
+			Name:        metadata["name"].(string),
+			Namespace:   metadata["namespace"].(string),
+			Labels:      make(map[string]string),
+			Annotations: make(map[string]string),
+		}
+
+		// Handle labels
+		if labels, ok := metadata["labels"].(map[string]interface{}); ok {
+			for k, v := range labels {
+				identity.Labels[k] = v.(string)
+			}
+		}
+
+		// Handle annotations
+		if annotations, ok := metadata["annotations"].(map[string]interface{}); ok {
+			for k, v := range annotations {
+				identity.Annotations[k] = v.(string)
+			}
+		}
+
+		// Handle automountServiceAccountToken
+		if automount, ok := manifest.Content["automountServiceAccountToken"].(bool); ok {
+			identity.AutomountToken = automount
 		}
 
 		// Extract secret names
-		for _, secret := range sa.Secrets {
-			identity.Secrets = append(identity.Secrets, secret.Name)
+		if secrets, ok := manifest.Content["secrets"].([]interface{}); ok {
+			for _, secret := range secrets {
+				if secretMap, ok := secret.(map[string]interface{}); ok {
+					if name, ok := secretMap["name"].(string); ok {
+						identity.Secrets = append(identity.Secrets, name)
+					}
+				}
+			}
 		}
 
 		// Extract image pull secret names
-		for _, secret := range sa.ImagePullSecrets {
-			identity.ImagePullSecrets = append(identity.ImagePullSecrets, secret.Name)
+		if imagePullSecrets, ok := manifest.Content["imagePullSecrets"].([]interface{}); ok {
+			for _, secret := range imagePullSecrets {
+				if secretMap, ok := secret.(map[string]interface{}); ok {
+					if name, ok := secretMap["name"].(string); ok {
+						identity.ImagePullSecrets = append(identity.ImagePullSecrets, name)
+					}
+				}
+			}
 		}
 
 		identities = append(identities, identity)
@@ -109,10 +127,10 @@ func (e *IdentityExtractor) Extract(ctx context.Context, manifests []*renderer.M
 	identityMap := make(map[string]map[string]Identity)
 
 	for _, identity := range identities {
-		if _, exists := identityMap[identity.Name]; !exists {
-			identityMap[identity.Name] = make(map[string]Identity)
+		if _, exists := identityMap[identity.Namespace]; !exists {
+			identityMap[identity.Namespace] = make(map[string]Identity)
 		}
-		identityMap[identity.Name][identity.Namespace] = identity
+		identityMap[identity.Namespace][identity.Name] = identity
 	}
 
 	result.Data["identities"] = identityMap

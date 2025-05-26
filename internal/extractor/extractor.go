@@ -19,7 +19,7 @@ type Options struct {
 // DefaultOptions returns the default extractor options
 func DefaultOptions() *Options {
 	return &Options{
-		StrictParsing:   true,
+		StrictParsing:   false,
 		IncludeMetadata: true,
 	}
 }

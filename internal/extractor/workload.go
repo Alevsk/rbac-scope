@@ -5,13 +5,6 @@ import (
 	"fmt"
 
 	"github.com/alevsk/rbac-ops/internal/renderer"
-
-	appsv1 "k8s.io/api/apps/v1"
-	batchv1 "k8s.io/api/batch/v1"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/serializer"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 )
 
 // WorkloadType represents the type of Kubernetes workload
@@ -49,9 +42,7 @@ type Workload struct {
 
 // WorkloadExtractor implements Extractor for workload resources
 type WorkloadExtractor struct {
-	opts    *Options
-	scheme  *runtime.Scheme
-	decoder runtime.Decoder
+	opts *Options
 }
 
 // NewWorkloadExtractor creates a new WorkloadExtractor
@@ -60,17 +51,8 @@ func NewWorkloadExtractor(opts *Options) *WorkloadExtractor {
 		opts = DefaultOptions()
 	}
 
-	scheme := runtime.NewScheme()
-	utilruntime.Must(corev1.AddToScheme(scheme))
-	utilruntime.Must(appsv1.AddToScheme(scheme))
-	utilruntime.Must(batchv1.AddToScheme(scheme))
-
-	decoder := serializer.NewCodecFactory(scheme).UniversalDeserializer()
-
 	return &WorkloadExtractor{
-		opts:    opts,
-		scheme:  scheme,
-		decoder: decoder,
+		opts: opts,
 	}
 }
 
@@ -83,35 +65,48 @@ func (e *WorkloadExtractor) Extract(ctx context.Context, manifests []*renderer.M
 	var workloads []Workload
 
 	for _, manifest := range manifests {
-		obj, gvk, err := e.decoder.Decode(manifest.Raw, nil, nil)
-		if err != nil {
+		// Get the kind of workload
+		kind, ok := manifest.Content["kind"].(string)
+		if !ok {
 			if e.opts.StrictParsing {
-				return nil, fmt.Errorf("failed to decode document: %w", err)
+				return nil, fmt.Errorf("missing kind in manifest")
+			}
+			continue
+		}
+
+		// Get metadata
+		metadata, ok := manifest.Content["metadata"].(map[string]interface{})
+		if !ok {
+			if e.opts.StrictParsing {
+				return nil, fmt.Errorf("invalid metadata in manifest")
+			}
+			continue
+		}
+
+		// Get spec
+		spec, ok := manifest.Content["spec"].(map[string]interface{})
+		if !ok {
+			if e.opts.StrictParsing {
+				return nil, fmt.Errorf("invalid spec in manifest")
 			}
 			continue
 		}
 
 		var workload *Workload
 
-		switch gvk.Kind {
+		switch kind {
 		case string(WorkloadTypePod):
-			pod := obj.(*corev1.Pod)
-			workload = e.extractPodWorkload(pod)
+			workload = e.extractPodWorkload(metadata, spec)
 		case string(WorkloadTypeDeployment):
-			deploy := obj.(*appsv1.Deployment)
-			workload = e.extractDeploymentWorkload(deploy)
+			workload = e.extractDeploymentWorkload(metadata, spec)
 		case string(WorkloadTypeStatefulSet):
-			sts := obj.(*appsv1.StatefulSet)
-			workload = e.extractStatefulSetWorkload(sts)
+			workload = e.extractStatefulSetWorkload(metadata, spec)
 		case string(WorkloadTypeDaemonSet):
-			ds := obj.(*appsv1.DaemonSet)
-			workload = e.extractDaemonSetWorkload(ds)
+			workload = e.extractDaemonSetWorkload(metadata, spec)
 		case string(WorkloadTypeJob):
-			job := obj.(*batchv1.Job)
-			workload = e.extractJobWorkload(job)
+			workload = e.extractJobWorkload(metadata, spec)
 		case string(WorkloadTypeCronJob):
-			cronJob := obj.(*batchv1.CronJob)
-			workload = e.extractCronJobWorkload(cronJob)
+			workload = e.extractCronJobWorkload(metadata, spec)
 		default:
 			continue
 		}
@@ -142,145 +137,222 @@ func (e *WorkloadExtractor) Extract(ctx context.Context, manifests []*renderer.M
 	return result, nil
 }
 
-func (e *WorkloadExtractor) extractPodWorkload(pod *corev1.Pod) *Workload {
+func (e *WorkloadExtractor) extractPodWorkload(metadata, spec map[string]interface{}) *Workload {
 	workload := &Workload{
 		Type:            WorkloadTypePod,
-		Name:            pod.Name,
-		Namespace:       pod.Namespace,
-		ServiceAccount:  pod.Spec.ServiceAccountName,
-		Labels:          pod.Labels,
-		Annotations:     pod.Annotations,
-		SecurityContext: toMap(pod.Spec.SecurityContext),
+		Name:            metadata["name"].(string),
+		Namespace:       metadata["namespace"].(string),
+		ServiceAccount:  getStringValue(spec, "serviceAccountName"),
+		Labels:          toStringMap(metadata["labels"]),
+		Annotations:     toStringMap(metadata["annotations"]),
+		SecurityContext: getMap(spec, "securityContext"),
 	}
 
-	for _, c := range pod.Spec.Containers {
-		container := Container{
-			Name:            c.Name,
-			Image:           c.Image,
-			SecurityContext: toMap(c.SecurityContext),
-			Resources:       toMap(c.Resources),
+	containers, ok := spec["containers"].([]interface{})
+	if ok {
+		for _, c := range containers {
+			containerMap, ok := c.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			container := Container{
+				Name:            getStringValue(containerMap, "name"),
+				Image:           getStringValue(containerMap, "image"),
+				SecurityContext: getMap(containerMap, "securityContext"),
+				Resources:       getMap(containerMap, "resources"),
+			}
+			workload.Containers = append(workload.Containers, container)
 		}
-		workload.Containers = append(workload.Containers, container)
 	}
 
 	return workload
 }
 
-func (e *WorkloadExtractor) extractDeploymentWorkload(deploy *appsv1.Deployment) *Workload {
+func (e *WorkloadExtractor) extractDeploymentWorkload(metadata, spec map[string]interface{}) *Workload {
+	templateSpec := getTemplateSpec(spec)
+	if templateSpec == nil {
+		return nil
+	}
+
 	workload := &Workload{
 		Type:            WorkloadTypeDeployment,
-		Name:            deploy.Name,
-		Namespace:       deploy.Namespace,
-		ServiceAccount:  deploy.Spec.Template.Spec.ServiceAccountName,
-		Labels:          deploy.Labels,
-		Annotations:     deploy.Annotations,
-		SecurityContext: toMap(deploy.Spec.Template.Spec.SecurityContext),
+		Name:            metadata["name"].(string),
+		Namespace:       metadata["namespace"].(string),
+		ServiceAccount:  getStringValue(templateSpec, "serviceAccountName"),
+		Labels:          toStringMap(metadata["labels"]),
+		Annotations:     toStringMap(metadata["annotations"]),
+		SecurityContext: getMap(templateSpec, "securityContext"),
 	}
 
-	for _, c := range deploy.Spec.Template.Spec.Containers {
-		container := Container{
-			Name:            c.Name,
-			Image:           c.Image,
-			SecurityContext: toMap(c.SecurityContext),
-			Resources:       toMap(c.Resources),
+	containers, ok := templateSpec["containers"].([]interface{})
+	if ok {
+		for _, c := range containers {
+			containerMap, ok := c.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			container := Container{
+				Name:            getStringValue(containerMap, "name"),
+				Image:           getStringValue(containerMap, "image"),
+				SecurityContext: getMap(containerMap, "securityContext"),
+				Resources:       getMap(containerMap, "resources"),
+			}
+			workload.Containers = append(workload.Containers, container)
 		}
-		workload.Containers = append(workload.Containers, container)
 	}
 
 	return workload
 }
 
-func (e *WorkloadExtractor) extractStatefulSetWorkload(sts *appsv1.StatefulSet) *Workload {
+func (e *WorkloadExtractor) extractStatefulSetWorkload(metadata, spec map[string]interface{}) *Workload {
+	templateSpec := getTemplateSpec(spec)
+	if templateSpec == nil {
+		return nil
+	}
+
 	workload := &Workload{
 		Type:            WorkloadTypeStatefulSet,
-		Name:            sts.Name,
-		Namespace:       sts.Namespace,
-		ServiceAccount:  sts.Spec.Template.Spec.ServiceAccountName,
-		Labels:          sts.Labels,
-		Annotations:     sts.Annotations,
-		SecurityContext: toMap(sts.Spec.Template.Spec.SecurityContext),
+		Name:            metadata["name"].(string),
+		Namespace:       metadata["namespace"].(string),
+		ServiceAccount:  getStringValue(templateSpec, "serviceAccountName"),
+		Labels:          toStringMap(metadata["labels"]),
+		Annotations:     toStringMap(metadata["annotations"]),
+		SecurityContext: getMap(templateSpec, "securityContext"),
 	}
 
-	for _, c := range sts.Spec.Template.Spec.Containers {
-		container := Container{
-			Name:            c.Name,
-			Image:           c.Image,
-			SecurityContext: toMap(c.SecurityContext),
-			Resources:       toMap(c.Resources),
+	containers, ok := templateSpec["containers"].([]interface{})
+	if ok {
+		for _, c := range containers {
+			containerMap, ok := c.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			container := Container{
+				Name:            getStringValue(containerMap, "name"),
+				Image:           getStringValue(containerMap, "image"),
+				SecurityContext: getMap(containerMap, "securityContext"),
+				Resources:       getMap(containerMap, "resources"),
+			}
+			workload.Containers = append(workload.Containers, container)
 		}
-		workload.Containers = append(workload.Containers, container)
 	}
 
 	return workload
 }
 
-func (e *WorkloadExtractor) extractDaemonSetWorkload(ds *appsv1.DaemonSet) *Workload {
+func (e *WorkloadExtractor) extractDaemonSetWorkload(metadata, spec map[string]interface{}) *Workload {
+	templateSpec := getTemplateSpec(spec)
+	if templateSpec == nil {
+		return nil
+	}
+
 	workload := &Workload{
 		Type:            WorkloadTypeDaemonSet,
-		Name:            ds.Name,
-		Namespace:       ds.Namespace,
-		ServiceAccount:  ds.Spec.Template.Spec.ServiceAccountName,
-		Labels:          ds.Labels,
-		Annotations:     ds.Annotations,
-		SecurityContext: toMap(ds.Spec.Template.Spec.SecurityContext),
+		Name:            metadata["name"].(string),
+		Namespace:       metadata["namespace"].(string),
+		ServiceAccount:  getStringValue(templateSpec, "serviceAccountName"),
+		Labels:          toStringMap(metadata["labels"]),
+		Annotations:     toStringMap(metadata["annotations"]),
+		SecurityContext: getMap(templateSpec, "securityContext"),
 	}
 
-	for _, c := range ds.Spec.Template.Spec.Containers {
-		container := Container{
-			Name:            c.Name,
-			Image:           c.Image,
-			SecurityContext: toMap(c.SecurityContext),
-			Resources:       toMap(c.Resources),
+	containers, ok := templateSpec["containers"].([]interface{})
+	if ok {
+		for _, c := range containers {
+			containerMap, ok := c.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			container := Container{
+				Name:            getStringValue(containerMap, "name"),
+				Image:           getStringValue(containerMap, "image"),
+				SecurityContext: getMap(containerMap, "securityContext"),
+				Resources:       getMap(containerMap, "resources"),
+			}
+			workload.Containers = append(workload.Containers, container)
 		}
-		workload.Containers = append(workload.Containers, container)
 	}
 
 	return workload
 }
 
-func (e *WorkloadExtractor) extractJobWorkload(job *batchv1.Job) *Workload {
+func (e *WorkloadExtractor) extractJobWorkload(metadata, spec map[string]interface{}) *Workload {
+	templateSpec := getTemplateSpec(spec)
+	if templateSpec == nil {
+		return nil
+	}
+
 	workload := &Workload{
 		Type:            WorkloadTypeJob,
-		Name:            job.Name,
-		Namespace:       job.Namespace,
-		ServiceAccount:  job.Spec.Template.Spec.ServiceAccountName,
-		Labels:          job.Labels,
-		Annotations:     job.Annotations,
-		SecurityContext: toMap(job.Spec.Template.Spec.SecurityContext),
+		Name:            metadata["name"].(string),
+		Namespace:       metadata["namespace"].(string),
+		ServiceAccount:  getStringValue(templateSpec, "serviceAccountName"),
+		Labels:          toStringMap(metadata["labels"]),
+		Annotations:     toStringMap(metadata["annotations"]),
+		SecurityContext: getMap(templateSpec, "securityContext"),
 	}
 
-	for _, c := range job.Spec.Template.Spec.Containers {
-		container := Container{
-			Name:            c.Name,
-			Image:           c.Image,
-			SecurityContext: toMap(c.SecurityContext),
-			Resources:       toMap(c.Resources),
+	containers, ok := templateSpec["containers"].([]interface{})
+	if ok {
+		for _, c := range containers {
+			containerMap, ok := c.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			container := Container{
+				Name:            getStringValue(containerMap, "name"),
+				Image:           getStringValue(containerMap, "image"),
+				SecurityContext: getMap(containerMap, "securityContext"),
+				Resources:       getMap(containerMap, "resources"),
+			}
+			workload.Containers = append(workload.Containers, container)
 		}
-		workload.Containers = append(workload.Containers, container)
 	}
 
 	return workload
 }
 
-func (e *WorkloadExtractor) extractCronJobWorkload(cronJob *batchv1.CronJob) *Workload {
-	workload := &Workload{
-		Type:            WorkloadTypeCronJob,
-		Name:            cronJob.Name,
-		Namespace:       cronJob.Namespace,
-		ServiceAccount:  cronJob.Spec.JobTemplate.Spec.Template.Spec.ServiceAccountName,
-		Labels:          cronJob.Labels,
-		Annotations:     cronJob.Annotations,
-		SecurityContext: toMap(cronJob.Spec.JobTemplate.Spec.Template.Spec.SecurityContext),
+func (e *WorkloadExtractor) extractCronJobWorkload(metadata, spec map[string]interface{}) *Workload {
+	jobTemplate, ok := spec["jobTemplate"].(map[string]interface{})
+	if !ok {
+		return nil
 	}
 
-	for _, c := range cronJob.Spec.JobTemplate.Spec.Template.Spec.Containers {
-		container := Container{
-			Name:            c.Name,
-			Image:           c.Image,
-			SecurityContext: toMap(c.SecurityContext),
-			Resources:       toMap(c.Resources),
+	jobSpec, ok := jobTemplate["spec"].(map[string]interface{})
+	if !ok {
+		return nil
+	}
+
+	templateSpec := getTemplateSpec(jobSpec)
+	if templateSpec == nil {
+		return nil
+	}
+
+	workload := &Workload{
+		Type:            WorkloadTypeCronJob,
+		Name:            metadata["name"].(string),
+		Namespace:       metadata["namespace"].(string),
+		ServiceAccount:  getStringValue(templateSpec, "serviceAccountName"),
+		Labels:          toStringMap(metadata["labels"]),
+		Annotations:     toStringMap(metadata["annotations"]),
+		SecurityContext: getMap(templateSpec, "securityContext"),
+	}
+
+	containers, ok := templateSpec["containers"].([]interface{})
+	if ok {
+		for _, c := range containers {
+			containerMap, ok := c.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			container := Container{
+				Name:            getStringValue(containerMap, "name"),
+				Image:           getStringValue(containerMap, "image"),
+				SecurityContext: getMap(containerMap, "securityContext"),
+				Resources:       getMap(containerMap, "resources"),
+			}
+			workload.Containers = append(workload.Containers, container)
 		}
-		workload.Containers = append(workload.Containers, container)
 	}
 
 	return workload
@@ -313,14 +385,52 @@ func (e *WorkloadExtractor) GetOptions() *Options {
 	return e.opts
 }
 
-// toMap converts any struct to a map[string]interface{}
-func toMap(v interface{}) map[string]interface{} {
+// getStringValue returns the string value of a key in a map
+func getStringValue(m map[string]interface{}, key string) string {
+	if val, ok := m[key].(string); ok {
+		return val
+	}
+	return ""
+}
+
+// getMap returns the map value of a key in a map
+func getMap(m map[string]interface{}, key string) map[string]interface{} {
+	if val, ok := m[key].(map[string]interface{}); ok {
+		return val
+	}
+	return nil
+}
+
+// toStringMap converts a map to a map of strings
+func toStringMap(v interface{}) map[string]string {
 	if v == nil {
 		return nil
 	}
-	result, err := runtime.DefaultUnstructuredConverter.ToUnstructured(v)
-	if err != nil {
+
+	if m, ok := v.(map[string]interface{}); ok {
+		result := make(map[string]string)
+		for k, v := range m {
+			if str, ok := v.(string); ok {
+				result[k] = str
+			}
+		}
+		return result
+	}
+
+	return nil
+}
+
+// getTemplateSpec returns the template spec from a workload spec
+func getTemplateSpec(spec map[string]interface{}) map[string]interface{} {
+	template, ok := spec["template"].(map[string]interface{})
+	if !ok {
 		return nil
 	}
-	return result
+
+	templateSpec, ok := template["spec"].(map[string]interface{})
+	if !ok {
+		return nil
+	}
+
+	return templateSpec
 }

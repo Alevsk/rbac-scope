@@ -3,17 +3,22 @@ package extractor
 import (
 	"bytes"
 	"context"
+	"reflect"
 	"testing"
 
 	"github.com/alevsk/rbac-ops/internal/renderer"
+	"gopkg.in/yaml.v3"
 )
 
 func TestRBACExtractor_Extract(t *testing.T) {
 	tests := []struct {
-		name     string
-		manifest string
-		want     int
-		wantErr  bool
+		name          string
+		manifest      string
+		want          int
+		wantErr       bool
+		strictParsing bool
+		wantRole      *RBACRole
+		wantBinding   *RBACBinding
 	}{
 		{
 			name: "valid role",
@@ -28,6 +33,18 @@ rules:
   verbs: ["get", "list", "watch"]`,
 			want:    0, // No binding, so not counted
 			wantErr: false,
+			wantRole: &RBACRole{
+				Type:      "Role",
+				Name:      "pod-reader",
+				Namespace: "default",
+				Permissions: []RBACPermission{
+					{
+						APIGroups: []string{""},
+						Resources: []string{"pods"},
+						Verbs:     []string{"get", "list", "watch"},
+					},
+				},
+			},
 		},
 		{
 			name: "valid cluster role",
@@ -41,6 +58,17 @@ rules:
   verbs: ["get", "list", "watch"]`,
 			want:    0, // No binding, so not counted
 			wantErr: false,
+			wantRole: &RBACRole{
+				Type: "ClusterRole",
+				Name: "pod-reader",
+				Permissions: []RBACPermission{
+					{
+						APIGroups: []string{""},
+						Resources: []string{"pods"},
+						Verbs:     []string{"get", "list", "watch"},
+					},
+				},
+			},
 		},
 		{
 			name: "valid role binding",
@@ -69,6 +97,25 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io`,
 			want:    1, // Role with binding
 			wantErr: false,
+			wantRole: &RBACRole{
+				Type:      "Role",
+				Name:      "pod-reader",
+				Namespace: "default",
+				Permissions: []RBACPermission{
+					{
+						APIGroups: []string{""},
+						Resources: []string{"pods"},
+						Verbs:     []string{"get", "list", "watch"},
+					},
+				},
+			},
+			wantBinding: &RBACBinding{
+				Type:      "RoleBinding",
+				Name:      "read-pods",
+				Namespace: "default",
+				Subjects:  []string{"test-sa"},
+				RoleRef:   "pod-reader",
+			},
 		},
 		{
 			name: "valid cluster role binding",
@@ -151,40 +198,87 @@ data:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			e := NewRBACExtractor(nil)
+			// Set strict parsing if specified
+			opts := DefaultOptions()
+			opts.StrictParsing = tt.strictParsing
+			e := NewRBACExtractor(opts)
+
 			// Split manifest into multiple documents if needed
 			docs := bytes.Split([]byte(tt.manifest), []byte("\n---\n"))
 			var manifests []*renderer.Manifest
 			for _, doc := range docs {
-				manifests = append(manifests, &renderer.Manifest{Raw: doc})
+				// Parse YAML into map[string]interface{}
+				var content map[string]interface{}
+				if err := yaml.Unmarshal(doc, &content); err == nil {
+					manifests = append(manifests, &renderer.Manifest{Raw: doc, Content: content})
+				}
 			}
+
 			result, err := e.Extract(context.Background(), manifests)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("RBACExtractor.Extract() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
+
 			if err != nil {
 				return
 			}
 
-			// Verify the RBAC map structure
-			rbacMap, ok := result.Data["rbac"].(map[string]map[string]ServiceAccountRBAC)
+			// Verify roles
+			var ok bool
+			var roles []RBACRole
+			roles, ok = result.Data["roles"].([]RBACRole)
 			if !ok {
-				t.Errorf("RBACExtractor.Extract() result.Data[\"rbac\"] is not map[string]map[string]ServiceAccountRBAC")
+				t.Errorf("RBACExtractor.Extract() result.Data[\"roles\"] is not []RBACRole")
 				return
 			}
 
-			// Count total number of roles across all service accounts and namespaces
-			totalRoles := 0
-			for _, nsMap := range rbacMap {
-				for _, saRBAC := range nsMap {
-					totalRoles += len(saRBAC.Roles)
+			// Verify bindings
+			var bindings []RBACBinding
+			bindings, ok = result.Data["bindings"].([]RBACBinding)
+			if !ok {
+				t.Errorf("RBACExtractor.Extract() result.Data[\"bindings\"] is not []RBACBinding")
+				return
+			}
+
+			// Verify expected role if provided
+			if tt.wantRole != nil {
+				found := false
+				for _, role := range roles {
+					if role.Name == tt.wantRole.Name && role.Type == tt.wantRole.Type {
+						if !reflect.DeepEqual(role, *tt.wantRole) {
+							t.Errorf("RBACExtractor.Extract() got role = %v, want %v", role, *tt.wantRole)
+						}
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("RBACExtractor.Extract() role %s/%s not found", tt.wantRole.Type, tt.wantRole.Name)
 				}
 			}
 
-			if totalRoles != tt.want {
-				t.Errorf("RBACExtractor.Extract() got %d RBAC roles, want %d", totalRoles, tt.want)
+			// Verify expected binding if provided
+			if tt.wantBinding != nil {
+				found := false
+				for _, binding := range bindings {
+					if binding.Name == tt.wantBinding.Name && binding.Type == tt.wantBinding.Type {
+						if !reflect.DeepEqual(binding, *tt.wantBinding) {
+							t.Errorf("RBACExtractor.Extract() got binding = %v, want %v", binding, *tt.wantBinding)
+						}
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("RBACExtractor.Extract() binding %s/%s not found", tt.wantBinding.Type, tt.wantBinding.Name)
+				}
+			}
+
+			// Verify total number of bindings matches want
+			if len(bindings) != tt.want {
+				t.Errorf("RBACExtractor.Extract() got %d bindings, want %d", len(bindings), tt.want)
 			}
 		})
 	}
@@ -244,7 +338,10 @@ roleRef:
 	docs := bytes.Split([]byte(manifest), []byte("\n---\n"))
 	var manifests []*renderer.Manifest
 	for _, doc := range docs {
-		manifests = append(manifests, &renderer.Manifest{Raw: doc})
+		var content map[string]interface{}
+		if err := yaml.Unmarshal(doc, &content); err == nil {
+			manifests = append(manifests, &renderer.Manifest{Raw: doc, Content: content})
+		}
 	}
 
 	result, err := e.Extract(context.Background(), manifests)

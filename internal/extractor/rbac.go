@@ -5,11 +5,6 @@ import (
 	"fmt"
 
 	"github.com/alevsk/rbac-ops/internal/renderer"
-	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/serializer"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 )
 
 // RBACPermission represents a permission from a Role or ClusterRole
@@ -43,8 +38,7 @@ type ServiceAccountRBAC struct {
 
 // RBACExtractor implements Extractor for RBAC resources
 type RBACExtractor struct {
-	decoder runtime.Decoder
-	opts    *Options
+	opts *Options
 }
 
 // NewRBACExtractor creates a new RBACExtractor
@@ -53,13 +47,8 @@ func NewRBACExtractor(opts *Options) *RBACExtractor {
 		opts = DefaultOptions()
 	}
 
-	scheme := runtime.NewScheme()
-	utilruntime.Must(corev1.AddToScheme(scheme))
-	utilruntime.Must(rbacv1.AddToScheme(scheme))
-
 	return &RBACExtractor{
-		decoder: serializer.NewCodecFactory(scheme).UniversalDeserializer(),
-		opts:    opts,
+		opts: opts,
 	}
 }
 
@@ -74,75 +63,87 @@ func (e *RBACExtractor) Extract(ctx context.Context, manifests []*renderer.Manif
 	var bindings []RBACBinding
 
 	for _, manifest := range manifests {
-		obj, gvk, err := e.decoder.Decode(manifest.Raw, nil, nil)
-		if err != nil {
+		// Get kind and metadata
+		kind, ok := manifest.Content["kind"].(string)
+		if !ok {
 			if e.opts != nil && e.opts.StrictParsing {
-				return nil, fmt.Errorf("failed to decode manifest: %w", err)
+				return nil, fmt.Errorf("missing kind in manifest")
 			}
 			continue
 		}
 
-		switch gvk.Kind {
-		case "Role":
-			role := obj.(*rbacv1.Role)
-			rbacRole := RBACRole{
-				Type:      "Role",
-				Name:      role.Name,
-				Namespace: role.Namespace,
+		metadata, ok := manifest.Content["metadata"].(map[string]interface{})
+		if !ok {
+			if e.opts != nil && e.opts.StrictParsing {
+				return nil, fmt.Errorf("invalid metadata in manifest")
 			}
-			for _, rule := range role.Rules {
-				rbacRole.Permissions = append(rbacRole.Permissions, RBACPermission{
-					APIGroups: rule.APIGroups,
-					Resources: rule.Resources,
-					Verbs:     rule.Verbs,
-				})
-			}
-			roles = append(roles, rbacRole)
+			continue
+		}
 
-		case "ClusterRole":
-			clusterRole := obj.(*rbacv1.ClusterRole)
-			rbacRole := RBACRole{
-				Type: "ClusterRole",
-				Name: clusterRole.Name,
-			}
-			for _, rule := range clusterRole.Rules {
-				rbacRole.Permissions = append(rbacRole.Permissions, RBACPermission{
-					APIGroups: rule.APIGroups,
-					Resources: rule.Resources,
-					Verbs:     rule.Verbs,
-				})
-			}
-			roles = append(roles, rbacRole)
+		name := metadata["name"].(string)
+		namespace := ""
+		if ns, ok := metadata["namespace"].(string); ok {
+			namespace = ns
+		}
 
-		case "RoleBinding":
-			binding := obj.(*rbacv1.RoleBinding)
-			var subjects []string
-			for _, subject := range binding.Subjects {
-				if subject.Kind == "ServiceAccount" {
-					subjects = append(subjects, subject.Name)
+		switch kind {
+		case "Role", "ClusterRole":
+			rbacRole := RBACRole{
+				Type:      kind,
+				Name:      name,
+				Namespace: namespace,
+			}
+
+			// Extract rules
+			if rules, ok := manifest.Content["rules"].([]interface{}); ok {
+				for _, r := range rules {
+					rule, ok := r.(map[string]interface{})
+					if !ok {
+						continue
+					}
+
+					permission := RBACPermission{
+						APIGroups: toStringSlice(rule["apiGroups"]),
+						Resources: toStringSlice(rule["resources"]),
+						Verbs:     toStringSlice(rule["verbs"]),
+					}
+					rbacRole.Permissions = append(rbacRole.Permissions, permission)
 				}
 			}
+			roles = append(roles, rbacRole)
+
+		case "RoleBinding", "ClusterRoleBinding":
+			// Extract subjects
+			var subjects []string
+			if subjectsArray, ok := manifest.Content["subjects"].([]interface{}); ok {
+				for _, s := range subjectsArray {
+					subject, ok := s.(map[string]interface{})
+					if !ok {
+						continue
+					}
+
+					if subjectKind, ok := subject["kind"].(string); ok && subjectKind == "ServiceAccount" {
+						if subjectName, ok := subject["name"].(string); ok {
+							subjects = append(subjects, subjectName)
+						}
+					}
+				}
+			}
+
+			// Extract roleRef
+			roleRef := ""
+			if ref, ok := manifest.Content["roleRef"].(map[string]interface{}); ok {
+				if refName, ok := ref["name"].(string); ok {
+					roleRef = refName
+				}
+			}
+
 			bindings = append(bindings, RBACBinding{
-				Type:      "RoleBinding",
-				Name:      binding.Name,
-				Namespace: binding.Namespace,
+				Type:      kind,
+				Name:      name,
+				Namespace: namespace,
 				Subjects:  subjects,
-				RoleRef:   binding.RoleRef.Name,
-			})
-
-		case "ClusterRoleBinding":
-			binding := obj.(*rbacv1.ClusterRoleBinding)
-			var subjects []string
-			for _, subject := range binding.Subjects {
-				if subject.Kind == "ServiceAccount" {
-					subjects = append(subjects, subject.Name)
-				}
-			}
-			bindings = append(bindings, RBACBinding{
-				Type:     "ClusterRoleBinding",
-				Name:     binding.Name,
-				Subjects: subjects,
-				RoleRef:  binding.RoleRef.Name,
+				RoleRef:   roleRef,
 			})
 		}
 	}
@@ -211,6 +212,8 @@ func (e *RBACExtractor) Extract(ctx context.Context, manifests []*renderer.Manif
 		}
 	}
 
+	result.Data["roles"] = roles
+	result.Data["bindings"] = bindings
 	result.Data["rbac"] = rbacMap
 	// Update metadata
 	result.Metadata["roleCount"] = len(roles)
@@ -241,4 +244,23 @@ func (e *RBACExtractor) GetOptions() *Options {
 // SetOptions sets the extractor options
 func (e *RBACExtractor) SetOptions(opts *Options) {
 	e.opts = opts
+}
+
+// toStringSlice converts an interface{} to []string
+func toStringSlice(v interface{}) []string {
+	if v == nil {
+		return nil
+	}
+
+	if slice, ok := v.([]interface{}); ok {
+		result := make([]string, 0, len(slice))
+		for _, item := range slice {
+			if str, ok := item.(string); ok {
+				result = append(result, str)
+			}
+		}
+		return result
+	}
+
+	return nil
 }

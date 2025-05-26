@@ -6,14 +6,16 @@ import (
 	"testing"
 
 	"github.com/alevsk/rbac-ops/internal/renderer"
+	"gopkg.in/yaml.v3"
 )
 
 func TestWorkloadExtractor_Extract(t *testing.T) {
 	tests := []struct {
-		name     string
-		manifest string
-		want     int
-		wantErr  bool
+		name          string
+		manifest      string
+		want          int
+		wantErr       bool
+		strictParsing bool
 	}{
 		{
 			name: "valid pod",
@@ -126,12 +128,19 @@ metadata:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			e := NewWorkloadExtractor(nil)
+			// Set strict parsing if specified
+			opts := DefaultOptions()
+			opts.StrictParsing = tt.strictParsing
+			e := NewWorkloadExtractor(opts)
+
 			// Split manifest into multiple documents if needed
 			docs := bytes.Split([]byte(tt.manifest), []byte("\n---\n"))
 			var manifests []*renderer.Manifest
 			for _, doc := range docs {
-				manifests = append(manifests, &renderer.Manifest{Raw: doc})
+				var content map[string]interface{}
+				if err := yaml.Unmarshal(doc, &content); err == nil {
+					manifests = append(manifests, &renderer.Manifest{Raw: doc, Content: content})
+				}
 			}
 			result, err := e.Extract(context.Background(), manifests)
 

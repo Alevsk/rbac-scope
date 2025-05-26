@@ -26,7 +26,7 @@ rules:
 - apiGroups: [""]
   resources: ["pods"]
   verbs: ["get", "list", "watch"]`,
-			want:    1,
+			want:    0, // No binding, so not counted
 			wantErr: false,
 		},
 		{
@@ -39,12 +39,22 @@ rules:
 - apiGroups: [""]
   resources: ["pods"]
   verbs: ["get", "list", "watch"]`,
-			want:    1,
+			want:    0, // No binding, so not counted
 			wantErr: false,
 		},
 		{
 			name: "valid role binding",
 			manifest: `apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pod-reader
+  namespace: default
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: read-pods
@@ -57,12 +67,21 @@ roleRef:
   kind: Role
   name: pod-reader
   apiGroup: rbac.authorization.k8s.io`,
-			want:    1,
+			want:    1, // Role with binding
 			wantErr: false,
 		},
 		{
 			name: "valid cluster role binding",
 			manifest: `apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: pod-reader
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: read-pods
@@ -74,7 +93,7 @@ roleRef:
   kind: ClusterRole
   name: pod-reader
   apiGroup: rbac.authorization.k8s.io`,
-			want:    1,
+			want:    1, // ClusterRole with binding
 			wantErr: false,
 		},
 		{
@@ -102,7 +121,7 @@ roleRef:
   kind: Role
   name: pod-reader
   apiGroup: rbac.authorization.k8s.io`,
-			want:    2,
+			want:    1, // One role with binding
 			wantErr: false,
 		},
 		{
@@ -149,24 +168,122 @@ data:
 				return
 			}
 
-			// Check if we got the expected number of RBAC resources
-			gotRoles := result.Metadata["roleCount"].(int)
-			gotBindings := result.Metadata["bindingCount"].(int)
-			got := gotRoles + gotBindings
-
-			if got != tt.want {
-				t.Errorf("RBACExtractor.Extract() got %d RBAC resources, want %d", got, tt.want)
+			// Verify the RBAC map structure
+			rbacMap, ok := result.Data["rbac"].(map[string]map[string]ServiceAccountRBAC)
+			if !ok {
+				t.Errorf("RBACExtractor.Extract() result.Data[\"rbac\"] is not map[string]map[string]ServiceAccountRBAC")
+				return
 			}
 
-			// Verify that metadata counts match the actual data
-			roles := result.Data["roles"].([]RBACRole)
-			bindings := result.Data["bindings"].([]RBACBinding)
-			if len(roles) != gotRoles {
-				t.Errorf("RBACExtractor.Extract() roles count = %d, want %d", len(roles), gotRoles)
+			// Count total number of roles across all service accounts and namespaces
+			totalRoles := 0
+			for _, nsMap := range rbacMap {
+				for _, saRBAC := range nsMap {
+					totalRoles += len(saRBAC.Roles)
+				}
 			}
-			if len(bindings) != gotBindings {
-				t.Errorf("RBACExtractor.Extract() bindings count = %d, want %d", len(bindings), gotBindings)
+
+			if totalRoles != tt.want {
+				t.Errorf("RBACExtractor.Extract() got %d RBAC roles, want %d", totalRoles, tt.want)
 			}
 		})
+	}
+}
+
+func TestRBACExtractor_ServiceAccountMapping(t *testing.T) {
+	manifest := `apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pod-reader
+  namespace: default
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: secret-reader
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: read-pods
+  namespace: default
+subjects:
+- kind: ServiceAccount
+  name: test-sa
+  namespace: default
+- kind: ServiceAccount
+  name: another-sa
+  namespace: default
+roleRef:
+  kind: Role
+  name: pod-reader
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: read-secrets
+subjects:
+- kind: ServiceAccount
+  name: test-sa
+  namespace: default
+roleRef:
+  kind: ClusterRole
+  name: secret-reader
+  apiGroup: rbac.authorization.k8s.io`
+
+	e := NewRBACExtractor(nil)
+	docs := bytes.Split([]byte(manifest), []byte("\n---\n"))
+	var manifests []*renderer.Manifest
+	for _, doc := range docs {
+		manifests = append(manifests, &renderer.Manifest{Raw: doc})
+	}
+
+	result, err := e.Extract(context.Background(), manifests)
+	if err != nil {
+		t.Fatalf("RBACExtractor.Extract() error = %v", err)
+	}
+
+	rbacMap, ok := result.Data["rbac"].(map[string]map[string]ServiceAccountRBAC)
+	if !ok {
+		t.Fatal("RBACExtractor.Extract() result.Data[\"rbac\"] is not map[string]map[string]ServiceAccountRBAC")
+	}
+
+	// Check test-sa in default namespace and cluster-wide namespace
+	testSADefaultRBAC, ok := rbacMap["test-sa"]["default"]
+	if !ok {
+		t.Errorf("test-sa not found in default namespace")
+		return
+	}
+	testSAClusterRBAC, ok := rbacMap["test-sa"]["*"]
+	if !ok {
+		t.Errorf("test-sa not found in cluster-wide namespace")
+		return
+	}
+
+	// test-sa should have 1 role in default namespace and 1 cluster role
+	if len(testSADefaultRBAC.Roles) != 1 {
+		t.Errorf("test-sa has %d roles in default namespace, want 1", len(testSADefaultRBAC.Roles))
+	}
+	if len(testSAClusterRBAC.Roles) != 1 {
+		t.Errorf("test-sa has %d cluster roles, want 1", len(testSAClusterRBAC.Roles))
+	}
+
+	// Check another-sa in default namespace
+	anotherSARBAC, ok := rbacMap["another-sa"]["default"]
+	if !ok {
+		t.Errorf("another-sa not found in default namespace")
+		return
+	}
+	if len(anotherSARBAC.Roles) != 1 {
+		t.Errorf("another-sa has %d roles, want 1", len(anotherSARBAC.Roles))
 	}
 }

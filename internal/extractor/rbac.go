@@ -36,6 +36,11 @@ type RBACRole struct {
 	Permissions []RBACPermission `json:"permissions"`
 }
 
+// ServiceAccountRBAC represents all RBAC information for a service account
+type ServiceAccountRBAC struct {
+	Roles []RBACRole `json:"roles"` // Roles bound to this service account
+}
+
 // RBACExtractor implements Extractor for RBAC resources
 type RBACExtractor struct {
 	decoder runtime.Decoder
@@ -142,10 +147,73 @@ func (e *RBACExtractor) Extract(ctx context.Context, manifests []*renderer.Manif
 		}
 	}
 
+	// Create a map to store ServiceAccountRBAC by service account name and namespace
+	rbacMap := make(map[string]map[string]ServiceAccountRBAC)
+
+	// First, create maps for roles by name and type for quick lookup
+	rolesByName := make(map[string]map[string]RBACRole)
+	clusterRolesByName := make(map[string]RBACRole)
+	for _, role := range roles {
+		if role.Type == "ClusterRole" {
+			clusterRolesByName[role.Name] = role
+		} else {
+			rolesByName[role.Name] = make(map[string]RBACRole)
+			rolesByName[role.Name][role.Namespace] = role
+		}
+	}
+
+	// Process bindings to organize roles by service account
+	for _, binding := range bindings {
+		for _, subject := range binding.Subjects {
+			// Initialize maps if they don't exist
+			if _, exists := rbacMap[subject]; !exists {
+				rbacMap[subject] = make(map[string]ServiceAccountRBAC)
+			}
+
+			// For ClusterRoleBindings, we need to add the binding to the "*" namespace
+			// since they apply cluster-wide
+			namespace := binding.Namespace
+			if binding.Type == "ClusterRoleBinding" {
+				namespace = "*"
+			}
+
+			// Initialize the ServiceAccountRBAC if it doesn't exist
+			if _, exists := rbacMap[subject][namespace]; !exists {
+				rbacMap[subject][namespace] = ServiceAccountRBAC{}
+			}
+			saRBAC := rbacMap[subject][namespace]
+
+			// Add the referenced role based on the binding type
+			var role RBACRole
+			var exists bool
+			if binding.Type == "ClusterRoleBinding" {
+				role, exists = clusterRolesByName[binding.RoleRef]
+			} else {
+				role, exists = rolesByName[binding.RoleRef][binding.Namespace]
+			}
+
+			if exists {
+				// Check if the role is already added
+				alreadyAddedRole := false
+				for _, r := range saRBAC.Roles {
+					if r.Name == role.Name && r.Type == role.Type {
+						alreadyAddedRole = true
+						break
+					}
+				}
+				if !alreadyAddedRole {
+					saRBAC.Roles = append(saRBAC.Roles, role)
+				}
+			}
+
+			// Update the map
+			rbacMap[subject][namespace] = saRBAC
+		}
+	}
+
+	result.Data["rbac"] = rbacMap
+	// Update metadata
 	result.Metadata["roleCount"] = len(roles)
-	result.Metadata["bindingCount"] = len(bindings)
-	result.Data["roles"] = roles
-	result.Data["bindings"] = bindings
 
 	return result, nil
 }

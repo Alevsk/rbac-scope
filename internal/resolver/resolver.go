@@ -3,10 +3,11 @@ package resolver
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/alevsk/rbac-ops/internal/renderer"
 )
 
 // Options holds configuration for the resolver
@@ -44,9 +45,9 @@ type SourceResolver interface {
 	// CanResolve checks if this resolver can handle the given source
 	CanResolve(source string) bool
 
-	// Resolve processes the source and returns a reader for its contents
+	// Resolve processes the source and returns the rendered manifests
 	// For directories, this should return an error as they need special handling
-	Resolve(ctx context.Context) (io.ReadCloser, *ResolverMetadata, error)
+	Resolve(ctx context.Context) (*renderer.Result, *ResolverMetadata, error)
 }
 
 // ResolverFactory creates the appropriate resolver for a given source

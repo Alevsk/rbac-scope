@@ -3,7 +3,6 @@ package resolver
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -51,8 +50,8 @@ func (r *LocalYAMLResolver) CanResolve(source string) bool {
 	return ext == ".yaml" || ext == ".yml"
 }
 
-// Resolve processes the source and returns a reader for its contents
-func (r *LocalYAMLResolver) Resolve(ctx context.Context) (io.ReadCloser, *ResolverMetadata, error) {
+// Resolve processes the source and returns the rendered manifests
+func (r *LocalYAMLResolver) Resolve(ctx context.Context) (*renderer.Result, *ResolverMetadata, error) {
 	// Check context cancellation
 	select {
 	case <-ctx.Done():
@@ -71,55 +70,33 @@ func (r *LocalYAMLResolver) Resolve(ctx context.Context) (io.ReadCloser, *Resolv
 		return nil, nil, fmt.Errorf("not a regular file: %s", r.source)
 	}
 
-	// Open the file
-	file, err := os.Open(r.source)
+	// Read file content
+	content, err := os.ReadFile(r.source)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to open file: %w", err)
-	}
-
-	// Read the entire file for validation and rendering
-	content, err := io.ReadAll(file)
-	if err != nil {
-		file.Close()
 		return nil, nil, fmt.Errorf("failed to read file: %w", err)
 	}
 
 	// Use renderer to validate and process the content
 	if err := r.renderer.Validate(content); err != nil {
-		file.Close()
 		return nil, nil, err
 	}
 
 	// Render the content to ensure it's valid RBAC
 	result, err := r.renderer.Render(ctx, content)
 	if err != nil {
-		file.Close()
 		return nil, nil, err
 	}
 
-	// Seek back to start for the caller
-	if _, err := file.Seek(0, 0); err != nil {
-		file.Close()
-		return nil, nil, fmt.Errorf("failed to seek file: %w", err)
-	}
-
-	// Create metadata with renderer results
-	metadata := &ResolverMetadata{
+	return result, &ResolverMetadata{
 		Type:    SourceTypeFile,
 		Path:    r.source,
 		Size:    info.Size(),
 		ModTime: info.ModTime(),
-	}
-
-	// Add renderer metadata if available
-	if len(result.Manifests) > 0 {
-		metadata.Extra = map[string]interface{}{
+		Extra: map[string]interface{}{
 			"manifests": len(result.Manifests),
 			"warnings":  result.Warnings,
-		}
-	}
-
-	return file, metadata, nil
+		},
+	}, nil
 }
 
 // isValidYAML performs basic YAML validation

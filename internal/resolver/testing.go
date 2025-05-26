@@ -2,10 +2,11 @@ package resolver
 
 import (
 	"context"
-	"io"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/alevsk/rbac-ops/internal/renderer"
 )
 
 // testHelper provides common test utilities for resolvers
@@ -19,37 +20,44 @@ func newTestHelper(t *testing.T) *testHelper {
 }
 
 // verifyResolverOutput checks the output of a resolver against expected values
-func (h *testHelper) verifyResolverOutput(resolver SourceResolver, wantErr bool, wantType SourceType) {
+func (h *testHelper) verifyResolverOutput(resolver SourceResolver, wantErr bool, wantType SourceType) (*renderer.Result, *ResolverMetadata) {
 	ctx := context.Background()
-	reader, metadata, err := resolver.Resolve(ctx)
+	result, metadata, err := resolver.Resolve(ctx)
 	if (err != nil) != wantErr {
 		h.t.Errorf("Resolve() error = %v, wantErr %v", err, wantErr)
-		return
+		return nil, nil
 	}
 	if wantErr {
-		return
+		return nil, nil
 	}
-
-	defer reader.Close()
 
 	if metadata == nil {
 		h.t.Error("Resolve() metadata is nil")
-		return
+		return nil, nil
 	}
 
 	if metadata.Type != wantType {
 		h.t.Errorf("Resolve() type = %v, want %v", metadata.Type, wantType)
 	}
 
-	content, err := io.ReadAll(reader)
-	if err != nil {
-		h.t.Errorf("Failed to read content: %v", err)
-		return
+	if result == nil {
+		h.t.Error("Resolve() result is nil")
+		return nil, nil
 	}
 
-	if !isValidYAML(string(content)) {
-		h.t.Error("Content is not valid YAML")
+	if len(result.Manifests) == 0 {
+		h.t.Error("No manifests found in result")
+		return nil, nil
 	}
+
+	// Check that each manifest is valid YAML
+	for i, manifest := range result.Manifests {
+		if !isValidYAML(string(manifest.Raw)) {
+			h.t.Errorf("Manifest %d is not valid YAML", i)
+		}
+	}
+
+	return result, metadata
 }
 
 // createTempDir creates a temporary directory with the given files

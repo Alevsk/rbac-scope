@@ -3,12 +3,13 @@ package resolver
 import (
 	"context"
 	"fmt"
-	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/alevsk/rbac-ops/internal/renderer"
 )
 
 // FolderResolver implements SourceResolver for directories containing YAML files
@@ -42,8 +43,8 @@ type yamlFile struct {
 	contents []byte
 }
 
-// Resolve processes the source directory and returns a concatenated reader of all YAML files
-func (r *FolderResolver) Resolve(ctx context.Context) (io.ReadCloser, *ResolverMetadata, error) {
+// Resolve processes the source directory and returns the rendered manifests
+func (r *FolderResolver) Resolve(ctx context.Context) (*renderer.Result, *ResolverMetadata, error) {
 	// Check if directory exists
 	info, err := os.Stat(r.source)
 	if err != nil {
@@ -121,14 +122,7 @@ func (r *FolderResolver) Resolve(ctx context.Context) (io.ReadCloser, *ResolverM
 			return nil, nil, fmt.Errorf("failed to render: %w", err)
 		}
 
-		// Convert result to reader
-		var buf strings.Builder
-		for _, manifest := range result.Manifests {
-			buf.Write(manifest.Raw)
-			buf.WriteString("\n---\n")
-		}
-
-		return io.NopCloser(strings.NewReader(buf.String())), meta, nil
+		return result, meta, nil
 	}
 
 	// For YAML files, use the existing logic
@@ -224,7 +218,7 @@ func (r *FolderResolver) Resolve(ctx context.Context) (io.ReadCloser, *ResolverM
 		return nil, nil, fmt.Errorf("no YAML files found in directory")
 	}
 
-	// Create concatenated content with document separators
+	// Combine all YAML files into a single document
 	var builder strings.Builder
 	for i, file := range files {
 		if i > 0 {
@@ -233,15 +227,36 @@ func (r *FolderResolver) Resolve(ctx context.Context) (io.ReadCloser, *ResolverM
 		builder.Write(file.contents)
 	}
 
+	// Use renderer to validate and process the content
+	yamlRenderer, err := GetRendererForType(RendererTypeYAML)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get renderer: %w", err)
+	}
+
+	content := []byte(builder.String())
+	if err := yamlRenderer.Validate(content); err != nil {
+		return nil, nil, err
+	}
+
+	// Render the content to ensure it's valid RBAC
+	result, err := yamlRenderer.Render(ctx, content)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	// Create metadata
 	metadata := &ResolverMetadata{
 		Type:    SourceTypeFolder,
 		Path:    r.source,
 		Size:    totalSize,
 		ModTime: time.Now(),
+		Extra: map[string]interface{}{
+			"manifests": len(result.Manifests),
+			"warnings":  result.Warnings,
+		},
 	}
 
-	return io.NopCloser(strings.NewReader(builder.String())), metadata, nil
+	return result, metadata, nil
 }
 
 // buildWalkFunc creates a WalkDirFunc that finds YAML files and validates them

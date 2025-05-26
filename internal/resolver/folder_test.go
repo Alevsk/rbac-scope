@@ -2,10 +2,8 @@ package resolver
 
 import (
 	"context"
-	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -87,7 +85,7 @@ func TestFolderResolver_Resolve(t *testing.T) {
 			}
 
 			r := NewFolderResolver(tt.source, opts)
-			reader, metadata, err := r.Resolve(context.Background())
+			result, metadata, err := r.Resolve(context.Background())
 			if (err != nil) != tt.wantErr {
 				t.Errorf("FolderResolver.Resolve() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -95,8 +93,6 @@ func TestFolderResolver_Resolve(t *testing.T) {
 			if tt.wantErr {
 				return
 			}
-
-			defer reader.Close()
 
 			if metadata == nil {
 				t.Error("FolderResolver.Resolve() metadata is nil")
@@ -106,23 +102,19 @@ func TestFolderResolver_Resolve(t *testing.T) {
 				t.Errorf("FolderResolver.Resolve() type = %v, want %v", metadata.Type, SourceTypeFolder)
 			}
 
-			// Read all content
-			content, err := io.ReadAll(reader)
-			if err != nil {
-				t.Errorf("Failed to read content: %v", err)
+			if result == nil {
+				t.Error("FolderResolver.Resolve() result is nil")
 				return
 			}
 
-			// Count YAML documents by separator
-			docs := strings.Split(string(content), "\n---\n")
-			if len(docs) != tt.wantFiles {
-				t.Errorf("FolderResolver.Resolve() found %d files, want %d", len(docs), tt.wantFiles)
+			if len(result.Manifests) != tt.wantFiles {
+				t.Errorf("FolderResolver.Resolve() found %d manifests, want %d", len(result.Manifests), tt.wantFiles)
 			}
 
-			// Verify each document is valid YAML
-			for i, doc := range docs {
-				if !isValidYAML(doc) {
-					t.Errorf("Document %d is not valid YAML:\n%s", i+1, doc)
+			// Verify each manifest is valid YAML
+			for i, manifest := range result.Manifests {
+				if !isValidYAML(string(manifest.Raw)) {
+					t.Errorf("Manifest %d is not valid YAML:\n%s", i+1, string(manifest.Raw))
 				}
 			}
 		})
@@ -195,7 +187,7 @@ rules:
 			}
 
 			r := NewFolderResolver(tt.source, opts)
-			reader, metadata, err := r.Resolve(context.Background())
+			result, metadata, err := r.Resolve(context.Background())
 			if (err != nil) != tt.wantErr {
 				t.Errorf("FolderResolver.Resolve() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -203,8 +195,6 @@ rules:
 			if tt.wantErr {
 				return
 			}
-
-			defer reader.Close()
 
 			if metadata == nil {
 				t.Error("FolderResolver.Resolve() metadata is nil")
@@ -214,16 +204,14 @@ rules:
 				t.Errorf("FolderResolver.Resolve() type = %v, want %v", metadata.Type, SourceTypeFolder)
 			}
 
-			content, err := io.ReadAll(reader)
-			if err != nil {
-				t.Errorf("Failed to read content: %v", err)
+			if result == nil {
+				t.Error("FolderResolver.Resolve() result is nil")
 				return
 			}
 
-			docs := strings.Split(string(content), "\n---\n")
 			foundFiles := 0
-			for _, doc := range docs {
-				if strings.TrimSpace(doc) != "" {
+			for _, manifest := range result.Manifests {
+				if len(manifest.Raw) > 0 {
 					foundFiles++
 				}
 			}

@@ -2,7 +2,6 @@ package resolver
 
 import (
 	"context"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -164,7 +163,7 @@ rules:
 				defer cancel()
 			}
 
-			reader, metadata, err := r.Resolve(ctx)
+			result, metadata, err := r.Resolve(ctx)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("RemoteYAMLResolver.Resolve() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -177,8 +176,6 @@ rules:
 				return
 			}
 
-			defer reader.Close()
-
 			if metadata == nil {
 				t.Error("RemoteYAMLResolver.Resolve() metadata is nil")
 				return
@@ -188,14 +185,26 @@ rules:
 				t.Errorf("RemoteYAMLResolver.Resolve() type = %v, want %v", metadata.Type, SourceTypeRemote)
 			}
 
-			content, err := io.ReadAll(reader)
-			if err != nil {
-				t.Errorf("Failed to read content: %v", err)
+			if result == nil {
+				t.Error("RemoteYAMLResolver.Resolve() result is nil")
 				return
 			}
 
-			if !strings.Contains(string(content), "apiVersion") {
-				t.Error("Content does not contain expected YAML")
+			if len(result.Manifests) == 0 {
+				t.Error("No manifests found in result")
+				return
+			}
+
+			// Check that at least one manifest contains apiVersion
+			found := false
+			for _, manifest := range result.Manifests {
+				if strings.Contains(string(manifest.Raw), "apiVersion") {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Error("No manifest contains expected YAML")
 			}
 		})
 	}

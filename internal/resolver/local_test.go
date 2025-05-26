@@ -2,7 +2,6 @@ package resolver
 
 import (
 	"context"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -100,7 +99,7 @@ func TestLocalYAMLResolver_Resolve(t *testing.T) {
 			opts := &Options{ValidateYAML: tt.validate}
 			r := NewLocalYAMLResolver(tt.source, opts)
 
-			reader, metadata, err := r.Resolve(context.Background())
+			result, metadata, err := r.Resolve(context.Background())
 			if (err != nil) != tt.wantErr {
 				t.Errorf("LocalYAMLResolver.Resolve() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -112,8 +111,6 @@ func TestLocalYAMLResolver_Resolve(t *testing.T) {
 				}
 				return
 			}
-
-			defer reader.Close()
 
 			if metadata == nil {
 				t.Error("LocalYAMLResolver.Resolve() metadata is nil")
@@ -134,13 +131,22 @@ func TestLocalYAMLResolver_Resolve(t *testing.T) {
 				}
 			}
 
-			// Verify we can read the content
-			content, err := io.ReadAll(reader)
-			if err != nil {
-				t.Errorf("Failed to read content: %v", err)
+			// Verify we have valid manifests
+			if result == nil {
+				t.Error("LocalYAMLResolver.Resolve() result is nil")
+				return
 			}
-			if len(content) == 0 {
-				t.Error("Content is empty")
+
+			if len(result.Manifests) == 0 {
+				t.Error("No manifests found in result")
+				return
+			}
+
+			// Check that each manifest has content
+			for i, manifest := range result.Manifests {
+				if len(manifest.Raw) == 0 {
+					t.Errorf("Manifest %d is empty", i)
+				}
 			}
 		})
 	}

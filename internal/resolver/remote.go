@@ -101,8 +101,8 @@ func (r *RemoteYAMLResolver) CanResolve(source string) bool {
 	return ext == ".yaml" || ext == ".yml"
 }
 
-// Resolve processes the source and returns a reader for its contents
-func (r *RemoteYAMLResolver) Resolve(ctx context.Context) (io.ReadCloser, *ResolverMetadata, error) {
+// Resolve processes the source and returns the rendered manifests
+func (r *RemoteYAMLResolver) Resolve(ctx context.Context) (*renderer.Result, *ResolverMetadata, error) {
 	// Create request with context
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, r.source, nil)
 	if err != nil {
@@ -118,50 +118,38 @@ func (r *RemoteYAMLResolver) Resolve(ctx context.Context) (io.ReadCloser, *Resol
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to fetch URL: %w", err)
 	}
+	defer resp.Body.Close()
 
 	// Check response status
 	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
 		return nil, nil, fmt.Errorf("HTTP request failed with status: %s", resp.Status)
 	}
 
 	// Always read the entire body for validation and rendering
 	content, err := io.ReadAll(resp.Body)
 	if err != nil {
-		resp.Body.Close()
 		return nil, nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
 	// Use renderer to validate and process the content
 	if err := r.renderer.Validate(content); err != nil {
-		resp.Body.Close()
 		return nil, nil, err
 	}
 
 	// Render the content to ensure it's valid RBAC
 	result, err := r.renderer.Render(ctx, content)
 	if err != nil {
-		resp.Body.Close()
 		return nil, nil, err
 	}
 
-	// Create metadata with renderer results
-	metadata := &ResolverMetadata{
+	return result, &ResolverMetadata{
 		Type:    SourceTypeRemote,
 		Path:    r.source,
 		Size:    int64(len(content)),
 		ModTime: time.Now(),
-	}
-
-	// Add renderer metadata if available
-	if len(result.Manifests) > 0 {
-		metadata.Extra = map[string]interface{}{
+		Extra: map[string]interface{}{
 			"manifests": len(result.Manifests),
 			"warnings":  result.Warnings,
-		}
-	}
-
-	// Create a new reader from the content
-	return io.NopCloser(strings.NewReader(string(content))), metadata, nil
-
+		},
+	}, nil
 }

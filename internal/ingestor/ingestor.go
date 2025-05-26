@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/alevsk/rbac-ops/internal/extractor"
 	"github.com/alevsk/rbac-ops/internal/resolver"
 )
 
@@ -55,6 +56,10 @@ type Result struct {
 	Success   bool
 	Error     error
 	Timestamp int64
+	// Extracted data from each extractor
+	IdentityData *extractor.Result
+	WorkloadData *extractor.Result
+	RBACData     *extractor.Result
 }
 
 // Ingest starts the ingestion process from the given source
@@ -69,23 +74,57 @@ func (i *Ingestor) Ingest(ctx context.Context, source string) (*Result, error) {
 		FollowSymlinks: i.opts.FollowSymlinks,
 	}
 	// Get the appropriate resolver for this source
-	resolver, err := resolver.ResolverFactory(source, opts)
+	r, err := resolver.ResolverFactory(source, opts)
 	if err != nil {
 		return nil, err
+	}
+
+	// Create extractors
+	ef := extractor.NewExtractorFactory()
+
+	identityExtractor, err := ef.NewExtractor("identity", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create identity extractor: %w", err)
+	}
+
+	workloadExtractor, err := ef.NewExtractor("workload", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create workload extractor: %w", err)
+	}
+
+	rbacExtractor, err := ef.NewExtractor("rbac", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create RBAC extractor: %w", err)
 	}
 
 	// Resolve the source
-	reader, metadata, err := resolver.Resolve(ctx)
+	renderedResult, metadata, err := r.Resolve(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer reader.Close()
 
-	// TODO: Process the resolved content (will be implemented in subsequent tasks)
+	// Extract data using each extractor
+	identityData, err := identityExtractor.Extract(ctx, renderedResult.Manifests)
+	if err != nil {
+		return nil, fmt.Errorf("identity extraction failed: %w", err)
+	}
+
+	workloadData, err := workloadExtractor.Extract(ctx, renderedResult.Manifests)
+	if err != nil {
+		return nil, fmt.Errorf("workload extraction failed: %w", err)
+	}
+
+	rbacData, err := rbacExtractor.Extract(ctx, renderedResult.Manifests)
+	if err != nil {
+		return nil, fmt.Errorf("RBAC extraction failed: %w", err)
+	}
 
 	return &Result{
-		Source:    metadata.Path,
-		Success:   true,
-		Timestamp: time.Now().Unix(),
+		Source:       metadata.Path,
+		Success:      true,
+		Timestamp:    time.Now().Unix(),
+		IdentityData: identityData,
+		WorkloadData: workloadData,
+		RBACData:     rbacData,
 	}, nil
 }

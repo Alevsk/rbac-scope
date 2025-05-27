@@ -1,4 +1,3 @@
-// Package formatter provides functionality for formatting output in different formats
 package formatter
 
 import (
@@ -136,6 +135,7 @@ func (t *Table) Format(data types.Result) (string, error) {
 		"API GROUP",
 		"RESOURCE",
 		"VERBS",
+		"RISK",
 	})
 
 	// Extract RBAC data and create table entries
@@ -164,8 +164,7 @@ func (t *Table) Format(data types.Result) (string, error) {
 							// Sort verbs for consistent output
 							sort.Strings(verbs)
 
-							// Add row to table
-							rbacTable.AppendRow(table.Row{
+							row := table.Row{
 								saName,
 								namespace,
 								role.Type, // This will be either "Role" or "ClusterRole"
@@ -173,7 +172,16 @@ func (t *Table) Format(data types.Result) (string, error) {
 								apiGroup,
 								resource,
 								strings.Join(verbs, ","),
-							})
+							}
+
+							riskRule := MatchRiskRule(row)
+							if riskRule != nil {
+								row = append(row, riskRule.RiskLevel.String())
+							} else {
+								row = append(row, "")
+							}
+							// Add row to table
+							rbacTable.AppendRow(row)
 						}
 					}
 				}

@@ -88,6 +88,8 @@ func (r *LocalYAMLResolver) Resolve(ctx context.Context) (*renderer.Result, *Res
 	}
 
 	return result, &ResolverMetadata{
+		Name:    r.source,
+		Version: result.Version,
 		Type:    SourceTypeFile,
 		Path:    r.source,
 		Size:    info.Size(),

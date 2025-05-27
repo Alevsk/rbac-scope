@@ -40,6 +40,10 @@ type Manifest struct {
 
 // Result contains the output of a render operation
 type Result struct {
+	// Name of the artifact
+	Name string `json:"name"`
+	// Version of the artifact
+	Version string `json:"version"`
 	// Manifests is a list of rendered YAML manifests
 	Manifests []*Manifest
 	// Warnings contains non-fatal issues encountered during rendering

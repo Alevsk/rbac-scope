@@ -86,7 +86,7 @@ func (r *HelmRenderer) Validate(input []byte) error {
 }
 
 // Render processes a Helm chart and returns the rendered manifests
-func (r *HelmRenderer) Render(ctx context.Context, _ []byte) (*Result, error) {
+func (r *HelmRenderer) Render(ctx context.Context, folder []byte) (*Result, error) {
 	// Lock the files map for reading
 	r.mux.RLock()
 	defer r.mux.RUnlock()
@@ -137,6 +137,8 @@ func (r *HelmRenderer) Render(ctx context.Context, _ []byte) (*Result, error) {
 
 	// Create result
 	result := &Result{
+		Name:      chart.Name(),
+		Version:   chart.Metadata.Version,
 		Manifests: make([]*Manifest, 0),
 		Warnings:  make([]string, 0),
 	}

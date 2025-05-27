@@ -2,6 +2,7 @@ package renderer
 
 import (
 	"context"
+	"crypto/sha512"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -31,7 +32,7 @@ func NewKustomizeRenderer(opts *Options) *KustomizeRenderer {
 }
 
 // Render processes a Kustomize directory and returns the rendered manifests
-func (r *KustomizeRenderer) Render(ctx context.Context, _ []byte) (*Result, error) {
+func (r *KustomizeRenderer) Render(ctx context.Context, folder []byte) (*Result, error) {
 	// Create an in-memory filesystem
 	fs := filesys.MakeFsInMemory()
 
@@ -66,8 +67,14 @@ func (r *KustomizeRenderer) Render(ctx context.Context, _ []byte) (*Result, erro
 		return nil, fmt.Errorf("failed to convert resources to yaml: %w", err)
 	}
 
+	// Calculate the version as the sha512 of the yamlData
+	hash := sha512.Sum512(yamlData)
+	version := fmt.Sprintf("sha512: %x", hash)
+
 	// Parse the rendered manifests
 	result := &Result{
+		Name:      string(folder),
+		Version:   version,
 		Manifests: make([]*Manifest, 0),
 	}
 

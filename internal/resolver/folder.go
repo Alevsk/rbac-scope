@@ -101,14 +101,6 @@ func (r *FolderResolver) Resolve(ctx context.Context) (*renderer.Result, *Resolv
 			return nil, nil, fmt.Errorf("failed to walk directory: %w", err)
 		}
 
-		// Get the main file content based on renderer type
-		var mainFile string
-		if rendererType == RendererTypeHelm {
-			mainFile = "Chart.yaml"
-		} else {
-			mainFile = "kustomization.yaml"
-		}
-
 		// Add all files to the renderer
 		for name, content := range files {
 			if err := renderer.AddFile(name, content); err != nil {
@@ -117,10 +109,14 @@ func (r *FolderResolver) Resolve(ctx context.Context) (*renderer.Result, *Resolv
 		}
 
 		// Render using the appropriate renderer
-		result, err := renderer.Render(ctx, files[mainFile])
+		result, err := renderer.Render(ctx, []byte(r.source))
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to render: %w", err)
 		}
+
+		// Set Artifact Name and Version
+		meta.Name = result.Name
+		meta.Version = result.Version
 
 		return result, meta, nil
 	}
@@ -246,6 +242,8 @@ func (r *FolderResolver) Resolve(ctx context.Context) (*renderer.Result, *Resolv
 
 	// Create metadata
 	metadata := &ResolverMetadata{
+		Name:    result.Name,
+		Version: result.Version,
 		Type:    SourceTypeFolder,
 		Path:    r.source,
 		Size:    totalSize,

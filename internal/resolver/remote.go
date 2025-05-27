@@ -143,6 +143,8 @@ func (r *RemoteYAMLResolver) Resolve(ctx context.Context) (*renderer.Result, *Re
 	}
 
 	return result, &ResolverMetadata{
+		Name:    result.Name,
+		Version: result.Version,
 		Type:    SourceTypeRemote,
 		Path:    r.source,
 		Size:    int64(len(content)),

@@ -2,6 +2,7 @@ package renderer
 
 import (
 	"context"
+	"crypto/sha512"
 	"fmt"
 	"io"
 	"strings"
@@ -27,7 +28,12 @@ func (r *YAMLRenderer) Render(ctx context.Context, input []byte) (*Result, error
 		return nil, fmt.Errorf("validation failed: %w", err)
 	}
 
+	hash := sha512.Sum512(input)
+	version := fmt.Sprintf("sha512: %x", hash)
+
 	result := &Result{
+		Name:      "",
+		Version:   version,
 		Manifests: make([]*Manifest, 0),
 	}
 

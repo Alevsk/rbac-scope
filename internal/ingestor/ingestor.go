@@ -52,14 +52,16 @@ var (
 
 // Result represents the outcome of an ingestion operation
 type Result struct {
-	Source    string
-	Success   bool
-	Error     error
-	Timestamp int64
+	Version   string `json:"version"`
+	Name      string `json:"name"`
+	Source    string `json:"source"`
+	Success   bool   `json:"success"`
+	Error     error  `json:"error"`
+	Timestamp int64  `json:"timestamp"`
 	// Extracted data from each extractor
-	IdentityData *extractor.Result
-	WorkloadData *extractor.Result
-	RBACData     *extractor.Result
+	IdentityData *extractor.Result `json:"identity_data"`
+	WorkloadData *extractor.Result `json:"workload_data"`
+	RBACData     *extractor.Result `json:"rbac_data"`
 }
 
 // Ingest starts the ingestion process from the given source
@@ -120,6 +122,8 @@ func (i *Ingestor) Ingest(ctx context.Context, source string) (*Result, error) {
 	}
 
 	return &Result{
+		Name:         metadata.Name,
+		Version:      metadata.Version,
 		Source:       metadata.Path,
 		Success:      true,
 		Timestamp:    time.Now().Unix(),

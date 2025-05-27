@@ -18,6 +18,10 @@ const (
 
 // ResolverMetadata contains information about the resolved source
 type ResolverMetadata struct {
+	// Name of the artifact
+	Name string
+	// Version of the artifact
+	Version string
 	// Type is the source type (file, folder, remote)
 	Type SourceType
 	// RendererType indicates the type of renderer used (yaml, helm, kustomize)

@@ -1,0 +1,4 @@
+apiVersion: v2
+name: test-chart
+description: A test Helm chart
+version: 0.1.0

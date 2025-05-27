@@ -45,8 +45,8 @@ A curated database of RBAC policies used by popular Kubernetes Operators, with s
 - [x] **E502** Implement **IdentityExtractor**: What service accounts or identities are being defined or used?: Who are the identities? extract ServiceAccounts and their namespaces using Kubernetes standard libraries
 - [x] **E503** Implement **WorkloadExtractor**: Extract Namespace + Pod/Deployment/StatefulSet/ReplicaSet/ReplicationController/Job/CronJob/DaemonSet/etc associated with service accounts and the workload metadata such as container image version and securitycontext and any other associated security configuration for the workload using Kubernetes standard libraries
 - [x] **E504** Implement **RBACExtractor**: Extract Roles, RoleBindings, ClusterRoles + verbs/resources and scopes the service accounts have access to and on which namespaces using Kubernetes standard libraries
-- [ ] **E505** On the Ingestor, after rendering, use the extractors to extract the data from each Manifest and print it to stdout in a tabular format for now
-- [ ] **E506** Add comprehensive extractor tests (edge cases, malformed YAML)
+- [x] **E505** On the ingestor.go, modify `reader, metadata, err := resolver.Resolve(ctx)` to return the renderer.Result instead of io.ReadCloser as the reader will not be used, then use each extractor to extract the data from each Manifest and print it to stdout in a tabular format for now
+- [x] **E506** Document supported extractors in `docs/extractor.md`
 
 ### 🧩 Normalizer
 

@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/alevsk/rbac-ops/internal/extractor"
+	"github.com/alevsk/rbac-ops/internal/formatter"
 	"github.com/alevsk/rbac-ops/internal/resolver"
+	"github.com/alevsk/rbac-ops/internal/types"
 )
 
 // Options holds configuration for the ingestor
@@ -18,6 +20,8 @@ type Options struct {
 	FollowSymlinks bool
 	// ValidateYAML enables strict YAML validation during ingestion
 	ValidateYAML bool
+	// OutputFormat defines the format of the output
+	OutputFormat string
 }
 
 // DefaultOptions returns the default ingestor options
@@ -26,6 +30,7 @@ func DefaultOptions() *Options {
 		MaxConcurrency: 4,
 		FollowSymlinks: false,
 		ValidateYAML:   true,
+		OutputFormat:   "table",
 	}
 }
 
@@ -50,19 +55,8 @@ var (
 	ErrInvalidYAML   = fmt.Errorf("invalid YAML content")
 )
 
-// Result represents the outcome of an ingestion operation
-type Result struct {
-	Version   string `json:"version"`
-	Name      string `json:"name"`
-	Source    string `json:"source"`
-	Success   bool   `json:"success"`
-	Error     error  `json:"error"`
-	Timestamp int64  `json:"timestamp"`
-	// Extracted data from each extractor
-	IdentityData *extractor.Result `json:"identity_data"`
-	WorkloadData *extractor.Result `json:"workload_data"`
-	RBACData     *extractor.Result `json:"rbac_data"`
-}
+// Result is an alias for types.Result
+type Result = types.Result
 
 // Ingest starts the ingestion process from the given source
 // The context can be used to cancel the operation
@@ -121,7 +115,7 @@ func (i *Ingestor) Ingest(ctx context.Context, source string) (*Result, error) {
 		return nil, fmt.Errorf("RBAC extraction failed: %w", err)
 	}
 
-	return &Result{
+	result := Result{
 		Name:         metadata.Name,
 		Version:      metadata.Version,
 		Source:       metadata.Path,
@@ -130,5 +124,24 @@ func (i *Ingestor) Ingest(ctx context.Context, source string) (*Result, error) {
 		IdentityData: identityData,
 		WorkloadData: workloadData,
 		RBACData:     rbacData,
-	}, nil
+	}
+
+	// Format the result using the specified output format
+	formatType, err := formatter.ParseType(i.opts.OutputFormat)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse formatter type: %w", err)
+	}
+
+	f, err := formatter.NewFormatter(formatType)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create formatter: %w", err)
+	}
+
+	formatted, err := f.Format(result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to format result: %w", err)
+	}
+
+	result.OutputFormatted = formatted
+	return &result, nil
 }

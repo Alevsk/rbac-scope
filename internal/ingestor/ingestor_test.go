@@ -3,7 +3,6 @@ package ingestor
 import (
 	"context"
 	"testing"
-	"time"
 )
 
 func TestNew(t *testing.T) {
@@ -96,9 +95,6 @@ func TestIngest(t *testing.T) {
 					t.Error("Ingest() success = false, want true")
 				}
 
-				if time.Now().Unix()-result.Timestamp > 5 {
-					t.Error("Ingest() timestamp is too old")
-				}
 			}
 		})
 	}

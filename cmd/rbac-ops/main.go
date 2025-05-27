@@ -21,19 +21,19 @@ helping identify permissions, potential risks, and abuse scenarios.`,
 	SilenceErrors: true, // We'll handle error printing ourselves
 	SilenceUsage:  true, // We'll handle usage printing ourselves
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		// Load configuration
-		var err error
-		cfg, err = config.Load(configPath)
-		if err != nil {
-			return fmt.Errorf("error loading configuration: %w", err)
-		}
+		// // Load configuration
+		// var err error
+		// cfg, err = config.Load(configPath)
+		// if err != nil {
+		// 	return fmt.Errorf("error loading configuration: %w", err)
+		// }
 
-		// Print configuration source
-		if configPath != "" || os.Getenv(config.RbacOpsConfigPathEnvVar) != "" {
-			fmt.Printf("Using config file: %s\n", configPath)
-		} else {
-			fmt.Println("Using default configuration")
-		}
+		// // Print configuration source
+		// if configPath != "" || os.Getenv(config.RbacOpsConfigPathEnvVar) != "" {
+		// 	fmt.Printf("Using config file: %s\n", configPath)
+		// } else {
+		// 	fmt.Println("Using default configuration")
+		// }
 
 		return nil
 	},

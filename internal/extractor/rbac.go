@@ -7,13 +7,6 @@ import (
 	"github.com/alevsk/rbac-ops/internal/renderer"
 )
 
-// RBACPermission represents a permission from a Role or ClusterRole
-type RBACPermission struct {
-	APIGroups []string `json:"apiGroups"`
-	Resources []string `json:"resources"`
-	Verbs     []string `json:"verbs"`
-}
-
 // RBACBinding represents a RoleBinding or ClusterRoleBinding
 type RBACBinding struct {
 	Type      string   `json:"type"` // RoleBinding or ClusterRoleBinding
@@ -25,10 +18,10 @@ type RBACBinding struct {
 
 // RBACRole represents a Role or ClusterRole
 type RBACRole struct {
-	Type        string           `json:"type"` // Role or ClusterRole
-	Name        string           `json:"name"`
-	Namespace   string           `json:"namespace,omitempty"`
-	Permissions []RBACPermission `json:"permissions"`
+	Type        string                                    `json:"type"` // Role or ClusterRole
+	Name        string                                    `json:"name"`
+	Namespace   string                                    `json:"namespace,omitempty"`
+	Permissions map[string]map[string]map[string]struct{} `json:"permissions"` // Permissions represented as map[apiGroup][resource][verb]
 }
 
 // ServiceAccountRBAC represents all RBAC information for a service account
@@ -89,9 +82,10 @@ func (e *RBACExtractor) Extract(ctx context.Context, manifests []*renderer.Manif
 		switch kind {
 		case "Role", "ClusterRole":
 			rbacRole := RBACRole{
-				Type:      kind,
-				Name:      name,
-				Namespace: namespace,
+				Type:        kind,
+				Name:        name,
+				Namespace:   namespace,
+				Permissions: make(map[string]map[string]map[string]struct{}),
 			}
 
 			// Extract rules
@@ -102,12 +96,39 @@ func (e *RBACExtractor) Extract(ctx context.Context, manifests []*renderer.Manif
 						continue
 					}
 
-					permission := RBACPermission{
-						APIGroups: toStringSlice(rule["apiGroups"]),
-						Resources: toStringSlice(rule["resources"]),
-						Verbs:     toStringSlice(rule["verbs"]),
+					apiGroups := toStringSlice(rule["apiGroups"])
+					resources := toStringSlice(rule["resources"])
+					verbs := toStringSlice(rule["verbs"])
+
+					// Optimization: If any list is empty, this rule grants no permissions.
+					if len(resources) == 0 || len(verbs) == 0 {
+						continue
 					}
-					rbacRole.Permissions = append(rbacRole.Permissions, permission)
+
+					for _, apiGroup := range apiGroups {
+						// Get or create the map for the current apiGroup
+						// This reduces lookups for `rbacRole.Permissions[apiGroup]`
+						apiGroupPermissions, agExists := rbacRole.Permissions[apiGroup]
+						if !agExists {
+							apiGroupPermissions = make(map[string]map[string]struct{})
+							rbacRole.Permissions[apiGroup] = apiGroupPermissions
+						}
+
+						for _, resource := range resources {
+							// Get or create the map for the current resource within the apiGroup
+							// This reduces lookups for `apiGroupPermissions[resource]`
+							resourcePermissions, resExists := apiGroupPermissions[resource]
+							if !resExists {
+								resourcePermissions = make(map[string]struct{})
+								apiGroupPermissions[resource] = resourcePermissions
+							}
+
+							for _, verb := range verbs {
+								resourcePermissions[verb] = struct{}{}
+							}
+						}
+					}
+
 				}
 			}
 			roles = append(roles, rbacRole)
@@ -217,6 +238,7 @@ func (e *RBACExtractor) Extract(ctx context.Context, manifests []*renderer.Manif
 	result.Data["rbac"] = rbacMap
 	// Update metadata
 	result.Metadata["roleCount"] = len(roles)
+	result.Metadata["bindingCount"] = len(bindings)
 
 	return result, nil
 }

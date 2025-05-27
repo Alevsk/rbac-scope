@@ -37,11 +37,13 @@ rules:
 				Type:      "Role",
 				Name:      "pod-reader",
 				Namespace: "default",
-				Permissions: []RBACPermission{
-					{
-						APIGroups: []string{""},
-						Resources: []string{"pods"},
-						Verbs:     []string{"get", "list", "watch"},
+				Permissions: map[string]map[string]map[string]struct{}{
+					"": {
+						"pods": {
+							"get":   struct{}{},
+							"list":  struct{}{},
+							"watch": struct{}{},
+						},
 					},
 				},
 			},
@@ -61,11 +63,13 @@ rules:
 			wantRole: &RBACRole{
 				Type: "ClusterRole",
 				Name: "pod-reader",
-				Permissions: []RBACPermission{
-					{
-						APIGroups: []string{""},
-						Resources: []string{"pods"},
-						Verbs:     []string{"get", "list", "watch"},
+				Permissions: map[string]map[string]map[string]struct{}{
+					"": {
+						"pods": {
+							"get":   struct{}{},
+							"list":  struct{}{},
+							"watch": struct{}{},
+						},
 					},
 				},
 			},
@@ -101,11 +105,13 @@ roleRef:
 				Type:      "Role",
 				Name:      "pod-reader",
 				Namespace: "default",
-				Permissions: []RBACPermission{
-					{
-						APIGroups: []string{""},
-						Resources: []string{"pods"},
-						Verbs:     []string{"get", "list", "watch"},
+				Permissions: map[string]map[string]map[string]struct{}{
+					"": {
+						"pods": {
+							"get":   struct{}{},
+							"list":  struct{}{},
+							"watch": struct{}{},
+						},
 					},
 				},
 			},

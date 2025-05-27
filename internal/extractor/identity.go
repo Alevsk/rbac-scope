@@ -127,10 +127,10 @@ func (e *IdentityExtractor) Extract(ctx context.Context, manifests []*renderer.M
 	identityMap := make(map[string]map[string]Identity)
 
 	for _, identity := range identities {
-		if _, exists := identityMap[identity.Namespace]; !exists {
-			identityMap[identity.Namespace] = make(map[string]Identity)
+		if _, exists := identityMap[identity.Name]; !exists {
+			identityMap[identity.Name] = make(map[string]Identity)
 		}
-		identityMap[identity.Namespace][identity.Name] = identity
+		identityMap[identity.Name][identity.Namespace] = identity
 	}
 
 	result.Data["identities"] = identityMap

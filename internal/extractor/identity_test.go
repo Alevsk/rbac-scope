@@ -179,7 +179,7 @@ spec:
 			if tt.wantIdentity != nil {
 				var ok bool
 				var gotIdentity Identity
-				gotIdentity, ok = identityData[tt.wantIdentity.Namespace][tt.wantIdentity.Name]
+				gotIdentity, ok = identityData[tt.wantIdentity.Name][tt.wantIdentity.Namespace]
 				if !ok {
 					t.Errorf("IdentityExtractor.Extract() identity %s/%s not found", tt.wantIdentity.Namespace, tt.wantIdentity.Name)
 					return

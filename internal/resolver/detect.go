@@ -20,21 +20,44 @@ const (
 	RendererTypeKustomize
 )
 
+// rendererDefinition defines a renderer type and its identifiers
+type rendererDefinition struct {
+	Type        RendererType
+	Identifiers []string
+}
+
 // DetectRendererType determines which renderer to use based on the directory contents
 func DetectRendererType(dirPath string) (RendererType, error) {
-	// Check for Chart.yaml (Helm)
-	chartPath := filepath.Join(dirPath, "Chart.yaml")
-	if _, err := os.Stat(chartPath); err == nil {
-		return RendererTypeHelm, nil
+
+	definitions := []rendererDefinition{
+		{
+			Type:        RendererTypeHelm,
+			Identifiers: []string{"Chart.yaml", "Chart.yml"},
+		},
+		{
+			Type:        RendererTypeKustomize,
+			Identifiers: []string{"kustomization.yaml", "kustomization.yml"},
+		},
 	}
 
-	// Check for kustomization.yaml (Kustomize)
-	kustomizePath := filepath.Join(dirPath, "kustomization.yaml")
-	if _, err := os.Stat(kustomizePath); err == nil {
-		return RendererTypeKustomize, nil
+	for _, definition := range definitions {
+		for _, identifier := range definition.Identifiers {
+			filePath := filepath.Join(dirPath, identifier)
+			fileInfo, err := os.Stat(filePath)
+
+			if err == nil {
+				if fileInfo.IsDir() {
+					continue
+				}
+				return definition.Type, nil
+			}
+
+			if !os.IsNotExist(err) {
+				return RendererTypeYAML, fmt.Errorf("error checking for %s: %w", filePath, err)
+			}
+		}
 	}
 
-	// Default to YAML renderer
 	return RendererTypeYAML, nil
 }
 

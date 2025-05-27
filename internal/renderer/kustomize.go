@@ -31,28 +31,9 @@ func NewKustomizeRenderer(opts *Options) *KustomizeRenderer {
 }
 
 // Render processes a Kustomize directory and returns the rendered manifests
-func (r *KustomizeRenderer) Render(ctx context.Context, input []byte) (*Result, error) {
+func (r *KustomizeRenderer) Render(ctx context.Context, _ []byte) (*Result, error) {
 	// Create an in-memory filesystem
 	fs := filesys.MakeFsInMemory()
-
-	// Parse input to get referenced files
-	var kustomization struct {
-		Kind      string   `yaml:"kind"`
-		Resources []string `yaml:"resources"`
-	}
-
-	if err := yaml.Unmarshal(input, &kustomization); err != nil {
-		return nil, fmt.Errorf("failed to parse kustomization: %w", err)
-	}
-
-	// Lock the files map for reading
-	r.mux.RLock()
-	defer r.mux.RUnlock()
-
-	// Write the kustomization file to the in-memory filesystem
-	if err := fs.WriteFile("/kustomization.yaml", input); err != nil {
-		return nil, fmt.Errorf("failed to write kustomization: %w", err)
-	}
 
 	// Write all files from the map to the in-memory filesystem
 	for name, content := range r.files {

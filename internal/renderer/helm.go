@@ -86,7 +86,7 @@ func (r *HelmRenderer) Validate(input []byte) error {
 }
 
 // Render processes a Helm chart and returns the rendered manifests
-func (r *HelmRenderer) Render(ctx context.Context, input []byte) (*Result, error) {
+func (r *HelmRenderer) Render(ctx context.Context, _ []byte) (*Result, error) {
 	// Lock the files map for reading
 	r.mux.RLock()
 	defer r.mux.RUnlock()

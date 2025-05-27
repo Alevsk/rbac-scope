@@ -362,25 +362,16 @@ roleRef:
 	}
 
 	// Check test-sa in default namespace and cluster-wide namespace
-	testSADefaultRBAC, ok := rbacMap["test-sa"]["default"]
+	testSARBAC, ok := rbacMap["test-sa"]["default"]
 	if !ok {
 		t.Errorf("test-sa not found in default namespace")
 		return
 	}
-	testSAClusterRBAC, ok := rbacMap["test-sa"]["*"]
-	if !ok {
-		t.Errorf("test-sa not found in cluster-wide namespace")
-		return
-	}
 
 	// test-sa should have 1 role in default namespace and 1 cluster role
-	if len(testSADefaultRBAC.Roles) != 1 {
-		t.Errorf("test-sa has %d roles in default namespace, want 1", len(testSADefaultRBAC.Roles))
+	if len(testSARBAC.Roles) != 2 {
+		t.Errorf("test-sa has %d roles in default namespace, want 2", len(testSARBAC.Roles))
 	}
-	if len(testSAClusterRBAC.Roles) != 1 {
-		t.Errorf("test-sa has %d cluster roles, want 1", len(testSAClusterRBAC.Roles))
-	}
-
 	// Check another-sa in default namespace
 	anotherSARBAC, ok := rbacMap["another-sa"]["default"]
 	if !ok {

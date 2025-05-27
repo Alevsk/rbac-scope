@@ -157,11 +157,13 @@ func (e *RBACExtractor) Extract(ctx context.Context, manifests []*renderer.Manif
 
 					if subjectKind, ok := subject["kind"].(string); ok && subjectKind == "ServiceAccount" {
 						if subjectName, ok := subject["name"].(string); ok {
-							subjects = append(subjects, BindingSubject{
-								Kind:      subjectKind,
-								Name:      subjectName,
-								Namespace: namespace,
-							})
+							if subjectNamespace, ok := subject["namespace"].(string); ok {
+								subjects = append(subjects, BindingSubject{
+									Kind:      subjectKind,
+									Name:      subjectName,
+									Namespace: subjectNamespace,
+								})
+							}
 						}
 					}
 				}

@@ -365,7 +365,7 @@ func (e *WorkloadExtractor) Validate(manifests []*renderer.Manifest) error {
 	}
 
 	for _, manifest := range manifests {
-		if len(manifest.Raw) == 0 {
+		if manifest.Content == nil {
 			return fmt.Errorf("%w: empty manifest", ErrInvalidInput)
 		}
 	}

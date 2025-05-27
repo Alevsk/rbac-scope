@@ -7,13 +7,20 @@ import (
 	"github.com/alevsk/rbac-ops/internal/renderer"
 )
 
+// BindingSubject represents a Kubernetes subject
+type BindingSubject struct {
+	Kind      string `json:"kind"`
+	Name      string `json:"name"`
+	Namespace string `json:"namespace,omitempty"`
+}
+
 // RBACBinding represents a RoleBinding or ClusterRoleBinding
 type RBACBinding struct {
-	Type      string   `json:"type"` // RoleBinding or ClusterRoleBinding
-	Name      string   `json:"name"`
-	Namespace string   `json:"namespace,omitempty"`
-	Subjects  []string `json:"subjects"` // List of subject names (ServiceAccounts)
-	RoleRef   string   `json:"roleRef"`  // Name of the Role/ClusterRole being referenced
+	Type      string           `json:"type"` // RoleBinding or ClusterRoleBinding
+	Name      string           `json:"name"`
+	Namespace string           `json:"namespace,omitempty"`
+	Subjects  []BindingSubject `json:"subjects"` // List of subject names (ServiceAccounts)
+	RoleRef   string           `json:"roleRef"`  // Name of the Role/ClusterRole being referenced
 }
 
 // RBACRole represents a Role or ClusterRole
@@ -74,9 +81,14 @@ func (e *RBACExtractor) Extract(ctx context.Context, manifests []*renderer.Manif
 		}
 
 		name := metadata["name"].(string)
-		namespace := ""
+
+		namespace := "default" // Default namespace for cluster scoped resources
 		if ns, ok := metadata["namespace"].(string); ok {
 			namespace = ns
+		}
+		// namespace for cluster wide resources
+		if kind == "ClusterRole" || kind == "ClusterRoleBinding" {
+			namespace = "*"
 		}
 
 		switch kind {
@@ -135,7 +147,7 @@ func (e *RBACExtractor) Extract(ctx context.Context, manifests []*renderer.Manif
 
 		case "RoleBinding", "ClusterRoleBinding":
 			// Extract subjects
-			var subjects []string
+			var subjects []BindingSubject
 			if subjectsArray, ok := manifest.Content["subjects"].([]interface{}); ok {
 				for _, s := range subjectsArray {
 					subject, ok := s.(map[string]interface{})
@@ -145,7 +157,11 @@ func (e *RBACExtractor) Extract(ctx context.Context, manifests []*renderer.Manif
 
 					if subjectKind, ok := subject["kind"].(string); ok && subjectKind == "ServiceAccount" {
 						if subjectName, ok := subject["name"].(string); ok {
-							subjects = append(subjects, subjectName)
+							subjects = append(subjects, BindingSubject{
+								Kind:      subjectKind,
+								Name:      subjectName,
+								Namespace: namespace,
+							})
 						}
 					}
 				}
@@ -188,22 +204,15 @@ func (e *RBACExtractor) Extract(ctx context.Context, manifests []*renderer.Manif
 	for _, binding := range bindings {
 		for _, subject := range binding.Subjects {
 			// Initialize maps if they don't exist
-			if _, exists := rbacMap[subject]; !exists {
-				rbacMap[subject] = make(map[string]ServiceAccountRBAC)
-			}
-
-			// For ClusterRoleBindings, we need to add the binding to the "*" namespace
-			// since they apply cluster-wide
-			namespace := binding.Namespace
-			if binding.Type == "ClusterRoleBinding" {
-				namespace = "*"
+			if _, exists := rbacMap[subject.Name]; !exists {
+				rbacMap[subject.Name] = make(map[string]ServiceAccountRBAC)
 			}
 
 			// Initialize the ServiceAccountRBAC if it doesn't exist
-			if _, exists := rbacMap[subject][namespace]; !exists {
-				rbacMap[subject][namespace] = ServiceAccountRBAC{}
+			if _, exists := rbacMap[subject.Name][subject.Namespace]; !exists {
+				rbacMap[subject.Name][subject.Namespace] = ServiceAccountRBAC{}
 			}
-			saRBAC := rbacMap[subject][namespace]
+			saRBAC := rbacMap[subject.Name][subject.Namespace]
 
 			// Add the referenced role based on the binding type
 			var role RBACRole
@@ -229,7 +238,7 @@ func (e *RBACExtractor) Extract(ctx context.Context, manifests []*renderer.Manif
 			}
 
 			// Update the map
-			rbacMap[subject][namespace] = saRBAC
+			rbacMap[subject.Name][subject.Namespace] = saRBAC
 		}
 	}
 

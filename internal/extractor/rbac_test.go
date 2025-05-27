@@ -61,8 +61,9 @@ rules:
 			want:    0, // No binding, so not counted
 			wantErr: false,
 			wantRole: &RBACRole{
-				Type: "ClusterRole",
-				Name: "pod-reader",
+				Type:      "ClusterRole",
+				Name:      "pod-reader",
+				Namespace: "*",
 				Permissions: map[string]map[string]map[string]struct{}{
 					"": {
 						"pods": {
@@ -119,7 +120,7 @@ roleRef:
 				Type:      "RoleBinding",
 				Name:      "read-pods",
 				Namespace: "default",
-				Subjects:  []string{"test-sa"},
+				Subjects:  []BindingSubject{{Kind: "ServiceAccount", Name: "test-sa", Namespace: "default"}},
 				RoleRef:   "pod-reader",
 			},
 		},

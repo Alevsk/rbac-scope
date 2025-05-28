@@ -2,8 +2,6 @@ package formatter
 
 import (
 	"strings"
-
-	"github.com/jedib0t/go-pretty/v6/table"
 )
 
 // contains checks if a string slice contains a specific value
@@ -54,30 +52,20 @@ var RiskRules = []RiskRule{}
 
 // MatchRiskRule checks if a table row matches any of the defined risk rules
 // and returns the matching rule or nil if no match is found
-func MatchRiskRule(row table.Row) *RiskRule {
-	if len(row) < 7 {
-		return nil
-	}
-
-	// Extract values from the row
-	roleType := row[2].(string)
-	apiGroup := row[4].(string)
-	resource := row[5].(string)
-	verbs := row[6].(string)
-
+func MatchRiskRule(row SARoleBindingEntry) *RiskRule {
 	// First, determine the base risk level based on role type and wildcards
 	var baseRisk RiskLevel
 	var description string
 	var category string
 
 	// Determine base risk based on role type and scope
-	if roleType == "ClusterRole" {
-		if apiGroup == "*" {
+	if row.RoleType == "ClusterRole" {
+		if row.APIGroup == "*" {
 			// Cluster-wide access across all namespaces and all API groups
 			baseRisk = RiskLevelCritical
 			description = "Cluster-wide access across all namespaces and all API groups"
 			category = "Broad Cluster Access"
-		} else if resource == "*" && verbs == "*" {
+		} else if row.Resource == "*" && contains(row.Verbs, "*") {
 			// Cluster-wide access but limited to specific API group
 			baseRisk = RiskLevelHigh
 			description = "Cluster-wide access across all namespaces but limited to specific API group"
@@ -89,7 +77,7 @@ func MatchRiskRule(row table.Row) *RiskRule {
 			category = "Limited Cluster Access"
 		}
 	} else { // Role (namespaced)
-		if resource == "*" && verbs == "*" {
+		if row.Resource == "*" && contains(row.Verbs, "*") {
 			// Full access within namespace
 			baseRisk = RiskLevelMedium
 			description = "Full access within namespace"
@@ -107,16 +95,16 @@ func MatchRiskRule(row table.Row) *RiskRule {
 		Description: description,
 		Category:    category,
 		RiskLevel:   baseRisk,
-		RoleType:    roleType,
-		APIGroups:   []string{apiGroup},
-		Resources:   []string{resource},
-		Verbs:       strings.Split(verbs, ","),
+		RoleType:    row.RoleType,
+		APIGroups:   []string{row.APIGroup},
+		Resources:   []string{row.Resource},
+		Verbs:       row.Verbs,
 	}
 
 	// Now check for specific rules that might increase the risk level
 	for _, rule := range RiskRules {
 		// Skip rules that don't match the role type
-		if rule.RoleType != roleType {
+		if rule.RoleType != row.RoleType {
 			continue
 		}
 
@@ -124,19 +112,18 @@ func MatchRiskRule(row table.Row) *RiskRule {
 		matches := true
 
 		// API Groups: match if row has wildcard or matches rule
-		if apiGroup != "*" && !contains(rule.APIGroups, apiGroup) {
+		if row.APIGroup != "*" && !contains(rule.APIGroups, row.APIGroup) {
 			matches = false
 		}
 
 		// Resources: match if row has wildcard or matches rule
-		if resource != "*" && !contains(rule.Resources, resource) {
+		if row.Resource != "*" && !contains(rule.Resources, row.Resource) {
 			matches = false
 		}
 
 		// Verbs: match if row has wildcard or all verbs match rule
-		if verbs != "*" {
-			rowVerbs := strings.Split(verbs, ",")
-			for _, verb := range rowVerbs {
+		if !contains(row.Verbs, "*") {
+			for _, verb := range row.Verbs {
 				verb = strings.TrimSpace(verb)
 				if !contains(rule.Verbs, verb) {
 					matches = false

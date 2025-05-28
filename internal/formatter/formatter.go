@@ -4,24 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/alevsk/rbac-ops/internal/extractor"
 	"github.com/alevsk/rbac-ops/internal/types"
-	"github.com/jedib0t/go-pretty/v6/table"
 	"gopkg.in/yaml.v3"
 )
-
-// RBACTableEntry represents a single row in the RBAC permissions table
-type RBACTableEntry struct {
-	Identity  string
-	Namespace string
-	RoleType  string
-	RoleName  string
-	APIGroup  string
-	Resource  string
-	Verbs     string
-}
 
 // Formatter defines the interface for formatting data
 type Formatter interface {
@@ -38,6 +25,8 @@ const (
 	TypeYAML Type = "yaml"
 	// TypeTable formats data as a table
 	TypeTable Type = "table"
+	// TypeMarkdown formats data as markdown
+	TypeMarkdown Type = "markdown"
 )
 
 // JSON implements JSON formatting
@@ -49,8 +38,15 @@ type YAML struct{}
 // Table implements table formatting
 type Table struct{}
 
+// Markdown implements markdown formatting
+type Markdown struct{}
+
 // Format formats data as JSON
-func (j *JSON) Format(data types.Result) (string, error) {
+func (j *JSON) Format(rawData types.Result) (string, error) {
+	data, err := PrepareData(rawData)
+	if err != nil {
+		return "", fmt.Errorf("error preparing data: %w", err)
+	}
 	bytes, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
 		return "", fmt.Errorf("error formatting as JSON: %w", err)
@@ -59,7 +55,11 @@ func (j *JSON) Format(data types.Result) (string, error) {
 }
 
 // Format formats data as YAML
-func (y *YAML) Format(data types.Result) (string, error) {
+func (y *YAML) Format(rawData types.Result) (string, error) {
+	data, err := PrepareData(rawData)
+	if err != nil {
+		return "", fmt.Errorf("error preparing data: %w", err)
+	}
 	bytes, err := yaml.Marshal(data)
 	if err != nil {
 		return "", fmt.Errorf("error formatting as YAML: %w", err)
@@ -69,30 +69,98 @@ func (y *YAML) Format(data types.Result) (string, error) {
 
 // Format formats data as a table using go-pretty/v6/table
 func (t *Table) Format(data types.Result) (string, error) {
-	// Create Identity table
-	identityTable := table.NewWriter()
-	identityTable.SetOutputMirror(nil)
-	identityTable.SetStyle(table.StyleLight)
-	identityTable.Style().Options.SeparateColumns = true
+	identityTable, rbacTable, workloadTable, err := buildTables(data)
+	if err != nil {
+		return "", err
+	}
+	// Combine all tables with newline separators
+	return identityTable.Render() + "\n\n" + rbacTable.Render() + "\n\n" + workloadTable.Render() + "\n", nil
+}
 
-	// Set title for Identity table
-	identityTable.SetTitle("SERVICE ACCOUNT IDENTITIES")
+// Format formats data as a markdown using go-pretty/v6/table
+func (t *Markdown) Format(data types.Result) (string, error) {
+	identityTable, rbacTable, workloadTable, err := buildTables(data)
+	if err != nil {
+		return "", err
+	}
+	// Combine all tables with newline separators
+	return identityTable.RenderMarkdown() + "\n\n" + rbacTable.RenderMarkdown() + "\n\n" + workloadTable.RenderMarkdown() + "\n", nil
+}
 
-	// Set the headers for Identity table
-	identityTable.AppendHeader(table.Row{
-		"IDENTITY",
-		"NAMESPACE",
-		"AUTOMOUNT TOKEN",
-		"SECRETS",
-		"IMAGE PULL SECRETS",
-	})
+// ParseType converts a string to a Type
+func ParseType(s string) (Type, error) {
+	switch Type(s) {
+	case TypeJSON, TypeYAML, TypeTable, TypeMarkdown:
+		return Type(s), nil
+	default:
+		return "", fmt.Errorf("unknown formatter type: %s", s)
+	}
+}
+
+// NewFormatter creates a new formatter of the specified type
+func NewFormatter(t Type) (Formatter, error) {
+	switch t {
+	case TypeJSON:
+		return &JSON{}, nil
+	case TypeYAML:
+		return &YAML{}, nil
+	case TypeTable:
+		return &Table{}, nil
+	case TypeMarkdown:
+		return &Markdown{}, nil
+	default:
+		return nil, fmt.Errorf("unknown formatter type: %s", t)
+	}
+}
+
+type SAIdentityEntry struct {
+	ServiceAccountName string   `json:"serviceAccountName" yaml:"serviceAccountName"`
+	Namespace          string   `json:"namespace" yaml:"namespace"`
+	AutomountToken     bool     `json:"automountToken" yaml:"automountToken"`
+	Secrets            []string `json:"secrets" yaml:"secrets"`
+	ImagePullSecrets   []string `json:"imagePullSecrets" yaml:"imagePullSecrets"`
+}
+
+type SARoleBindingEntry struct {
+	ServiceAccountName string   `json:"serviceAccountName" yaml:"serviceAccountName"`
+	Namespace          string   `json:"namespace" yaml:"namespace"`
+	RoleType           string   `json:"roleType" yaml:"roleType"`
+	RoleName           string   `json:"roleName" yaml:"roleName"`
+	APIGroup           string   `json:"apiGroup" yaml:"apiGroup"`
+	Resource           string   `json:"resource" yaml:"resource"`
+	Verbs              []string `json:"verbs" yaml:"verbs"`
+	RiskLevel          string   `json:"riskLevel" yaml:"riskLevel"`
+}
+
+type SAWorkloadEntry struct {
+	ServiceAccountName string `json:"serviceAccountName" yaml:"serviceAccountName"`
+	Namespace          string `json:"namespace" yaml:"namespace"`
+	WorkloadType       string `json:"workloadType" yaml:"workloadType"`
+	WorkloadName       string `json:"workloadName" yaml:"workloadName"`
+	ContainerName      string `json:"containerName" yaml:"containerName"`
+	Image              string `json:"image" yaml:"image"`
+}
+
+type ParsedData struct {
+	IdentityData []SAIdentityEntry    `json:"serviceAccountData" yaml:"serviceAccountData"`
+	RBACData     []SARoleBindingEntry `json:"serviceAccountPermissions" yaml:"serviceAccountPermissions"`
+	WorkloadData []SAWorkloadEntry    `json:"serviceAccountWorkloads" yaml:"serviceAccountWorkloads"`
+}
+
+// PrepareData parses the data removing unnecessary information
+func PrepareData(data types.Result) (ParsedData, error) {
+
+	var parsedData ParsedData
+	parsedData.IdentityData = make([]SAIdentityEntry, 0)
+	parsedData.RBACData = make([]SARoleBindingEntry, 0)
+	parsedData.WorkloadData = make([]SAWorkloadEntry, 0)
 
 	// Extract Identity data and create table entries
 	if data.IdentityData != nil {
 		// Get the Identity map that contains service account identities
 		identityMap, ok := data.IdentityData.Data["identities"].(map[string]map[string]extractor.Identity)
 		if !ok {
-			return "", fmt.Errorf("invalid Identity data format")
+			return parsedData, fmt.Errorf("invalid Identity data format")
 		}
 
 		// Iterate through each service account
@@ -100,50 +168,23 @@ func (t *Table) Format(data types.Result) (string, error) {
 			// Iterate through each namespace
 			for namespace, identity := range namespaceMap {
 				// Add row to table
-				identityTable.AppendRow(table.Row{
+				parsedData.IdentityData = append(parsedData.IdentityData, SAIdentityEntry{
 					saName,
 					namespace,
 					identity.AutomountToken,
-					strings.Join(identity.Secrets, ","),
-					strings.Join(identity.ImagePullSecrets, ","),
+					identity.Secrets,
+					identity.ImagePullSecrets,
 				})
 			}
 		}
 	}
-
-	// Sort Identity table by service account name and namespace
-	identityTable.SortBy([]table.SortBy{
-		{Name: "IDENTITY", Mode: table.Asc},
-		{Name: "NAMESPACE", Mode: table.Asc},
-	})
-
-	// Create RBAC table
-	rbacTable := table.NewWriter()
-	rbacTable.SetOutputMirror(nil) // Don't write to stdout directly
-	rbacTable.SetStyle(table.StyleLight)
-	rbacTable.Style().Options.SeparateColumns = true
-
-	// Set title for RBAC table
-	rbacTable.SetTitle("SERVICE ACCOUNT BINDINGS")
-
-	// Set the headers for RBAC table
-	rbacTable.AppendHeader(table.Row{
-		"IDENTITY",
-		"NAMESPACE",
-		"ROLE TYPE",
-		"ROLE NAME",
-		"API GROUP",
-		"RESOURCE",
-		"VERBS",
-		"RISK",
-	})
 
 	// Extract RBAC data and create table entries
 	if data.RBACData != nil {
 		// Get the RBAC map that contains service account permissions
 		rbacMap, ok := data.RBACData.Data["rbac"].(map[string]map[string]extractor.ServiceAccountRBAC)
 		if !ok {
-			return "", fmt.Errorf("invalid RBAC data format")
+			return parsedData, fmt.Errorf("invalid RBAC data format")
 		}
 
 		// Iterate through each service account
@@ -164,24 +205,24 @@ func (t *Table) Format(data types.Result) (string, error) {
 							// Sort verbs for consistent output
 							sort.Strings(verbs)
 
-							row := table.Row{
+							entry := SARoleBindingEntry{
 								saName,
 								namespace,
-								role.Type, // This will be either "Role" or "ClusterRole"
+								role.Type,
 								role.Name,
 								apiGroup,
 								resource,
-								strings.Join(verbs, ","),
+								verbs,
+								"",
 							}
 
-							riskRule := MatchRiskRule(row)
+							riskRule := MatchRiskRule(entry)
 							if riskRule != nil {
-								row = append(row, riskRule.RiskLevel.String())
-							} else {
-								row = append(row, "")
+								entry.RiskLevel = riskRule.RiskLevel.String()
 							}
-							// Add row to table
-							rbacTable.AppendRow(row)
+
+							parsedData.RBACData = append(parsedData.RBACData, entry)
+
 						}
 					}
 				}
@@ -189,37 +230,12 @@ func (t *Table) Format(data types.Result) (string, error) {
 		}
 	}
 
-	// Sort RBAC table by service account name and namespace
-	rbacTable.SortBy([]table.SortBy{
-		{Name: "IDENTITY", Mode: table.Asc},
-		{Name: "NAMESPACE", Mode: table.Asc},
-	})
-
-	// Create Workload table
-	workloadTable := table.NewWriter()
-	workloadTable.SetOutputMirror(nil)
-	workloadTable.SetStyle(table.StyleLight)
-	workloadTable.Style().Options.SeparateColumns = true
-
-	// Set title for Workload table
-	workloadTable.SetTitle("SERVICE ACCOUNT WORKLOADS")
-
-	// Set the headers for Workload table
-	workloadTable.AppendHeader(table.Row{
-		"IDENTITY",
-		"NAMESPACE",
-		"WORKLOAD TYPE",
-		"WORKLOAD NAME",
-		"CONTAINER",
-		"IMAGE",
-	})
-
 	// Extract Workload data and create table entries
 	if data.WorkloadData != nil {
 		// Get the Workload map that contains service account workloads
 		workloadMap, ok := data.WorkloadData.Data["workloads"].(map[string]map[string][]extractor.Workload)
 		if !ok {
-			return "", fmt.Errorf("invalid Workload data format")
+			return parsedData, fmt.Errorf("invalid Workload data format")
 		}
 
 		// Iterate through each service account
@@ -231,10 +247,10 @@ func (t *Table) Format(data types.Result) (string, error) {
 					// Iterate through containers
 					for _, container := range workload.Containers {
 						// Add row to table
-						workloadTable.AppendRow(table.Row{
+						parsedData.WorkloadData = append(parsedData.WorkloadData, SAWorkloadEntry{
 							saName,
 							namespace,
-							workload.Type,
+							string(workload.Type),
 							workload.Name,
 							container.Name,
 							container.Image,
@@ -245,36 +261,5 @@ func (t *Table) Format(data types.Result) (string, error) {
 		}
 	}
 
-	// Sort Workload table by service account name and namespace
-	workloadTable.SortBy([]table.SortBy{
-		{Name: "IDENTITY", Mode: table.Asc},
-		{Name: "NAMESPACE", Mode: table.Asc},
-	})
-
-	// Combine all tables with newline separators
-	return identityTable.Render() + "\n\n" + rbacTable.Render() + "\n\n" + workloadTable.Render() + "\n", nil
-}
-
-// ParseType converts a string to a Type
-func ParseType(s string) (Type, error) {
-	switch Type(s) {
-	case TypeJSON, TypeYAML, TypeTable:
-		return Type(s), nil
-	default:
-		return "", fmt.Errorf("unknown formatter type: %s", s)
-	}
-}
-
-// NewFormatter creates a new formatter of the specified type
-func NewFormatter(t Type) (Formatter, error) {
-	switch t {
-	case TypeJSON:
-		return &JSON{}, nil
-	case TypeYAML:
-		return &YAML{}, nil
-	case TypeTable:
-		return &Table{}, nil
-	default:
-		return nil, fmt.Errorf("unknown formatter type: %s", t)
-	}
+	return parsedData, nil
 }

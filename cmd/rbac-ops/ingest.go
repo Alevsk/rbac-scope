@@ -56,5 +56,5 @@ func init() {
 		"follow symbolic links during directory traversal")
 	flags.BoolVar(&ingestOpts.ValidateYAML, "validate-yaml", true,
 		"enable strict YAML validation during ingestion")
-	flags.StringVarP(&ingestOpts.OutputFormat, "output", "o", "table", "output format (table, json, yaml)")
+	flags.StringVarP(&ingestOpts.OutputFormat, "output", "o", "table", "output format (table, json, yaml, markdown)")
 }

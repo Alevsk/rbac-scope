@@ -22,15 +22,18 @@ type Options struct {
 	ValidateYAML bool
 	// OutputFormat defines the format of the output
 	OutputFormat string
+	// IncludeMetadata determines if metadata should be included in the output
+	IncludeMetadata bool
 }
 
 // DefaultOptions returns the default ingestor options
 func DefaultOptions() *Options {
 	return &Options{
-		MaxConcurrency: 4,
-		FollowSymlinks: false,
-		ValidateYAML:   true,
-		OutputFormat:   "table",
+		MaxConcurrency:  4,
+		FollowSymlinks:  false,
+		ValidateYAML:    true,
+		OutputFormat:    "table",
+		IncludeMetadata: true,
 	}
 }
 
@@ -126,13 +129,17 @@ func (i *Ingestor) Ingest(ctx context.Context, source string) (*Result, error) {
 		RBACData:     rbacData,
 	}
 
+	fOpts := &formatter.Options{
+		IncludeMetadata: i.opts.IncludeMetadata,
+	}
+
 	// Format the result using the specified output format
 	formatType, err := formatter.ParseType(i.opts.OutputFormat)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse formatter type: %w", err)
 	}
 
-	f, err := formatter.NewFormatter(formatType)
+	f, err := formatter.NewFormatter(formatType, fOpts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create formatter: %w", err)
 	}

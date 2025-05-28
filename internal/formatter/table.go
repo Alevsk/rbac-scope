@@ -11,7 +11,37 @@ import (
 )
 
 // buildTables builds the tables for the given data
-func buildTables(data types.Result) (table.Writer, table.Writer, table.Writer, error) {
+func buildTables(data types.Result) (table.Writer, table.Writer, table.Writer, table.Writer, error) {
+	// Create Metadata table
+	metadataTable := table.NewWriter()
+	metadataTable.SetOutputMirror(nil)
+	metadataTable.SetStyle(table.StyleLight)
+	metadataTable.Style().Options.SeparateColumns = true
+
+	// Set title for Metadata table
+	metadataTable.SetTitle("METADATA")
+
+	// Add row to table
+	metadataTable.AppendRow(table.Row{
+		"VERSION",
+		data.Version,
+	})
+
+	metadataTable.AppendRow(table.Row{
+		"NAME",
+		data.Name,
+	})
+
+	metadataTable.AppendRow(table.Row{
+		"SOURCE",
+		data.Source,
+	})
+
+	metadataTable.AppendRow(table.Row{
+		"TIMESTAMP",
+		data.Timestamp,
+	})
+
 	// Create Identity table
 	identityTable := table.NewWriter()
 	identityTable.SetOutputMirror(nil)
@@ -35,7 +65,7 @@ func buildTables(data types.Result) (table.Writer, table.Writer, table.Writer, e
 		// Get the Identity map that contains service account identities
 		identityMap, ok := data.IdentityData.Data["identities"].(map[string]map[string]extractor.Identity)
 		if !ok {
-			return nil, nil, nil, fmt.Errorf("invalid Identity data format")
+			return nil, nil, nil, nil, fmt.Errorf("invalid Identity data format")
 		}
 
 		// Iterate through each service account
@@ -86,7 +116,7 @@ func buildTables(data types.Result) (table.Writer, table.Writer, table.Writer, e
 		// Get the RBAC map that contains service account permissions
 		rbacMap, ok := data.RBACData.Data["rbac"].(map[string]map[string]extractor.ServiceAccountRBAC)
 		if !ok {
-			return nil, nil, nil, fmt.Errorf("invalid RBAC data format")
+			return nil, nil, nil, nil, fmt.Errorf("invalid RBAC data format")
 		}
 
 		// Iterate through each service account
@@ -171,7 +201,7 @@ func buildTables(data types.Result) (table.Writer, table.Writer, table.Writer, e
 		// Get the Workload map that contains service account workloads
 		workloadMap, ok := data.WorkloadData.Data["workloads"].(map[string]map[string][]extractor.Workload)
 		if !ok {
-			return nil, nil, nil, fmt.Errorf("invalid Workload data format")
+			return nil, nil, nil, nil, fmt.Errorf("invalid Workload data format")
 		}
 
 		// Iterate through each service account
@@ -203,5 +233,5 @@ func buildTables(data types.Result) (table.Writer, table.Writer, table.Writer, e
 		{Name: "NAMESPACE", Mode: table.Asc},
 	})
 
-	return identityTable, rbacTable, workloadTable, nil
+	return metadataTable, identityTable, rbacTable, workloadTable, nil
 }

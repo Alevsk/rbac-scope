@@ -15,16 +15,24 @@ const (
 )
 
 // JSON implements JSON formatting
-type JSON struct{}
+type JSON struct {
+	opts *Options
+}
 
 // YAML implements YAML formatting
-type YAML struct{}
+type YAML struct {
+	opts *Options
+}
 
 // Table implements table formatting
-type Table struct{}
+type Table struct {
+	opts *Options
+}
 
 // Markdown implements markdown formatting
-type Markdown struct{}
+type Markdown struct {
+	opts *Options
+}
 
 type SAIdentityEntry struct {
 	ServiceAccountName string   `json:"serviceAccountName" yaml:"serviceAccountName"`
@@ -54,7 +62,15 @@ type SAWorkloadEntry struct {
 	Image              string `json:"image" yaml:"image"`
 }
 
+type Metadata struct {
+	Version   string `json:"version"`
+	Name      string `json:"name"`
+	Source    string `json:"source"`
+	Timestamp int64  `json:"timestamp"`
+}
+
 type ParsedData struct {
+	Metadata     *Metadata            `json:"metadata,omitempty" yaml:"metadata,omitempty"`
 	IdentityData []SAIdentityEntry    `json:"serviceAccountData" yaml:"serviceAccountData"`
 	RBACData     []SARoleBindingEntry `json:"serviceAccountPermissions" yaml:"serviceAccountPermissions"`
 	WorkloadData []SAWorkloadEntry    `json:"serviceAccountWorkloads" yaml:"serviceAccountWorkloads"`

@@ -57,4 +57,6 @@ func init() {
 	flags.BoolVar(&ingestOpts.ValidateYAML, "validate-yaml", true,
 		"enable strict YAML validation during ingestion")
 	flags.StringVarP(&ingestOpts.OutputFormat, "output", "o", "table", "output format (table, json, yaml, markdown)")
+	flags.BoolVar(&ingestOpts.IncludeMetadata, "include-metadata", true,
+		"include metadata in the output")
 }

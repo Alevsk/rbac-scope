@@ -10,6 +10,19 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// Options holds configuration for the formatter
+type Options struct {
+	// IncludeMetadata determines if metadata should be included in the output
+	IncludeMetadata bool
+}
+
+// DefaultOptions returns the default formatter options
+func DefaultOptions() *Options {
+	return &Options{
+		IncludeMetadata: true,
+	}
+}
+
 // Formatter defines the interface for formatting data
 type Formatter interface {
 	Format(data types.Result) (string, error)
@@ -17,7 +30,7 @@ type Formatter interface {
 
 // Format formats data as JSON
 func (j *JSON) Format(rawData types.Result) (string, error) {
-	data, err := PrepareData(rawData)
+	data, err := PrepareData(rawData, j.opts)
 	if err != nil {
 		return "", fmt.Errorf("error preparing data: %w", err)
 	}
@@ -30,7 +43,7 @@ func (j *JSON) Format(rawData types.Result) (string, error) {
 
 // Format formats data as YAML
 func (y *YAML) Format(rawData types.Result) (string, error) {
-	data, err := PrepareData(rawData)
+	data, err := PrepareData(rawData, y.opts)
 	if err != nil {
 		return "", fmt.Errorf("error preparing data: %w", err)
 	}
@@ -43,22 +56,22 @@ func (y *YAML) Format(rawData types.Result) (string, error) {
 
 // Format formats data as a table using go-pretty/v6/table
 func (t *Table) Format(data types.Result) (string, error) {
-	identityTable, rbacTable, workloadTable, err := buildTables(data)
+	metadataTable, identityTable, rbacTable, workloadTable, err := buildTables(data)
 	if err != nil {
 		return "", err
 	}
 	// Combine all tables with newline separators
-	return identityTable.Render() + "\n\n" + rbacTable.Render() + "\n\n" + workloadTable.Render() + "\n", nil
+	return metadataTable.Render() + "\n\n" + identityTable.Render() + "\n\n" + rbacTable.Render() + "\n\n" + workloadTable.Render() + "\n", nil
 }
 
 // Format formats data as a markdown using go-pretty/v6/table
 func (t *Markdown) Format(data types.Result) (string, error) {
-	identityTable, rbacTable, workloadTable, err := buildTables(data)
+	metadataTable, identityTable, rbacTable, workloadTable, err := buildTables(data)
 	if err != nil {
 		return "", err
 	}
 	// Combine all tables with newline separators
-	return identityTable.RenderMarkdown() + "\n\n" + rbacTable.RenderMarkdown() + "\n\n" + workloadTable.RenderMarkdown() + "\n", nil
+	return metadataTable.RenderMarkdown() + "\n\n" + identityTable.RenderMarkdown() + "\n\n" + rbacTable.RenderMarkdown() + "\n\n" + workloadTable.RenderMarkdown() + "\n", nil
 }
 
 // ParseType converts a string to a Type
@@ -72,28 +85,50 @@ func ParseType(s string) (Type, error) {
 }
 
 // NewFormatter creates a new formatter of the specified type
-func NewFormatter(t Type) (Formatter, error) {
+func NewFormatter(t Type, opts *Options) (Formatter, error) {
+	// If opts is nil, use default options
+	if opts == nil {
+		opts = DefaultOptions()
+	}
+
 	switch t {
 	case TypeJSON:
-		return &JSON{}, nil
+		return &JSON{
+			opts,
+		}, nil
 	case TypeYAML:
-		return &YAML{}, nil
+		return &YAML{
+			opts,
+		}, nil
 	case TypeTable:
-		return &Table{}, nil
+		return &Table{
+			opts,
+		}, nil
 	case TypeMarkdown:
-		return &Markdown{}, nil
+		return &Markdown{
+			opts,
+		}, nil
 	default:
 		return nil, fmt.Errorf("unknown formatter type: %s", t)
 	}
 }
 
 // PrepareData parses the data removing unnecessary information
-func PrepareData(data types.Result) (ParsedData, error) {
+func PrepareData(data types.Result, opts *Options) (ParsedData, error) {
 
 	var parsedData ParsedData
 	parsedData.IdentityData = make([]SAIdentityEntry, 0)
 	parsedData.RBACData = make([]SARoleBindingEntry, 0)
 	parsedData.WorkloadData = make([]SAWorkloadEntry, 0)
+
+	if opts != nil && opts.IncludeMetadata {
+		parsedData.Metadata = &Metadata{
+			Version:   data.Version,
+			Name:      data.Name,
+			Source:    data.Source,
+			Timestamp: data.Timestamp,
+		}
+	}
 
 	// Extract Identity data and create table entries
 	if data.IdentityData != nil {

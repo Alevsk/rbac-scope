@@ -15,32 +15,6 @@ type Formatter interface {
 	Format(data types.Result) (string, error)
 }
 
-// Type represents the type of formatter
-type Type string
-
-const (
-	// TypeJSON formats data as JSON
-	TypeJSON Type = "json"
-	// TypeYAML formats data as YAML
-	TypeYAML Type = "yaml"
-	// TypeTable formats data as a table
-	TypeTable Type = "table"
-	// TypeMarkdown formats data as markdown
-	TypeMarkdown Type = "markdown"
-)
-
-// JSON implements JSON formatting
-type JSON struct{}
-
-// YAML implements YAML formatting
-type YAML struct{}
-
-// Table implements table formatting
-type Table struct{}
-
-// Markdown implements markdown formatting
-type Markdown struct{}
-
 // Format formats data as JSON
 func (j *JSON) Format(rawData types.Result) (string, error) {
 	data, err := PrepareData(rawData)
@@ -111,40 +85,6 @@ func NewFormatter(t Type) (Formatter, error) {
 	default:
 		return nil, fmt.Errorf("unknown formatter type: %s", t)
 	}
-}
-
-type SAIdentityEntry struct {
-	ServiceAccountName string   `json:"serviceAccountName" yaml:"serviceAccountName"`
-	Namespace          string   `json:"namespace" yaml:"namespace"`
-	AutomountToken     bool     `json:"automountToken" yaml:"automountToken"`
-	Secrets            []string `json:"secrets" yaml:"secrets"`
-	ImagePullSecrets   []string `json:"imagePullSecrets" yaml:"imagePullSecrets"`
-}
-
-type SARoleBindingEntry struct {
-	ServiceAccountName string   `json:"serviceAccountName" yaml:"serviceAccountName"`
-	Namespace          string   `json:"namespace" yaml:"namespace"`
-	RoleType           string   `json:"roleType" yaml:"roleType"`
-	RoleName           string   `json:"roleName" yaml:"roleName"`
-	APIGroup           string   `json:"apiGroup" yaml:"apiGroup"`
-	Resource           string   `json:"resource" yaml:"resource"`
-	Verbs              []string `json:"verbs" yaml:"verbs"`
-	RiskLevel          string   `json:"riskLevel" yaml:"riskLevel"`
-}
-
-type SAWorkloadEntry struct {
-	ServiceAccountName string `json:"serviceAccountName" yaml:"serviceAccountName"`
-	Namespace          string `json:"namespace" yaml:"namespace"`
-	WorkloadType       string `json:"workloadType" yaml:"workloadType"`
-	WorkloadName       string `json:"workloadName" yaml:"workloadName"`
-	ContainerName      string `json:"containerName" yaml:"containerName"`
-	Image              string `json:"image" yaml:"image"`
-}
-
-type ParsedData struct {
-	IdentityData []SAIdentityEntry    `json:"serviceAccountData" yaml:"serviceAccountData"`
-	RBACData     []SARoleBindingEntry `json:"serviceAccountPermissions" yaml:"serviceAccountPermissions"`
-	WorkloadData []SAWorkloadEntry    `json:"serviceAccountWorkloads" yaml:"serviceAccountWorkloads"`
 }
 
 // PrepareData parses the data removing unnecessary information

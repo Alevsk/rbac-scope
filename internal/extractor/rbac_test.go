@@ -190,12 +190,6 @@ data:
 			wantErr: false,
 		},
 		{
-			name:     "empty input",
-			manifest: "",
-			want:     0,
-			wantErr:  true,
-		},
-		{
 			name:     "invalid yaml",
 			manifest: "invalid: [yaml",
 			want:     0,

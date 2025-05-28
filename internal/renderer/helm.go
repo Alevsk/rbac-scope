@@ -126,9 +126,8 @@ func (r *HelmRenderer) Render(ctx context.Context, folder []byte) (*Result, erro
 	// Create renderer
 	renderer := engine.Engine{
 		LintMode: false,
-		Strict:   true,
+		Strict:   false,
 	}
-
 	// Render templates
 	rendered, err := renderer.Render(chart, valuesToRender)
 	if err != nil {

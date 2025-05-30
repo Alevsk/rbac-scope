@@ -117,6 +117,7 @@ func (r *FolderResolver) Resolve(ctx context.Context) (*renderer.Result, *Resolv
 		// Set Artifact Name and Version
 		meta.Name = result.Name
 		meta.Version = result.Version
+		meta.Extra = result.Extra
 
 		return result, meta, nil
 	}

@@ -5,6 +5,8 @@ package renderer
 import (
 	"context"
 	"fmt"
+
+	"github.com/alevsk/rbac-ops/internal/types"
 )
 
 // Options contains configuration options for renderers
@@ -26,29 +28,12 @@ func DefaultOptions() *Options {
 	}
 }
 
-// Manifest represents a single YAML manifest
-type Manifest struct {
-	// Name is a unique identifier for the manifest
-	Name string `json:"name"`
-	// Content is the parsed YAML content as a map
-	Content map[string]interface{} `json:"content"`
-	// Raw contains the original YAML bytes
-	Raw []byte `json:"raw,omitempty"`
-	// Metadata contains additional information about the manifest
-	Metadata map[string]interface{} `json:"metadata,omitempty"`
-}
-
 // Result contains the output of a render operation
-type Result struct {
-	// Name of the artifact
-	Name string `json:"name"`
-	// Version of the artifact
-	Version string `json:"version"`
-	// Manifests is a list of rendered YAML manifests
-	Manifests []*Manifest
-	// Warnings contains non-fatal issues encountered during rendering
-	Warnings []string
-}
+// Result is an alias for types.Result
+type Result = types.Result
+
+// Manifest is an alias for types.Manifest
+type Manifest = types.Manifest
 
 // Error types for the renderer package
 var (

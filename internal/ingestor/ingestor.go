@@ -118,15 +118,31 @@ func (i *Ingestor) Ingest(ctx context.Context, source string) (*Result, error) {
 		return nil, fmt.Errorf("RBAC extraction failed: %w", err)
 	}
 
-	result := Result{
-		Name:         metadata.Name,
+	// Convert extractor results to ExtractedData
+	identityExtracted := &types.ExtractedData{
+		Data:     identityData.Data,
+		Metadata: identityData.Metadata,
+	}
+	workloadExtracted := &types.ExtractedData{
+		Data:     workloadData.Data,
+		Metadata: workloadData.Metadata,
+	}
+	rbacExtracted := &types.ExtractedData{
+		Data:     rbacData.Data,
+		Metadata: rbacData.Metadata,
+	}
+
+	// Create result
+	result := types.Result{
 		Version:      metadata.Version,
+		Name:         metadata.Name,
 		Source:       metadata.Path,
 		Success:      true,
 		Timestamp:    time.Now().Unix(),
-		IdentityData: identityData,
-		WorkloadData: workloadData,
-		RBACData:     rbacData,
+		IdentityData: identityExtracted,
+		WorkloadData: workloadExtracted,
+		RBACData:     rbacExtracted,
+		Extra:        metadata.Extra,
 	}
 
 	fOpts := &formatter.Options{

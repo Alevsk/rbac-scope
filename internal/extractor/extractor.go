@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/alevsk/rbac-ops/internal/renderer"
+	"github.com/alevsk/rbac-ops/internal/types"
 )
 
 // Options contains configuration options for extractors
@@ -25,12 +26,8 @@ func DefaultOptions() *Options {
 }
 
 // Result represents the output of an extractor
-type Result struct {
-	// Data contains the structured extracted data
-	Data map[string]interface{} `json:"data"`
-	// Metadata contains additional information about the extraction
-	Metadata map[string]interface{} `json:"metadata"`
-}
+// Result is an alias for types.ExtractedData
+type Result = types.ExtractedData
 
 // NewResult creates a new Result with initialized fields
 func NewResult() *Result {

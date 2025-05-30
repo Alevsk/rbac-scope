@@ -140,6 +140,17 @@ func (r *HelmRenderer) Render(ctx context.Context, folder []byte) (*Result, erro
 		Version:   chart.Metadata.Version,
 		Manifests: make([]*Manifest, 0),
 		Warnings:  make([]string, 0),
+		Extra:     make(map[string]interface{}),
+	}
+
+	result.Extra["helm"] = map[string]interface{}{
+		"description": chart.Metadata.Description,
+		"keywords":    chart.Metadata.Keywords,
+		"home":        chart.Metadata.Home,
+		"icon":        chart.Metadata.Icon,
+		"kubeVersion": chart.Metadata.KubeVersion,
+		"maintainers": chart.Metadata.Maintainers,
+		"sources":     chart.Metadata.Sources,
 	}
 
 	// Process each rendered template

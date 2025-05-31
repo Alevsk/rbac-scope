@@ -171,10 +171,10 @@ func buildTables(data types.Result) (table.Writer, table.Writer, table.Writer, t
 		}
 	}
 
-	// Sort RBAC table by service account name and namespace
+	// Sort RBAC table by risk level (high to low) and then by identity
 	rbacTable.SortBy([]table.SortBy{
+		{Name: "RISK", Mode: table.Asc},
 		{Name: "IDENTITY", Mode: table.Asc},
-		{Name: "NAMESPACE", Mode: table.Asc},
 	})
 
 	// Create Workload table

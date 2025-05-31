@@ -190,11 +190,13 @@ func PrepareData(data types.Result, opts *Options) (ParsedData, error) {
 								resource,
 								verbs,
 								"",
+								RiskTags{},
 							}
 
 							riskRule := MatchRiskRule(entry)
 							if riskRule != nil {
 								entry.RiskLevel = riskRule.RiskLevel.String()
+								entry.Tags = riskRule.Tags
 							}
 
 							parsedData.RBACData = append(parsedData.RBACData, entry)

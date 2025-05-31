@@ -51,6 +51,7 @@ type SARoleBindingEntry struct {
 	Resource           string   `json:"resource" yaml:"resource"`
 	Verbs              []string `json:"verbs" yaml:"verbs"`
 	RiskLevel          string   `json:"riskLevel" yaml:"riskLevel"`
+	Tags               RiskTags `json:"tags" yaml:"tags"`
 }
 
 type SAWorkloadEntry struct {

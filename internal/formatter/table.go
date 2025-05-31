@@ -165,6 +165,7 @@ func buildTables(data types.Result) (table.Writer, table.Writer, table.Writer, t
 								resource,
 								verbs,
 								"",
+								RiskTags{},
 							})
 							if riskRule != nil {
 								tags := make([]string, 0, len(riskRule.Tags))

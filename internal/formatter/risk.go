@@ -2,6 +2,7 @@ package formatter
 
 import (
 	"sort"
+	"strings"
 )
 
 // contains checks if a string slice contains a specific value
@@ -40,6 +41,25 @@ func (rl RiskLevel) String() string {
 }
 
 type RiskTag string
+
+// Implement Stringer for RiskTag
+func (rt RiskTag) String() string {
+	return string(rt)
+}
+
+type RiskTags []RiskTag
+
+func (rs RiskTags) Strings() []string {
+	out := []string{}
+	for _, v := range rs {
+		out = append(out, v.String())
+	}
+	return out
+}
+
+func (rs RiskTags) String() string {
+	return strings.Join(rs.Strings(), ",")
+}
 
 const (
 	// STRIDE Categories
@@ -99,10 +119,6 @@ const (
 	ResourceDeletion             RiskTag = "ResourceDeletion"
 )
 
-func (t RiskTag) String() string {
-	return string(t)
-}
-
 type RiskRule struct {
 	Description string
 	Category    string // STRIDE Category
@@ -111,7 +127,7 @@ type RiskRule struct {
 	RoleType    string // "Role" or "ClusterRole"
 	Resources   []string
 	Verbs       []string
-	Tags        []RiskTag
+	Tags        RiskTags
 }
 
 var RiskRules = []RiskRule{
@@ -124,7 +140,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"pods/exec"},
 		Verbs:       []string{"create"}, // "create" initiates exec, "get" is for streaming
-		Tags:        []RiskTag{ClusterWidePodExec, CodeExecution, LateralMovement, ElevationOfPrivilege},
+		Tags:        RiskTags{ClusterWidePodExec, CodeExecution, LateralMovement, ElevationOfPrivilege},
 	},
 	{
 		Description: "Namespaced pod exec",
@@ -134,7 +150,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "Role",
 		Resources:   []string{"pods/exec"},
 		Verbs:       []string{"create"},
-		Tags:        []RiskTag{PodExec, CodeExecution, LateralMovement, PotentialPrivilegeEscalation},
+		Tags:        RiskTags{PodExec, CodeExecution, LateralMovement, PotentialPrivilegeEscalation},
 	},
 	{
 		Description: "Cluster-wide pod attach",
@@ -144,7 +160,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"pods/attach"},
 		Verbs:       []string{"create"},
-		Tags:        []RiskTag{ClusterWidePodAttach, CodeExecution, LateralMovement, ElevationOfPrivilege},
+		Tags:        RiskTags{ClusterWidePodAttach, CodeExecution, LateralMovement, ElevationOfPrivilege},
 	},
 	{
 		Description: "Namespaced pod attach",
@@ -154,7 +170,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "Role",
 		Resources:   []string{"pods/attach"},
 		Verbs:       []string{"create"},
-		Tags:        []RiskTag{PodAttach, CodeExecution, LateralMovement, PotentialPrivilegeEscalation},
+		Tags:        RiskTags{PodAttach, CodeExecution, LateralMovement, PotentialPrivilegeEscalation},
 	},
 	{
 		Description: "Cluster-wide pod port-forward",
@@ -164,7 +180,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"pods/portforward"},
 		Verbs:       []string{"create"},
-		Tags:        []RiskTag{ClusterWidePodPortForward, LateralMovement, NetworkManipulation},
+		Tags:        RiskTags{ClusterWidePodPortForward, LateralMovement, NetworkManipulation},
 	},
 	{
 		Description: "Namespaced pod port-forward",
@@ -174,7 +190,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "Role",
 		Resources:   []string{"pods/portforward"},
 		Verbs:       []string{"create"},
-		Tags:        []RiskTag{PodPortForward, LateralMovement, NetworkManipulation},
+		Tags:        RiskTags{PodPortForward, LateralMovement, NetworkManipulation},
 	},
 	{
 		Description: "Create pods cluster-wide (potential for privileged pods)",
@@ -184,7 +200,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"pods"},
 		Verbs:       []string{"create"},
-		Tags:        []RiskTag{WorkloadExecution, PrivilegeEscalation, LateralMovement, Persistence},
+		Tags:        RiskTags{WorkloadExecution, PrivilegeEscalation, LateralMovement, Persistence},
 	},
 	{
 		Description: "Create pods in a namespace (potential for privileged pods)",
@@ -194,7 +210,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "Role",
 		Resources:   []string{"pods"},
 		Verbs:       []string{"create"},
-		Tags:        []RiskTag{WorkloadExecution, PotentialPrivilegeEscalation, LateralMovement, Persistence},
+		Tags:        RiskTags{WorkloadExecution, PotentialPrivilegeEscalation, LateralMovement, Persistence},
 	},
 	{
 		Description: "Update/Patch pods cluster-wide (can modify to privileged)",
@@ -204,7 +220,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"pods"},
 		Verbs:       []string{"update", "patch"},
-		Tags:        []RiskTag{WorkloadExecution, PrivilegeEscalation, Tampering},
+		Tags:        RiskTags{WorkloadExecution, PrivilegeEscalation, Tampering},
 	},
 	{
 		Description: "Update/Patch pods in a namespace (can modify to privileged)",
@@ -214,7 +230,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "Role",
 		Resources:   []string{"pods"},
 		Verbs:       []string{"update", "patch"},
-		Tags:        []RiskTag{WorkloadExecution, PotentialPrivilegeEscalation, Tampering},
+		Tags:        RiskTags{WorkloadExecution, PotentialPrivilegeEscalation, Tampering},
 	},
 	{
 		Description: "Read secrets cluster-wide",
@@ -224,7 +240,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"secrets"},
 		Verbs:       []string{"get", "list", "watch"},
-		Tags:        []RiskTag{ClusterWideSecretAccess, CredentialAccess, DataExposure, InformationDisclosure},
+		Tags:        RiskTags{ClusterWideSecretAccess, CredentialAccess, DataExposure, InformationDisclosure},
 	},
 	{
 		Description: "Read secrets in a namespace",
@@ -234,7 +250,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "Role",
 		Resources:   []string{"secrets"},
 		Verbs:       []string{"get", "list", "watch"},
-		Tags:        []RiskTag{SecretAccess, CredentialAccess, DataExposure, InformationDisclosure},
+		Tags:        RiskTags{SecretAccess, CredentialAccess, DataExposure, InformationDisclosure},
 	},
 	{
 		Description: "Modify secrets cluster-wide",
@@ -244,7 +260,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"secrets"},
 		Verbs:       []string{"create", "update", "patch", "delete"},
-		Tags:        []RiskTag{ClusterWideSecretAccess, Tampering, PrivilegeEscalation, Persistence},
+		Tags:        RiskTags{ClusterWideSecretAccess, Tampering, PrivilegeEscalation, Persistence},
 	},
 	{
 		Description: "Modify secrets in a namespace",
@@ -254,7 +270,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "Role",
 		Resources:   []string{"secrets"},
 		Verbs:       []string{"create", "update", "patch", "delete"},
-		Tags:        []RiskTag{SecretAccess, Tampering, PotentialPrivilegeEscalation, Persistence},
+		Tags:        RiskTags{SecretAccess, Tampering, PotentialPrivilegeEscalation, Persistence},
 	},
 	{
 		Description: "Node proxy access (Kubelet API)",
@@ -264,7 +280,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"nodes/proxy"},
 		Verbs:       []string{"get", "create", "update", "patch", "delete"}, // All verbs are dangerous
-		Tags:        []RiskTag{NodeAccess, ClusterAdminAccess, CodeExecution, LateralMovement, DataExposure, Tampering},
+		Tags:        RiskTags{NodeAccess, ClusterAdminAccess, CodeExecution, LateralMovement, DataExposure, Tampering},
 	},
 	{
 		Description: "Modify node configuration (labels, taints)",
@@ -274,7 +290,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"nodes"},
 		Verbs:       []string{"patch", "update"},
-		Tags:        []RiskTag{NodeAccess, Tampering, PotentialPrivilegeEscalation, DenialOfService},
+		Tags:        RiskTags{NodeAccess, Tampering, PotentialPrivilegeEscalation, DenialOfService},
 	},
 	{
 		Description: "Delete nodes",
@@ -284,7 +300,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"nodes"},
 		Verbs:       []string{"delete", "deletecollection"},
-		Tags:        []RiskTag{NodeAccess, DenialOfService, ResourceDeletion},
+		Tags:        RiskTags{NodeAccess, DenialOfService, ResourceDeletion},
 	},
 	{
 		Description: "Manage PersistentVolumes (cluster-wide storage manipulation)",
@@ -294,7 +310,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"persistentvolumes"},
 		Verbs:       []string{"create", "update", "patch", "delete", "deletecollection"},
-		Tags:        []RiskTag{StorageManipulation, DataExposure, DataLoss, DenialOfService, Tampering},
+		Tags:        RiskTags{StorageManipulation, DataExposure, DataLoss, DenialOfService, Tampering},
 	},
 	{
 		Description: "Read pod logs cluster-wide",
@@ -304,7 +320,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"pods/log"},
 		Verbs:       []string{"get"},
-		Tags:        []RiskTag{ClusterWideLogAccess, InformationDisclosure, DataExposure},
+		Tags:        RiskTags{ClusterWideLogAccess, InformationDisclosure, DataExposure},
 	},
 	{
 		Description: "Read pod logs in a namespace",
@@ -314,7 +330,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "Role",
 		Resources:   []string{"pods/log"},
 		Verbs:       []string{"get"},
-		Tags:        []RiskTag{LogAccess, InformationDisclosure, DataExposure},
+		Tags:        RiskTags{LogAccess, InformationDisclosure, DataExposure},
 	},
 	{
 		Description: "Manage ephemeral containers cluster-wide",
@@ -324,7 +340,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"pods/ephemeralcontainers"},
 		Verbs:       []string{"update", "patch"},
-		Tags:        []RiskTag{WorkloadExecution, CodeExecution, LateralMovement, Tampering, ElevationOfPrivilege},
+		Tags:        RiskTags{WorkloadExecution, CodeExecution, LateralMovement, Tampering, ElevationOfPrivilege},
 	},
 	{
 		Description: "Manage ephemeral containers in a namespace",
@@ -334,7 +350,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "Role",
 		Resources:   []string{"pods/ephemeralcontainers"},
 		Verbs:       []string{"update", "patch"},
-		Tags:        []RiskTag{WorkloadExecution, CodeExecution, LateralMovement, Tampering, PotentialPrivilegeEscalation},
+		Tags:        RiskTags{WorkloadExecution, CodeExecution, LateralMovement, Tampering, PotentialPrivilegeEscalation},
 	},
 	{
 		Description: "Read ConfigMaps cluster-wide",
@@ -344,7 +360,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"configmaps"},
 		Verbs:       []string{"get", "list", "watch"},
-		Tags:        []RiskTag{InformationDisclosure, ConfigMapAccess, DataExposure},
+		Tags:        RiskTags{InformationDisclosure, ConfigMapAccess, DataExposure},
 	},
 	{
 		Description: "Read ConfigMaps in a namespace",
@@ -354,7 +370,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "Role",
 		Resources:   []string{"configmaps"},
 		Verbs:       []string{"get", "list", "watch"},
-		Tags:        []RiskTag{InformationDisclosure, ConfigMapAccess, DataExposure},
+		Tags:        RiskTags{InformationDisclosure, ConfigMapAccess, DataExposure},
 	},
 	{
 		Description: "Modify ConfigMaps cluster-wide",
@@ -364,7 +380,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"configmaps"},
 		Verbs:       []string{"create", "update", "patch", "delete"},
-		Tags:        []RiskTag{Tampering, ConfigMapAccess, PotentialPrivilegeEscalation},
+		Tags:        RiskTags{Tampering, ConfigMapAccess, PotentialPrivilegeEscalation},
 	},
 	{
 		Description: "Modify ConfigMaps in a namespace",
@@ -374,7 +390,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "Role",
 		Resources:   []string{"configmaps"},
 		Verbs:       []string{"create", "update", "patch", "delete"},
-		Tags:        []RiskTag{Tampering, ConfigMapAccess, PotentialPrivilegeEscalation},
+		Tags:        RiskTags{Tampering, ConfigMapAccess, PotentialPrivilegeEscalation},
 	},
 	{
 		Description: "Delete namespaces",
@@ -384,7 +400,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"namespaces"},
 		Verbs:       []string{"delete"},
-		Tags:        []RiskTag{NamespaceLifecycle, ResourceDeletion, DenialOfService},
+		Tags:        RiskTags{NamespaceLifecycle, ResourceDeletion, DenialOfService},
 	},
 
 	// --- RBAC API Group (rbac.authorization.k8s.io/v1) ---
@@ -396,7 +412,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"clusterroles"},
 		Verbs:       []string{"create", "update", "patch", "delete"},
-		Tags:        []RiskTag{RBACManipulation, ClusterAdminAccess, PrivilegeEscalation},
+		Tags:        RiskTags{RBACManipulation, PrivilegeEscalation},
 	},
 	{
 		Description: "Manage ClusterRoleBindings (create, update, patch, delete)",
@@ -406,7 +422,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"clusterrolebindings"},
 		Verbs:       []string{"create", "update", "patch", "delete"},
-		Tags:        []RiskTag{RBACManipulation, ClusterAdminAccess, PrivilegeEscalation, BindingToPrivilegedRole},
+		Tags:        RiskTags{RBACManipulation, PrivilegeEscalation, BindingToPrivilegedRole},
 	},
 	{
 		Description: "Manage Roles in a namespace (create, update, patch, delete)",
@@ -416,7 +432,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "Role", // Can also be ClusterRole granting this for a specific namespace
 		Resources:   []string{"roles"},
 		Verbs:       []string{"create", "update", "patch", "delete"},
-		Tags:        []RiskTag{RBACManipulation, PrivilegeEscalation},
+		Tags:        RiskTags{RBACManipulation, PrivilegeEscalation},
 	},
 	{
 		Description: "Manage RoleBindings in a namespace (create, update, patch, delete)",
@@ -426,7 +442,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "Role", // Can also be ClusterRole granting this for a specific namespace
 		Resources:   []string{"rolebindings"},
 		Verbs:       []string{"create", "update", "patch", "delete"},
-		Tags:        []RiskTag{RBACManipulation, PrivilegeEscalation, BindingToPrivilegedRole},
+		Tags:        RiskTags{RBACManipulation, PrivilegeEscalation, BindingToPrivilegedRole},
 	},
 	{
 		Description: "Escalate privileges via ClusterRoles (escalate verb)",
@@ -436,7 +452,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"clusterroles"}, // Could also be on "roles"
 		Verbs:       []string{"escalate"},
-		Tags:        []RiskTag{RBACManipulation, ClusterAdminAccess, PrivilegeEscalation},
+		Tags:        RiskTags{RBACManipulation, PrivilegeEscalation},
 	},
 	{
 		Description: "Bind ClusterRoles to identities (bind verb)",
@@ -446,7 +462,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"clusterroles"}, // Could also be on "roles"
 		Verbs:       []string{"bind"},
-		Tags:        []RiskTag{RBACManipulation, ClusterAdminAccess, PrivilegeEscalation, BindingToPrivilegedRole},
+		Tags:        RiskTags{RBACManipulation, PrivilegeEscalation, BindingToPrivilegedRole},
 	},
 
 	// --- Workload Controllers (apps/v1, batch/v1) ---
@@ -458,7 +474,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"deployments"},
 		Verbs:       []string{"create", "update", "patch", "delete"},
-		Tags:        []RiskTag{WorkloadLifecycle, PrivilegeEscalation, Persistence, Tampering},
+		Tags:        RiskTags{WorkloadLifecycle, PrivilegeEscalation, Persistence, Tampering},
 	},
 	{
 		Description: "Manage Deployments in a namespace (potential for privileged pod execution)",
@@ -468,7 +484,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "Role",
 		Resources:   []string{"deployments"},
 		Verbs:       []string{"create", "update", "patch", "delete"},
-		Tags:        []RiskTag{WorkloadLifecycle, PotentialPrivilegeEscalation, Persistence, Tampering},
+		Tags:        RiskTags{WorkloadLifecycle, PotentialPrivilegeEscalation, Persistence, Tampering},
 	},
 	{
 		Description: "Manage DaemonSets cluster-wide (runs on all nodes, high impact)",
@@ -478,7 +494,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"daemonsets"},
 		Verbs:       []string{"create", "update", "patch", "delete"},
-		Tags:        []RiskTag{WorkloadLifecycle, PrivilegeEscalation, Persistence, NodeAccess, Tampering},
+		Tags:        RiskTags{WorkloadLifecycle, PrivilegeEscalation, Persistence, NodeAccess, Tampering},
 	},
 	{
 		Description: "Manage DaemonSets in a namespace (runs on nodes, high impact)",
@@ -488,7 +504,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "Role",
 		Resources:   []string{"daemonsets"},
 		Verbs:       []string{"create", "update", "patch", "delete"},
-		Tags:        []RiskTag{WorkloadLifecycle, PrivilegeEscalation, Persistence, NodeAccess, Tampering},
+		Tags:        RiskTags{WorkloadLifecycle, PrivilegeEscalation, Persistence, NodeAccess, Tampering},
 	},
 	{
 		Description: "Manage StatefulSets cluster-wide",
@@ -498,7 +514,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"statefulsets"},
 		Verbs:       []string{"create", "update", "patch", "delete"},
-		Tags:        []RiskTag{WorkloadLifecycle, PrivilegeEscalation, Persistence, Tampering},
+		Tags:        RiskTags{WorkloadLifecycle, PrivilegeEscalation, Persistence, Tampering},
 	},
 	{
 		Description: "Manage StatefulSets in a namespace",
@@ -508,7 +524,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "Role",
 		Resources:   []string{"statefulsets"},
 		Verbs:       []string{"create", "update", "patch", "delete"},
-		Tags:        []RiskTag{WorkloadLifecycle, PotentialPrivilegeEscalation, Persistence, Tampering},
+		Tags:        RiskTags{WorkloadLifecycle, PotentialPrivilegeEscalation, Persistence, Tampering},
 	},
 	{
 		Description: "Manage CronJobs cluster-wide (scheduled privileged execution, persistence)",
@@ -518,7 +534,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"cronjobs"},
 		Verbs:       []string{"create", "update", "patch", "delete"},
-		Tags:        []RiskTag{WorkloadLifecycle, PrivilegeEscalation, Persistence, Tampering},
+		Tags:        RiskTags{WorkloadLifecycle, PrivilegeEscalation, Persistence, Tampering},
 	},
 	{
 		Description: "Manage CronJobs in a namespace (scheduled privileged execution, persistence)",
@@ -528,7 +544,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "Role",
 		Resources:   []string{"cronjobs"},
 		Verbs:       []string{"create", "update", "patch", "delete"},
-		Tags:        []RiskTag{WorkloadLifecycle, PotentialPrivilegeEscalation, Persistence, Tampering},
+		Tags:        RiskTags{WorkloadLifecycle, PotentialPrivilegeEscalation, Persistence, Tampering},
 	},
 	{
 		Description: "Manage Jobs cluster-wide (one-off privileged execution)",
@@ -538,7 +554,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"jobs"},
 		Verbs:       []string{"create", "update", "patch", "delete"},
-		Tags:        []RiskTag{WorkloadLifecycle, PrivilegeEscalation, Tampering},
+		Tags:        RiskTags{WorkloadLifecycle, PrivilegeEscalation, Tampering},
 	},
 	{
 		Description: "Manage Jobs in a namespace (one-off privileged execution)",
@@ -548,7 +564,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "Role",
 		Resources:   []string{"jobs"},
 		Verbs:       []string{"create", "update", "patch", "delete"},
-		Tags:        []RiskTag{WorkloadLifecycle, PotentialPrivilegeEscalation, Tampering},
+		Tags:        RiskTags{WorkloadLifecycle, PotentialPrivilegeEscalation, Tampering},
 	},
 
 	// --- Admission Control (admissionregistration.k8s.io/v1) ---
@@ -560,7 +576,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"mutatingwebhookconfigurations"},
 		Verbs:       []string{"create", "update", "patch", "delete"},
-		Tags:        []RiskTag{WebhookManipulation, Tampering, PrivilegeEscalation, DenialOfService},
+		Tags:        RiskTags{WebhookManipulation, Tampering, PrivilegeEscalation, DenialOfService},
 	},
 	{
 		Description: "Manage ValidatingWebhookConfigurations",
@@ -570,7 +586,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"validatingwebhookconfigurations"},
 		Verbs:       []string{"create", "update", "patch", "delete"},
-		Tags:        []RiskTag{WebhookManipulation, Tampering, DenialOfService}, // Less direct EoP than mutating, but can still be abused.
+		Tags:        RiskTags{WebhookManipulation, Tampering, DenialOfService}, // Less direct EoP than mutating, but can still be abused.
 	},
 
 	// --- API Extensions (apiextensions.k8s.io/v1, apiregistration.k8s.io/v1) ---
@@ -582,7 +598,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"customresourcedefinitions"},
 		Verbs:       []string{"create", "update", "patch", "delete"},
-		Tags:        []RiskTag{CRDManipulation, Tampering, PotentialPrivilegeEscalation},
+		Tags:        RiskTags{CRDManipulation, Tampering, PotentialPrivilegeEscalation},
 	},
 	{
 		Description: "Manage APIServices",
@@ -592,7 +608,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"apiservices"},
 		Verbs:       []string{"create", "update", "patch", "delete"},
-		Tags:        []RiskTag{APIServiceManipulation, Tampering, PrivilegeEscalation, DenialOfService, InformationDisclosure},
+		Tags:        RiskTags{APIServiceManipulation, Tampering, PrivilegeEscalation, DenialOfService, InformationDisclosure},
 	},
 
 	// --- Authentication & Authorization (authentication.k8s.io/v1, authorization.k8s.io/v1) ---
@@ -604,7 +620,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "Role",                            // TokenRequest is namespaced for serviceaccounts
 		Resources:   []string{"serviceaccounts/token"},
 		Verbs:       []string{"create"},
-		Tags:        []RiskTag{TokenCreation, Impersonation, CredentialAccess, PotentialPrivilegeEscalation, Spoofing},
+		Tags:        RiskTags{TokenCreation, Impersonation, CredentialAccess, PotentialPrivilegeEscalation, Spoofing},
 	},
 	{
 		Description: "Create ServiceAccount Tokens (ClusterRole for any SA in any namespace)",
@@ -614,7 +630,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"serviceaccounts/token"},
 		Verbs:       []string{"create"},
-		Tags:        []RiskTag{TokenCreation, Impersonation, CredentialAccess, PrivilegeEscalation, Spoofing},
+		Tags:        RiskTags{TokenCreation, Impersonation, CredentialAccess, PrivilegeEscalation, Spoofing},
 	},
 	{
 		Description: "Create TokenReviews (validate arbitrary tokens)",
@@ -624,7 +640,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"tokenreviews"},
 		Verbs:       []string{"create"},
-		Tags:        []RiskTag{InformationDisclosure, CredentialAccess, RBACQuery},
+		Tags:        RiskTags{InformationDisclosure, CredentialAccess, RBACQuery},
 	},
 	{
 		Description: "Create SubjectAccessReviews (check arbitrary permissions)",
@@ -634,7 +650,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"subjectaccessreviews"},
 		Verbs:       []string{"create"},
-		Tags:        []RiskTag{InformationDisclosure, RBACQuery},
+		Tags:        RiskTags{InformationDisclosure, RBACQuery},
 	},
 	{
 		Description: "Create LocalSubjectAccessReviews (check permissions in a namespace)",
@@ -644,7 +660,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "Role",
 		Resources:   []string{"localsubjectaccessreviews"},
 		Verbs:       []string{"create"},
-		Tags:        []RiskTag{InformationDisclosure, RBACQuery},
+		Tags:        RiskTags{InformationDisclosure, RBACQuery},
 	},
 
 	// --- Certificates (certificates.k8s.io/v1) ---
@@ -656,7 +672,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"certificatesigningrequests/approval"},
 		Verbs:       []string{"update", "patch"}, // "get" to view, "update/patch" to approve
-		Tags:        []RiskTag{CSRApproval, PrivilegeEscalation, Spoofing, ClusterAdminAccess},
+		Tags:        RiskTags{CSRApproval, PrivilegeEscalation, Spoofing, CredentialAccess},
 	},
 	{
 		Description: "Create CertificateSigningRequests",
@@ -666,7 +682,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole", // CSRs are cluster-scoped
 		Resources:   []string{"certificatesigningrequests"},
 		Verbs:       []string{"create"},
-		Tags:        []RiskTag{CSRCreation, PotentialPrivilegeEscalation, Spoofing},
+		Tags:        RiskTags{CSRCreation, PotentialPrivilegeEscalation, Spoofing},
 	},
 	{
 		Description: "Manage (get, list, watch, delete) CertificateSigningRequests",
@@ -676,7 +692,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"certificatesigningrequests"},
 		Verbs:       []string{"get", "list", "watch", "delete"},
-		Tags:        []RiskTag{InformationDisclosure, Tampering, DenialOfService},
+		Tags:        RiskTags{InformationDisclosure, Tampering, PrivilegeEscalation, CredentialAccess, DenialOfService},
 	},
 
 	// --- Storage (storage.k8s.io/v1) ---
@@ -688,7 +704,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"csidrivers"},
 		Verbs:       []string{"create", "update", "patch", "delete"},
-		Tags:        []RiskTag{StorageManipulation, Tampering, PrivilegeEscalation, NodeAccess},
+		Tags:        RiskTags{StorageManipulation, Tampering, PrivilegeEscalation, DataExposure, NodeAccess},
 	},
 	{
 		Description: "Manage StorageClasses",
@@ -698,7 +714,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"storageclasses"},
 		Verbs:       []string{"create", "update", "patch", "delete"},
-		Tags:        []RiskTag{StorageManipulation, Tampering, DenialOfService},
+		Tags:        RiskTags{StorageManipulation, Tampering, DenialOfService, DataExposure},
 	},
 
 	// --- Policy (policy/v1) ---
@@ -710,7 +726,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"pods/eviction"},
 		Verbs:       []string{"create"},
-		Tags:        []RiskTag{DenialOfService, WorkloadLifecycle},
+		Tags:        RiskTags{DenialOfService, WorkloadLifecycle},
 	},
 	{
 		Description: "Evict Pods in a namespace",
@@ -720,7 +736,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "Role",
 		Resources:   []string{"pods/eviction"},
 		Verbs:       []string{"create"},
-		Tags:        []RiskTag{DenialOfService, WorkloadLifecycle},
+		Tags:        RiskTags{DenialOfService, WorkloadLifecycle},
 	},
 
 	// --- Node related (node.k8s.io/v1) ---
@@ -732,7 +748,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"runtimeclasses"},
 		Verbs:       []string{"create", "update", "patch", "delete"},
-		Tags:        []RiskTag{NodeAccess, Tampering, PrivilegeEscalation, PotentialPrivilegeEscalation},
+		Tags:        RiskTags{NodeAccess, Tampering, PrivilegeEscalation, PotentialPrivilegeEscalation},
 	},
 
 	// --- Wildcard Permissions ---
@@ -744,7 +760,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"*"},
 		Verbs:       []string{"*"},
-		Tags:        []RiskTag{ClusterAdminAccess, PrivilegeEscalation, WildcardPermission, Tampering, InformationDisclosure, DenialOfService, Spoofing},
+		Tags:        RiskTags{ClusterAdminAccess, WildcardPermission},
 	},
 	{
 		Description: "Wildcard permission on all resources in a namespace (Namespace Admin)",
@@ -754,7 +770,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "Role",
 		Resources:   []string{"*"},
 		Verbs:       []string{"*"},
-		Tags:        []RiskTag{NamespaceAdmin, PotentialPrivilegeEscalation, WildcardPermission, Tampering, InformationDisclosure, DenialOfService, Spoofing},
+		Tags:        RiskTags{NamespaceAdmin, PotentialPrivilegeEscalation, WildcardPermission},
 	},
 
 	// --- Specific CRDs (Examples) ---
@@ -766,7 +782,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"clusterissuers"},
 		Verbs:       []string{"create", "update", "patch", "delete"},
-		Tags:        []RiskTag{CertificateManagement, Spoofing, Tampering, ElevationOfPrivilege},
+		Tags:        RiskTags{CertificateManagement, Spoofing, Tampering, ElevationOfPrivilege},
 	},
 	{
 		Description: "Manage ArgoCD Applications (argoproj.io)",
@@ -776,7 +792,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "Role",                                                  // Typically namespaced, but impact can be cluster-wide
 		Resources:   []string{"applications"},                                // Also applicationsets, appprojects
 		Verbs:       []string{"create", "update", "patch", "delete", "sync"}, // sync is an argo verb often mapped
-		Tags:        []RiskTag{WorkloadDeployment, Tampering, PotentialPrivilegeEscalation, CodeExecution},
+		Tags:        RiskTags{WorkloadDeployment, Tampering, PotentialPrivilegeEscalation, CodeExecution, DenialOfService},
 	},
 	{
 		Description: "Manage Cilium ClusterwideNetworkPolicies (cilium.io)",
@@ -786,7 +802,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"ciliumclusterwidenetworkpolicies"},
 		Verbs:       []string{"create", "update", "patch", "delete"},
-		Tags:        []RiskTag{NetworkPolicyManagement, NetworkManipulation, Tampering, DenialOfService},
+		Tags:        RiskTags{NetworkPolicyManagement, NetworkManipulation, Tampering, DenialOfService},
 	},
 	{
 		Description: "Manage ETCDSnapshotFiles (k3s.cattle.io)",
@@ -796,7 +812,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "ClusterRole",
 		Resources:   []string{"etcdsnapshotfiles"},
 		Verbs:       []string{"get", "list", "create", "update", "delete"}, // All verbs are dangerous
-		Tags:        []RiskTag{BackupAccess, ClusterAdminAccess, DataExposure, CredentialAccess, Tampering},
+		Tags:        RiskTags{BackupAccess, ClusterAdminAccess, PotentialPrivilegeEscalation, DataExposure, CredentialAccess, Tampering, DenialOfService},
 	},
 }
 
@@ -807,6 +823,7 @@ func MatchRiskRule(row SARoleBindingEntry) *RiskRule {
 	var baseRisk RiskLevel
 	var description string
 	var category string
+	var tags RiskTags
 
 	// Determine base risk based on role type and scope
 	if row.RoleType == "ClusterRole" {
@@ -816,17 +833,20 @@ func MatchRiskRule(row SARoleBindingEntry) *RiskRule {
 			baseRisk = RiskLevelCritical
 			description = "Full cluster admin access"
 			category = "Broad Cluster Access"
+			tags = RiskTags{ClusterAdminAccess}
 		} else if (row.APIGroup == "*" && row.Resource == "*") ||
 			(row.Resource == "*" && contains(row.Verbs, "*")) {
 			// Cluster-wide access but limited
 			baseRisk = RiskLevelHigh
 			description = "Cluster-wide access across all namespaces but limited"
 			category = "API Group Wildcard Access"
+			tags = RiskTags{}
 		} else {
 			// ClusterRole but limited resources/verbs
 			baseRisk = RiskLevelMedium
 			description = "Cluster-wide access with limited resources or verbs"
 			category = "Limited Cluster Access"
+			tags = RiskTags{}
 		}
 	} else { // Role (namespaced)
 		if row.Resource == "*" && contains(row.Verbs, "*") {
@@ -834,11 +854,13 @@ func MatchRiskRule(row SARoleBindingEntry) *RiskRule {
 			baseRisk = RiskLevelMedium
 			description = "Full access within namespace"
 			category = "Broad Namespace Access"
+			tags = RiskTags{NamespaceAdmin}
 		} else {
 			// Limited access within namespace
 			baseRisk = RiskLevelLow
 			description = "Limited access within namespace"
 			category = "Limited Namespace Access"
+			tags = RiskTags{}
 		}
 	}
 
@@ -851,6 +873,7 @@ func MatchRiskRule(row SARoleBindingEntry) *RiskRule {
 		APIGroups:   []string{row.APIGroup},
 		Resources:   []string{row.Resource},
 		Verbs:       row.Verbs,
+		Tags:        tags,
 	}
 
 	// Sort rules by specificity (most specific first) and risk level
@@ -963,7 +986,7 @@ func MatchRiskRule(row SARoleBindingEntry) *RiskRule {
 		}
 
 		// If rule matches and has higher or equal risk (from base), upgrade the risk level and details
-		if matches && (rule.RiskLevel >= resultRule.RiskLevel && resultRule.Tags == nil) {
+		if matches && (rule.RiskLevel >= resultRule.RiskLevel && len(resultRule.Tags) == 0) {
 			// Create a new copy of the rule to avoid reference issues
 			newRule := rule
 			resultRule = &newRule

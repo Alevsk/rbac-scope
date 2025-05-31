@@ -69,7 +69,7 @@ func (r *KustomizeRenderer) Render(ctx context.Context, folder []byte) (*Result,
 
 	// Calculate the version as the sha512 of the yamlData
 	hash := sha512.Sum512(yamlData)
-	version := fmt.Sprintf("sha512: %x", hash)
+	version := fmt.Sprintf("sha512:%x", hash)
 
 	// Parse the rendered manifests
 	result := &Result{

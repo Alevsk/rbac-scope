@@ -29,7 +29,7 @@ func (r *YAMLRenderer) Render(ctx context.Context, input []byte) (*Result, error
 	}
 
 	hash := sha512.Sum512(input)
-	version := fmt.Sprintf("sha512: %x", hash)
+	version := fmt.Sprintf("sha512:%x", hash)
 
 	result := &Result{
 		Name:      "",

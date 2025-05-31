@@ -63,10 +63,11 @@ type SAWorkloadEntry struct {
 }
 
 type Metadata struct {
-	Version   string `json:"version"`
-	Name      string `json:"name"`
-	Source    string `json:"source"`
-	Timestamp int64  `json:"timestamp"`
+	Version   string                 `json:"version"`
+	Name      string                 `json:"name"`
+	Source    string                 `json:"source"`
+	Timestamp int64                  `json:"timestamp"`
+	Extra     map[string]interface{} `json:"extra,omitempty" yaml:"extra,omitempty"`
 }
 
 type ParsedData struct {

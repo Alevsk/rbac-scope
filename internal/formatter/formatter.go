@@ -127,6 +127,7 @@ func PrepareData(data types.Result, opts *Options) (ParsedData, error) {
 			Name:      data.Name,
 			Source:    data.Source,
 			Timestamp: data.Timestamp,
+			Extra:     data.Extra,
 		}
 	}
 

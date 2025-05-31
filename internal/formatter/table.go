@@ -125,6 +125,9 @@ func buildTables(data types.Result) (table.Writer, table.Writer, table.Writer, t
 			return nil, nil, nil, nil, fmt.Errorf("invalid RBAC data format")
 		}
 
+		// Create an array to store rows
+		var rows []table.Row
+
 		// Iterate through each service account
 		for saName, namespaceMap := range rbacMap {
 			// Iterate through each namespace
@@ -146,7 +149,7 @@ func buildTables(data types.Result) (table.Writer, table.Writer, table.Writer, t
 							row := table.Row{
 								saName,
 								namespace,
-								role.Type, // This will be either "Role" or "ClusterRole"
+								role.Type,
 								role.Name,
 								apiGroup,
 								resource,
@@ -174,24 +177,29 @@ func buildTables(data types.Result) (table.Writer, table.Writer, table.Writer, t
 									}
 									tags = append(tags, tag.String())
 								}
-								row = append(row, riskRule.RiskLevel.String(), strings.Join(tags, ","))
+								row = append(row, riskRule.RiskLevel, strings.Join(tags, ","))
 							} else {
-								row = append(row, "")
+								row = append(row, "", "")
 							}
-							// Add row to table
-							rbacTable.AppendRow(row)
+							// Add row to array
+							rows = append(rows, row)
 						}
 					}
 				}
 			}
 		}
-	}
 
-	// Sort RBAC table by risk level (high to low) and then by identity
-	rbacTable.SortBy([]table.SortBy{
-		{Name: "RISK", Mode: table.Asc},
-		{Name: "IDENTITY", Mode: table.Asc},
-	})
+		// Sort rows by risk level
+		sort.Slice(rows, func(i, j int) bool {
+			rowLeft := rows[i]
+			rowRight := rows[j]
+			// return rowLeft[7].(RiskLevel).Compare(rowRight[7].(RiskLevel)) > 0
+			return rowLeft[7].(RiskLevel) > rowRight[7].(RiskLevel)
+		})
+
+		// Append all rows to the table
+		rbacTable.AppendRows(rows)
+	}
 
 	// Create Workload table
 	workloadTable := table.NewWriter()

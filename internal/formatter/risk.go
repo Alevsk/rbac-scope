@@ -23,6 +23,7 @@ const (
 	RiskLevelCritical                  // cluster-wide access across all namespaces and all API groups
 )
 
+// Implement Stringer for RiskLevel
 func (rl RiskLevel) String() string {
 	switch rl {
 	case RiskLevelLow:

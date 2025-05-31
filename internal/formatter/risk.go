@@ -90,7 +90,6 @@ const (
 	BindingToPrivilegedRole      RiskTag = "BindingToPrivilegedRole"
 	WildcardPermission           RiskTag = "WildcardPermission"
 	CertificateManagement        RiskTag = "CertificateManagement"
-	GitOps                       RiskTag = "GitOps"
 	WorkloadDeployment           RiskTag = "WorkloadDeployment"
 	NetworkPolicyManagement      RiskTag = "NetworkPolicyManagement"
 	BackupAccess                 RiskTag = "BackupAccess"
@@ -98,6 +97,10 @@ const (
 	ResourceModification         RiskTag = "ResourceModification"
 	ResourceDeletion             RiskTag = "ResourceDeletion"
 )
+
+func (t RiskTag) String() string {
+	return string(t)
+}
 
 type RiskRule struct {
 	Description string
@@ -772,7 +775,7 @@ var RiskRules = []RiskRule{
 		RoleType:    "Role",                                                  // Typically namespaced, but impact can be cluster-wide
 		Resources:   []string{"applications"},                                // Also applicationsets, appprojects
 		Verbs:       []string{"create", "update", "patch", "delete", "sync"}, // sync is an argo verb often mapped
-		Tags:        []RiskTag{GitOps, WorkloadDeployment, Tampering, PotentialPrivilegeEscalation, CodeExecution},
+		Tags:        []RiskTag{WorkloadDeployment, Tampering, PotentialPrivilegeEscalation, CodeExecution},
 	},
 	{
 		Description: "Manage Cilium ClusterwideNetworkPolicies (cilium.io)",

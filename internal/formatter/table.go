@@ -21,6 +21,11 @@ func buildTables(data types.Result) (table.Writer, table.Writer, table.Writer, t
 	// Set title for Metadata table
 	metadataTable.SetTitle("METADATA")
 
+	metadataTable.AppendHeader(table.Row{
+		"KEY",
+		"VALUE",
+	})
+
 	// Add row to table
 	metadataTable.AppendRow(table.Row{
 		"VERSION",
@@ -109,6 +114,7 @@ func buildTables(data types.Result) (table.Writer, table.Writer, table.Writer, t
 		"RESOURCE",
 		"VERBS",
 		"RISK",
+		"TAGS",
 	})
 
 	// Extract RBAC data and create table entries
@@ -158,7 +164,17 @@ func buildTables(data types.Result) (table.Writer, table.Writer, table.Writer, t
 								"",
 							})
 							if riskRule != nil {
-								row = append(row, riskRule.RiskLevel.String())
+								tags := make([]string, 0, len(riskRule.Tags))
+								for i, tag := range riskRule.Tags {
+									if i >= 3 {
+										if i == 3 {
+											tags = append(tags, fmt.Sprintf("(%d more)", len(riskRule.Tags)-3))
+										}
+										break
+									}
+									tags = append(tags, tag.String())
+								}
+								row = append(row, riskRule.RiskLevel.String(), strings.Join(tags, ","))
 							} else {
 								row = append(row, "")
 							}

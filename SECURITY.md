@@ -4,17 +4,17 @@
 
 The RBAC-Ops team takes security vulnerabilities seriously. We appreciate your efforts to responsibly disclose your findings.
 
-### Please follow these steps:
+### Please follow these steps
 
 1. **DO NOT** file a public issue
-2. Send your findings to security@yourdomain.com
+2. Send your findings to security@alevsk.com
 3. Include as much information as possible:
    - A detailed description of the vulnerability
    - Steps to reproduce the issue
    - Possible impacts
    - Any potential mitigations you've identified
 
-### What to expect:
+### What to expect
 
 - Acknowledgment of your report within 48 hours
 - Regular updates on our progress

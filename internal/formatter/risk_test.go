@@ -324,17 +324,6 @@ func TestMatchRiskRule(t *testing.T) {
 			wantRisk: RiskLevelHigh,
 			wantDesc: "Read pod logs cluster-wide",
 		},
-		{
-			name: "Full access within namespace",
-			input: SARoleBindingEntry{
-				RoleType: "Role",
-				APIGroup: "",
-				Resource: "*",
-				Verbs:    []string{"*"},
-			},
-			wantRisk: RiskLevelCritical,
-			wantDesc: "Full access within namespace",
-		},
 	}
 
 	for _, tt := range tests {

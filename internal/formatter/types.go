@@ -1,5 +1,7 @@
 package formatter
 
+import "github.com/alevsk/rbac-ops/internal/policyevaluation"
+
 // Type represents the type of formatter
 type Type string
 
@@ -43,15 +45,15 @@ type SAIdentityEntry struct {
 }
 
 type SARoleBindingEntry struct {
-	ServiceAccountName string   `json:"serviceAccountName" yaml:"serviceAccountName"`
-	Namespace          string   `json:"namespace" yaml:"namespace"`
-	RoleType           string   `json:"roleType" yaml:"roleType"`
-	RoleName           string   `json:"roleName" yaml:"roleName"`
-	APIGroup           string   `json:"apiGroup" yaml:"apiGroup"`
-	Resource           string   `json:"resource" yaml:"resource"`
-	Verbs              []string `json:"verbs" yaml:"verbs"`
-	RiskLevel          string   `json:"riskLevel" yaml:"riskLevel"`
-	Tags               RiskTags `json:"tags" yaml:"tags"`
+	ServiceAccountName string                    `json:"serviceAccountName" yaml:"serviceAccountName"`
+	Namespace          string                    `json:"namespace" yaml:"namespace"`
+	RoleType           string                    `json:"roleType" yaml:"roleType"`
+	RoleName           string                    `json:"roleName" yaml:"roleName"`
+	APIGroup           string                    `json:"apiGroup" yaml:"apiGroup"`
+	Resource           string                    `json:"resource" yaml:"resource"`
+	Verbs              []string                  `json:"verbs" yaml:"verbs"`
+	RiskLevel          string                    `json:"riskLevel" yaml:"riskLevel"`
+	Tags               policyevaluation.RiskTags `json:"tags" yaml:"tags"`
 }
 
 type SAWorkloadEntry struct {

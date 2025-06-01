@@ -75,6 +75,20 @@ func (rs RiskTags) String() string {
 	return strings.Join(rs.Strings(), ",")
 }
 
+func (rs RiskTags) StringSlice(limit int) []string {
+	tags := make([]string, 0, limit)
+	for i, tag := range rs {
+		if i >= limit {
+			if i == limit {
+				tags = append(tags, fmt.Sprintf("(%d more)", len(rs)-limit))
+			}
+			break
+		}
+		tags = append(tags, tag.String())
+	}
+	return tags
+}
+
 const (
 	// STRIDE Categories
 	Spoofing              RiskTag = "Spoofing"

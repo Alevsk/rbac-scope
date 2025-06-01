@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/alevsk/rbac-ops/internal/extractor"
+	"github.com/alevsk/rbac-ops/internal/policyevaluation"
 	"github.com/alevsk/rbac-ops/internal/types"
 	"github.com/jedib0t/go-pretty/v6/table"
 )
@@ -156,29 +157,22 @@ func buildTables(data types.Result) (table.Writer, table.Writer, table.Writer, t
 								strings.Join(verbs, ","),
 							}
 
-							riskRule := MatchRiskRule(SARoleBindingEntry{
-								saName,
-								namespace,
-								role.Type,
-								role.Name,
-								apiGroup,
-								resource,
-								verbs,
-								"",
-								RiskTags{},
+							riskRules, err := policyevaluation.MatchRiskRules(policyevaluation.Policy{
+								Namespace: namespace,
+								RoleType:  role.Type,
+								RoleName:  role.Name,
+								APIGroup:  apiGroup,
+								Resource:  resource,
+								Verbs:     verbs,
 							})
-							if riskRule != nil {
-								tags := make([]string, 0, len(riskRule.Tags))
-								for i, tag := range riskRule.Tags {
-									if i >= 3 {
-										if i == 3 {
-											tags = append(tags, fmt.Sprintf("(%d more)", len(riskRule.Tags)-3))
-										}
-										break
-									}
-									tags = append(tags, tag.String())
-								}
+							if err != nil {
+								continue
+							}
+							if len(riskRules) > 0 {
+								riskRule := riskRules[0]
+								tags := riskRule.Tags.StringSlice(3)
 								row = append(row, riskRule.RiskLevel, strings.Join(tags, ","))
+
 							} else {
 								row = append(row, "", "")
 							}
@@ -194,8 +188,7 @@ func buildTables(data types.Result) (table.Writer, table.Writer, table.Writer, t
 		sort.Slice(rows, func(i, j int) bool {
 			rowLeft := rows[i]
 			rowRight := rows[j]
-			// return rowLeft[7].(RiskLevel).Compare(rowRight[7].(RiskLevel)) > 0
-			return rowLeft[7].(RiskLevel) > rowRight[7].(RiskLevel)
+			return rowLeft[7].(policyevaluation.RiskLevel) > rowRight[7].(policyevaluation.RiskLevel)
 		})
 
 		// Append all rows to the table

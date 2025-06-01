@@ -6,6 +6,7 @@ import (
 	"sort"
 
 	"github.com/alevsk/rbac-ops/internal/extractor"
+	"github.com/alevsk/rbac-ops/internal/policyevaluation"
 	"github.com/alevsk/rbac-ops/internal/types"
 	"gopkg.in/yaml.v3"
 )
@@ -190,17 +191,25 @@ func PrepareData(data types.Result, opts *Options) (ParsedData, error) {
 								resource,
 								verbs,
 								"",
-								RiskTags{},
+								policyevaluation.RiskTags{},
 							}
-
-							riskRule := MatchRiskRule(entry)
-							if riskRule != nil {
+							riskRules, err := policyevaluation.MatchRiskRules(policyevaluation.Policy{
+								Namespace: namespace,
+								RoleType:  role.Type,
+								RoleName:  role.Name,
+								APIGroup:  apiGroup,
+								Resource:  resource,
+								Verbs:     verbs,
+							})
+							if err != nil {
+								continue
+							}
+							if len(riskRules) > 0 {
+								riskRule := riskRules[0]
 								entry.RiskLevel = riskRule.RiskLevel.String()
 								entry.Tags = riskRule.Tags
 							}
-
 							parsedData.RBACData = append(parsedData.RBACData, entry)
-
 						}
 					}
 				}

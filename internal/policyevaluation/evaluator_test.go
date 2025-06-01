@@ -10,11 +10,20 @@ import (
 
 func TestMatchRiskRules(t *testing.T) {
 	// Save original rules and restore them after test
-	originalRules := riskRules
+	originalRules := make([]RiskRule, len(riskRules))
+	copy(originalRules, riskRules)
 	defer func() { riskRules = originalRules }()
 
 	// Setup test custom rules
 	riskRules = []RiskRule{
+		{
+			Name:      "Wildcard permission on all resources cluster-wide (Cluster Admin)",
+			RiskLevel: RiskLevelCritical,
+			RoleType:  "ClusterRole",
+			APIGroups: []string{"*"},
+			Resources: []string{"*"},
+			Verbs:     []string{"*"},
+		},
 		{
 			Name:      "High Risk Custom Rule",
 			RiskLevel: RiskLevelHigh,
@@ -271,7 +280,23 @@ func TestEvaluateFixtures(t *testing.T) {
 				},
 			},
 		},
-		// Add more test cases here for other fixture files
+		{
+			name:        "Cluster admin access",
+			fixturePath: "testdata/fixtures/cluster-admin-access.yaml",
+			expectedMatches: []struct {
+				ruleName  string
+				riskLevel RiskLevel
+			}{
+				{
+					ruleName:  "Wildcard permission on all resources cluster-wide (Cluster Admin)",
+					riskLevel: RiskLevelCritical,
+				},
+				{
+					ruleName:  "Base Risk Level: 3",
+					riskLevel: RiskLevelCritical,
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -297,26 +322,69 @@ func TestEvaluateFixtures(t *testing.T) {
 			// Process the first rule (assuming single rule for simplicity)
 			if len(role.Rules) > 0 {
 				rule := role.Rules[0]
+				t.Logf("Processing rule: %+v", rule)
+
+				// For cluster-admin-like access, if any value is "*", use that
 				policy.APIGroup = ""
-				if len(rule.APIGroups) > 0 {
-					policy.APIGroup = rule.APIGroups[0]
+				for _, apiGroup := range rule.APIGroups {
+					t.Logf("Checking APIGroup: %s", apiGroup)
+					if apiGroup == "*" {
+						policy.APIGroup = "*"
+						t.Logf("Found wildcard APIGroup, setting to *")
+						break
+					}
+					if policy.APIGroup == "" {
+						policy.APIGroup = apiGroup
+						t.Logf("Setting APIGroup to: %s", apiGroup)
+					}
 				}
-				if len(rule.Resources) > 0 {
-					policy.Resource = rule.Resources[0]
+				t.Logf("Final APIGroup: %s", policy.APIGroup)
+
+				policy.Resource = ""
+				for _, resource := range rule.Resources {
+					t.Logf("Checking Resource: %s", resource)
+					if resource == "*" {
+						policy.Resource = "*"
+						t.Logf("Found wildcard Resource, setting to *")
+						break
+					}
+					if policy.Resource == "" {
+						policy.Resource = resource
+						t.Logf("Setting Resource to: %s", resource)
+					}
 				}
+				t.Logf("Final Resource: %s", policy.Resource)
+
 				policy.Verbs = rule.Verbs
+				t.Logf("Final Verbs: %v", policy.Verbs)
+			}
+
+			// Print all risk rules for debugging
+			t.Logf("Available risk rules:")
+			for _, rr := range GetRiskRules() {
+				t.Logf("  - %s (Type: %s, APIGroups: %v, Resources: %v, Verbs: %v)",
+					rr.Name, rr.RoleType, rr.APIGroups, rr.Resources, rr.Verbs)
 			}
 
 			// Evaluate the policy
+			t.Logf("Evaluating policy: %+v", policy)
 			matches, err := MatchRiskRules(policy)
 			if err != nil {
 				t.Fatalf("Failed to evaluate policy: %v", err)
 			}
+			t.Logf("Got matches: %+v", matches)
 
 			// Verify number of matches
 			if len(matches) != len(tt.expectedMatches) {
 				t.Errorf("Expected %d matches, got %d", len(tt.expectedMatches), len(matches))
-				t.Logf("Got matches: %+v", matches)
+				t.Logf("Expected matches:")
+				for _, m := range tt.expectedMatches {
+					t.Logf("  - %s (Risk Level: %v)", m.ruleName, m.riskLevel)
+				}
+				t.Logf("Got matches:")
+				for _, m := range matches {
+					t.Logf("  - %s (Risk Level: %v)", m.Name, m.RiskLevel)
+				}
 				return
 			}
 

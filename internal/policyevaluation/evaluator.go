@@ -137,7 +137,7 @@ func MatchRiskRules(policy Policy) ([]RiskRule, error) {
 
 	// Match against custom rules
 	var matches []RiskRule
-	for _, rule := range RiskRules {
+	for _, rule := range GetRiskRules() {
 		if matchesCustomRule(&policy, &rule) {
 			matches = append(matches, rule)
 		}

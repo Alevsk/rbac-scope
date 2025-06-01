@@ -1,0 +1,823 @@
+# --- Core API Group (v1) ---
+- name: "Cluster-wide pod exec"
+  description: "Allows executing commands within any pod across the entire cluster. This provides direct shell access to running containers, enabling code execution, lateral movement, and potential privilege escalation by compromising sensitive workloads or accessing node resources."
+  category: "Elevation of Privilege"
+  risk_level: "RiskLevelCritical"
+  api_groups: [] # Core API group
+  role_type: "ClusterRole"
+  resources: ["pods/exec"]
+  verbs: ["create"] # "create" initiates exec, "get" is for streaming
+  tags:
+    [
+      "ClusterWidePodExec",
+      "CodeExecution",
+      "LateralMovement",
+      "ElevationOfPrivilege",
+    ]
+- name: "Namespaced pod exec"
+  description: "Permits executing commands within pods in a specific namespace. This grants shell access to containers within that namespace, potentially leading to code execution, lateral movement within the namespace, and privilege escalation if sensitive workloads or service accounts are compromised."
+  category: "Elevation of Privilege"
+  risk_level: "RiskLevelHigh"
+  api_groups: []
+  role_type: "Role"
+  resources: ["pods/exec"]
+  verbs: ["create"]
+  tags:
+    [
+      "PodExec",
+      "CodeExecution",
+      "LateralMovement",
+      "PotentialPrivilegeEscalation",
+    ]
+- name: "Cluster-wide pod attach"
+  description: "Enables attaching to the input/output streams of any pod across the cluster. Similar to exec, this can grant interactive shell access, facilitating code execution, lateral movement, and privilege escalation by interacting with running processes."
+  category: "Elevation of Privilege"
+  risk_level: "RiskLevelCritical"
+  api_groups: []
+  role_type: "ClusterRole"
+  resources: ["pods/attach"]
+  verbs: ["create"]
+  tags:
+    [
+      "ClusterWidePodAttach",
+      "CodeExecution",
+      "LateralMovement",
+      "ElevationOfPrivilege",
+    ]
+- name: "Namespaced pod attach"
+  description: "Allows attaching to the input/output streams of pods within a specific namespace. This can provide interactive access to containers in that namespace, risking code execution, lateral movement, and potential privilege escalation through compromised workloads."
+  category: "Elevation of Privilege"
+  risk_level: "RiskLevelHigh"
+  api_groups: []
+  role_type: "Role"
+  resources: ["pods/attach"]
+  verbs: ["create"]
+  tags:
+    [
+      "PodAttach",
+      "CodeExecution",
+      "LateralMovement",
+      "PotentialPrivilegeEscalation",
+    ]
+- name: "Cluster-wide pod port-forward"
+  description: "Grants the ability to forward local ports to ports on any pod across the cluster. This can expose internal services, facilitate lateral movement by bypassing network policies, and lead to information disclosure from otherwise inaccessible applications."
+  category: "Information Disclosure" # Can be used for lateral movement too
+  risk_level: "RiskLevelHigh"
+  api_groups: []
+  role_type: "ClusterRole"
+  resources: ["pods/portforward"]
+  verbs: ["create"]
+  tags: ["ClusterWidePodPortForward", "LateralMovement", "NetworkManipulation"]
+- name: "Namespaced pod port-forward"
+  description: "Permits forwarding local ports to ports on pods within a specific namespace. This can expose internal services within that namespace, enable lateral movement, and potentially lead to information disclosure from applications not intended for external access."
+  category: "Information Disclosure"
+  risk_level: "RiskLevelMedium"
+  api_groups: []
+  role_type: "Role"
+  resources: ["pods/portforward"]
+  verbs: ["create"]
+  tags: ["PodPortForward", "LateralMovement", "NetworkManipulation"]
+- name: "Create pods cluster-wide (potential for privileged pods)"
+  description: "Allows creating new pods in any namespace across the cluster. This is highly critical as it can be used to deploy pods with elevated privileges (e.g., hostPath mounts, privileged security context), leading to node compromise, cluster-wide code execution, and establishing persistence."
+  category: "Elevation of Privilege"
+  risk_level: "RiskLevelCritical"
+  api_groups: []
+  role_type: "ClusterRole"
+  resources: ["pods"]
+  verbs: ["create"]
+  tags:
+    [
+      "WorkloadExecution",
+      "PrivilegeEscalation",
+      "LateralMovement",
+      "Persistence",
+    ]
+- name: "Create pods in a namespace (potential for privileged pods)"
+  description: "Grants permission to create new pods within a specific namespace. This can lead to privilege escalation if allowed to create pods with hostPath mounts, privileged security context, or access to sensitive service accounts within that namespace. It also enables workload execution and potential persistence."
+  category: "Elevation of Privilege"
+  risk_level: "RiskLevelHigh"
+  api_groups: []
+  role_type: "Role"
+  resources: ["pods"]
+  verbs: ["create"]
+  tags:
+    [
+      "WorkloadExecution",
+      "PotentialPrivilegeEscalation",
+      "LateralMovement",
+      "Persistence",
+    ]
+- name: "Update/Patch pods cluster-wide (can modify to privileged)"
+  description: "Permits modifying existing pods in any namespace across the cluster. This is critical as an attacker can alter a pod's specification to grant it elevated privileges (e.g., change image, add privileged security context, mount sensitive host paths), leading to code execution, privilege escalation, and tampering with running workloads."
+  category: "Elevation of Privilege"
+  risk_level: "RiskLevelCritical"
+  api_groups: []
+  role_type: "ClusterRole"
+  resources: ["pods"]
+  verbs: ["update", "patch"]
+  tags: ["WorkloadExecution", "PrivilegeEscalation", "Tampering"]
+- name: "Update/Patch pods in a namespace (can modify to privileged)"
+  description: "Allows modifying existing pods within a specific namespace. This can be used to escalate privileges by changing a pod's configuration to run with higher permissions, execute arbitrary code, or tamper with application behavior within that namespace."
+  category: "Elevation of Privilege"
+  risk_level: "RiskLevelHigh"
+  api_groups: []
+  role_type: "Role"
+  resources: ["pods"]
+  verbs: ["update", "patch"]
+  tags: ["WorkloadExecution", "PotentialPrivilegeEscalation", "Tampering"]
+- name: "Read secrets cluster-wide"
+  description: "Grants access to read all secrets across all namespaces in the cluster. This is extremely critical as secrets often contain sensitive credentials, API keys, tokens, and other confidential data, leading to widespread data exposure and potential full cluster compromise."
+  category: "Information Disclosure"
+  risk_level: "RiskLevelCritical"
+  api_groups: []
+  role_type: "ClusterRole"
+  resources: ["secrets"]
+  verbs: ["get", "list", "watch"]
+  tags:
+    [
+      "ClusterWideSecretAccess",
+      "CredentialAccess",
+      "DataExposure",
+      "InformationDisclosure",
+    ]
+- name: "Read secrets in a namespace"
+  description: "Permits reading all secrets within a specific namespace. Even though namespaced, this is critical as secrets store sensitive information like database credentials, API keys, and service account tokens, which can lead to data exposure and privilege escalation within or beyond the namespace."
+  category: "Information Disclosure"
+  risk_level: "RiskLevelCritical" # Secrets are critical even namespaced
+  api_groups: []
+  role_type: "Role"
+  resources: ["secrets"]
+  verbs: ["get", "list", "watch"]
+  tags:
+    [
+      "SecretAccess",
+      "CredentialAccess",
+      "DataExposure",
+      "InformationDisclosure",
+    ]
+- name: "Modify secrets cluster-wide"
+  description: "Allows creating, updating, patching, or deleting secrets in any namespace across the cluster. This is highly critical as it enables an attacker to inject malicious credentials, tamper with existing secrets, or delete critical ones, leading to privilege escalation, persistence, and service disruption."
+  category: "Tampering"
+  risk_level: "RiskLevelCritical"
+  api_groups: []
+  role_type: "ClusterRole"
+  resources: ["secrets"]
+  verbs: ["create", "update", "patch", "delete"]
+  tags:
+    [
+      "ClusterWideSecretAccess",
+      "Tampering",
+      "PrivilegeEscalation",
+      "Persistence",
+    ]
+- name: "Modify secrets in a namespace"
+  description: "Grants permission to create, update, patch, or delete secrets within a specific namespace. This allows an attacker to tamper with sensitive credentials, potentially escalate privileges by modifying service account tokens or application secrets, and establish persistence within that namespace."
+  category: "Tampering"
+  risk_level: "RiskLevelCritical"
+  api_groups: []
+  role_type: "Role"
+  resources: ["secrets"]
+  verbs: ["create", "update", "patch", "delete"]
+  tags:
+    ["SecretAccess", "Tampering", "PotentialPrivilegeEscalation", "Persistence"]
+- name: "Node proxy access (Kubelet API)"
+  description: "Provides direct access to the Kubelet API on any node in the cluster. This is equivalent to cluster admin access, allowing an attacker to run commands on nodes, access pod logs, execute commands in containers, and retrieve sensitive information directly from the nodes, leading to full cluster compromise."
+  category: "Elevation of Privilege"
+  risk_level: "RiskLevelCritical"
+  api_groups: []
+  role_type: "ClusterRole"
+  resources: ["nodes/proxy"]
+  verbs: ["get", "create", "update", "patch", "delete"] # All verbs are dangerous
+  tags:
+    [
+      "NodeAccess",
+      "ClusterAdminAccess",
+      "CodeExecution",
+      "LateralMovement",
+      "DataExposure",
+      "Tampering",
+    ]
+- name: "Modify node configuration (labels, taints)"
+  description: "Allows modifying node configurations, such as labels and taints, across the cluster. This can be abused to influence pod scheduling, potentially forcing sensitive workloads onto compromised nodes or causing denial of service by misconfiguring taints. It can also be a step towards privilege escalation."
+  category: "Elevation of Privilege"
+  risk_level: "RiskLevelCritical"
+  api_groups: []
+  role_type: "ClusterRole"
+  resources: ["nodes"]
+  verbs: ["patch", "update"]
+  tags:
+    [
+      "NodeAccess",
+      "Tampering",
+      "PotentialPrivilegeEscalation",
+      "DenialOfService",
+    ]
+- name: "Delete nodes"
+  description: "Grants permission to delete nodes from the cluster. This can lead to a severe denial of service by removing compute capacity, disrupting running applications, and potentially causing data loss for workloads not designed for sudden node disappearance."
+  category: "Denial of Service"
+  risk_level: "RiskLevelCritical"
+  api_groups: []
+  role_type: "ClusterRole"
+  resources: ["nodes"]
+  verbs: ["delete", "deletecollection"]
+  tags: ["NodeAccess", "DenialOfService", "ResourceDeletion"]
+- name: "Manage PersistentVolumes (cluster-wide storage manipulation)"
+  description: "Permits creating, updating, patching, or deleting PersistentVolumes across the cluster. This allows manipulation of cluster-wide storage, potentially leading to data exposure by accessing sensitive data, data loss by deleting volumes, tampering with stored information, or denial of service."
+  category: "Tampering"
+  risk_level: "RiskLevelCritical"
+  api_groups: []
+  role_type: "ClusterRole"
+  resources: ["persistentvolumes"]
+  verbs: ["create", "update", "patch", "delete", "deletecollection"]
+  tags:
+    [
+      "StorageManipulation",
+      "DataExposure",
+      "DataLoss",
+      "DenialOfService",
+      "Tampering",
+    ]
+- name: "Read pod logs cluster-wide"
+  description: "Allows accessing logs from any pod across all namespaces in the cluster. This can lead to information disclosure if logs contain sensitive data, credentials, or operational details that could be exploited."
+  category: "Information Disclosure"
+  risk_level: "RiskLevelHigh"
+  api_groups: []
+  role_type: "ClusterRole"
+  resources: ["pods/log"]
+  verbs: ["get"]
+  tags: ["ClusterWideLogAccess", "InformationDisclosure", "DataExposure"]
+- name: "Read pod logs in a namespace"
+  description: "Grants permission to read logs from pods within a specific namespace. This can expose sensitive application data, credentials, or operational details if present in the logs, leading to information disclosure."
+  category: "Information Disclosure"
+  risk_level: "RiskLevelMedium"
+  api_groups: []
+  role_type: "Role"
+  resources: ["pods/log"]
+  verbs: ["get"]
+  tags: ["LogAccess", "InformationDisclosure", "DataExposure"]
+- name: "Manage ephemeral containers cluster-wide"
+  description: "Permits adding or modifying ephemeral containers in any pod across the cluster. This is highly risky as it allows injecting arbitrary code into running pods, facilitating code execution, lateral movement, tampering with live applications, and privilege escalation."
+  category: "Elevation of Privilege"
+  risk_level: "RiskLevelCritical"
+  api_groups: []
+  role_type: "ClusterRole"
+  resources: ["pods/ephemeralcontainers"]
+  verbs: ["update", "patch"]
+  tags:
+    [
+      "WorkloadExecution",
+      "CodeExecution",
+      "LateralMovement",
+      "Tampering",
+      "ElevationOfPrivilege",
+    ]
+- name: "Manage ephemeral containers in a namespace"
+  description: "Allows adding or modifying ephemeral containers in pods within a specific namespace. This enables injecting code into running pods in that namespace, potentially leading to code execution, lateral movement, tampering, and privilege escalation if sensitive pods are targeted."
+  category: "Elevation of Privilege"
+  risk_level: "RiskLevelHigh"
+  api_groups: []
+  role_type: "Role"
+  resources: ["pods/ephemeralcontainers"]
+  verbs: ["update", "patch"]
+  tags:
+    [
+      "WorkloadExecution",
+      "CodeExecution",
+      "LateralMovement",
+      "Tampering",
+      "PotentialPrivilegeEscalation",
+    ]
+- name: "Read ConfigMaps cluster-wide"
+  description: "Grants access to read all ConfigMaps across all namespaces. ConfigMaps can store non-sensitive configuration data but may sometimes inadvertently contain sensitive information, API endpoints, or settings that could be exploited, leading to information disclosure."
+  category: "Information Disclosure"
+  risk_level: "RiskLevelHigh"
+  api_groups: []
+  role_type: "ClusterRole"
+  resources: ["configmaps"]
+  verbs: ["get", "list", "watch"]
+  tags: ["InformationDisclosure", "ConfigMapAccess", "DataExposure"]
+- name: "Read ConfigMaps in a namespace"
+  description: "Permits reading ConfigMaps within a specific namespace. This can lead to information disclosure if ConfigMaps store sensitive configuration details, connection strings, or other exploitable data for applications within that namespace."
+  category: "Information Disclosure"
+  risk_level: "RiskLevelMedium"
+  api_groups: []
+  role_type: "Role"
+  resources: ["configmaps"]
+  verbs: ["get", "list", "watch"]
+  tags: ["InformationDisclosure", "ConfigMapAccess", "DataExposure"]
+- name: "Modify ConfigMaps cluster-wide"
+  description: "Allows creating, updating, patching, or deleting ConfigMaps in any namespace. This enables an attacker to tamper with application configurations across the cluster, potentially leading to misconfigurations, denial of service, or privilege escalation if applications consume malicious configurations."
+  category: "Tampering"
+  risk_level: "RiskLevelCritical"
+  api_groups: []
+  role_type: "ClusterRole"
+  resources: ["configmaps"]
+  verbs: ["create", "update", "patch", "delete"]
+  tags: ["Tampering", "ConfigMapAccess", "PotentialPrivilegeEscalation"]
+- name: "Modify ConfigMaps in a namespace"
+  description: "Grants permission to create, update, patch, or delete ConfigMaps within a specific namespace. This allows an attacker to tamper with application configurations, potentially causing service disruption or enabling further exploitation if applications load malicious settings."
+  category: "Tampering"
+  risk_level: "RiskLevelHigh"
+  api_groups: []
+  role_type: "Role"
+  resources: ["configmaps"]
+  verbs: ["create", "update", "patch", "delete"]
+  tags: ["Tampering", "ConfigMapAccess", "PotentialPrivilegeEscalation"]
+- name: "Delete namespaces"
+  description: "Permits deleting entire namespaces from the cluster. This is a destructive action that can lead to a significant denial of service by removing all resources, applications, and configurations within the targeted namespaces."
+  category: "Denial of Service"
+  risk_level: "RiskLevelHigh"
+  api_groups: []
+  role_type: "ClusterRole"
+  resources: ["namespaces"]
+  verbs: ["delete"]
+  tags: ["NamespaceLifecycle", "ResourceDeletion", "DenialOfService"]
+
+# --- RBAC API Group (rbac.authorization.k8s.io/v1) ---
+- name: "Manage ClusterRoles (create, update, patch, delete)"
+  description: "Allows creating, modifying, or deleting ClusterRoles. This grants the ability to define or alter cluster-wide permissions, enabling an attacker to grant themselves or others arbitrary privileges, including full cluster admin access, leading to complete cluster compromise."
+  category: "Elevation of Privilege"
+  risk_level: "RiskLevelCritical"
+  api_groups: ["rbac.authorization.k8s.io"]
+  role_type: "ClusterRole"
+  resources: ["clusterroles"]
+  verbs: ["create", "update", "patch", "delete"]
+  tags: ["RBACManipulation", "ClusterAdminAccess", "PrivilegeEscalation"]
+- name: "Manage ClusterRoleBindings (create, update, patch, delete)"
+  description: "Permits creating, modifying, or deleting ClusterRoleBindings. This allows an attacker to bind any user, group, or service account to any ClusterRole (including highly privileged ones like cluster-admin), effectively granting arbitrary cluster-wide permissions and leading to privilege escalation."
+  category: "Elevation of Privilege"
+  risk_level: "RiskLevelCritical"
+  api_groups: ["rbac.authorization.k8s.io"]
+  role_type: "ClusterRole"
+  resources: ["clusterrolebindings"]
+  verbs: ["create", "update", "patch", "delete"]
+  tags:
+    [
+      "RBACManipulation",
+      "ClusterAdminAccess",
+      "PrivilegeEscalation",
+      "BindingToPrivilegedRole",
+    ]
+- name: "Manage Roles in a namespace (create, update, patch, delete)"
+  description: "Grants permission to create, modify, or delete Roles within a specific namespace. This allows an attacker to define or alter namespaced permissions, potentially granting themselves elevated access to resources within that namespace."
+  category: "Elevation of Privilege"
+  risk_level: "RiskLevelHigh"
+  api_groups: ["rbac.authorization.k8s.io"]
+  role_type: "Role" # Can also be ClusterRole granting this for a specific namespace
+  resources: ["roles"]
+  verbs: ["create", "update", "patch", "delete"]
+  tags: ["RBACManipulation", "PrivilegeEscalation"]
+- name: "Manage RoleBindings in a namespace (create, update, patch, delete)"
+  description: "Allows creating, modifying, or deleting RoleBindings within a specific namespace. This enables an attacker to bind users, groups, or service accounts to Roles within that namespace. If a powerful ClusterRole is bound to a service account in the namespace, this can lead to privilege escalation."
+  category: "Elevation of Privilege"
+  risk_level: "RiskLevelHigh" # Can be Critical if binding a powerful ClusterRole
+  api_groups: ["rbac.authorization.k8s.io"]
+  role_type: "Role" # Can also be ClusterRole granting this for a specific namespace
+  resources: ["rolebindings"]
+  verbs: ["create", "update", "patch", "delete"]
+  tags: ["RBACManipulation", "PrivilegeEscalation", "BindingToPrivilegedRole"]
+- name: "Escalate privileges via ClusterRoles (escalate verb)"
+  description: "Permits using the 'escalate' verb on ClusterRoles (or Roles). This allows a user to create or update a role with more permissions than they currently possess, up to the permissions defined in the role they are escalating, leading to direct privilege escalation."
+  category: "Elevation of Privilege"
+  risk_level: "RiskLevelCritical"
+  api_groups: ["rbac.authorization.k8s.io"]
+  role_type: "ClusterRole"
+  resources: ["clusterroles"] # Could also be on "roles"
+  verbs: ["escalate"]
+  tags: ["RBACManipulation", "ClusterAdminAccess", "PrivilegeEscalation"]
+- name: "Bind ClusterRoles to identities (bind verb)"
+  description: "Permits using the 'bind' verb on ClusterRoles (or Roles). This allows a user to create a ClusterRoleBinding (or RoleBinding) that grants the permissions of a specific role to another user, group, or service account, potentially leading to privilege escalation if a highly privileged role is bound."
+  category: "Elevation of Privilege"
+  risk_level: "RiskLevelCritical"
+  api_groups: ["rbac.authorization.k8s.io"]
+  role_type: "ClusterRole"
+  resources: ["clusterroles"] # Could also be on "roles"
+  verbs: ["bind"]
+  tags:
+    [
+      "RBACManipulation",
+      "ClusterAdminAccess",
+      "PrivilegeEscalation",
+      "BindingToPrivilegedRole",
+    ]
+
+# --- Workload Controllers (apps/v1, batch/v1) ---
+- name: "Manage Deployments cluster-wide (potential for privileged pod execution)"
+  description: "Allows creating, updating, or deleting Deployments across all namespaces. Deployments manage pod replicas, and this permission can be used to deploy pods with privileged settings, leading to code execution, privilege escalation, persistence, and tampering with cluster workloads."
+  category: "Elevation of Privilege"
+  risk_level: "RiskLevelCritical"
+  api_groups: ["apps"]
+  role_type: "ClusterRole"
+  resources: ["deployments"]
+  verbs: ["create", "update", "patch", "delete"]
+  tags: ["WorkloadLifecycle", "PrivilegeEscalation", "Persistence", "Tampering"]
+- name: "Manage Deployments in a namespace (potential for privileged pod execution)"
+  description: "Grants permission to create, update, or delete Deployments within a specific namespace. This can be used to deploy pods with privileged settings within that namespace, potentially leading to privilege escalation, persistence, and tampering with applications."
+  category: "Elevation of Privilege"
+  risk_level: "RiskLevelHigh"
+  api_groups: ["apps"]
+  role_type: "Role"
+  resources: ["deployments"]
+  verbs: ["create", "update", "patch", "delete"]
+  tags:
+    [
+      "WorkloadLifecycle",
+      "PotentialPrivilegeEscalation",
+      "Persistence",
+      "Tampering",
+    ]
+- name: "Manage DaemonSets cluster-wide (runs on all nodes, high impact)"
+  description: "Permits creating, updating, or deleting DaemonSets across the cluster. DaemonSets ensure a pod runs on all (or selected) nodes. This is highly critical as it allows deploying privileged pods directly onto every node, leading to widespread node compromise, privilege escalation, and persistent access."
+  category: "Elevation of Privilege"
+  risk_level: "RiskLevelCritical"
+  api_groups: ["apps"]
+  role_type: "ClusterRole"
+  resources: ["daemonsets"]
+  verbs: ["create", "update", "patch", "delete"]
+  tags:
+    [
+      "WorkloadLifecycle",
+      "PrivilegeEscalation",
+      "Persistence",
+      "NodeAccess",
+      "Tampering",
+    ]
+- name: "Manage DaemonSets in a namespace (runs on nodes, high impact)"
+  description: "Allows creating, updating, or deleting DaemonSets within a specific namespace. Even if namespaced, DaemonSets can be configured to run on multiple nodes, and if they deploy privileged pods, this can lead to node compromise, privilege escalation, and persistence."
+  category: "Elevation of Privilege"
+  risk_level: "RiskLevelCritical" # Daemonsets are inherently powerful
+  api_groups: ["apps"]
+  role_type: "Role"
+  resources: ["daemonsets"]
+  verbs: ["create", "update", "patch", "delete"]
+  tags:
+    [
+      "WorkloadLifecycle",
+      "PrivilegeEscalation",
+      "Persistence",
+      "NodeAccess",
+      "Tampering",
+    ]
+- name: "Manage StatefulSets cluster-wide"
+  description: "Grants permission to create, update, or delete StatefulSets across all namespaces. Similar to Deployments, this can be used to deploy pods (often stateful applications) with privileged configurations, leading to privilege escalation, persistence, and tampering."
+  category: "Elevation of Privilege"
+  risk_level: "RiskLevelCritical"
+  api_groups: ["apps"]
+  role_type: "ClusterRole"
+  resources: ["statefulsets"]
+  verbs: ["create", "update", "patch", "delete"]
+  tags: ["WorkloadLifecycle", "PrivilegeEscalation", "Persistence", "Tampering"]
+- name: "Manage StatefulSets in a namespace"
+  description: "Allows creating, updating, or deleting StatefulSets within a specific namespace. This can be used to deploy stateful applications with potentially privileged settings, leading to potential privilege escalation, persistence, and tampering within that namespace."
+  category: "Elevation of Privilege"
+  risk_level: "RiskLevelHigh"
+  api_groups: ["apps"]
+  role_type: "Role"
+  resources: ["statefulsets"]
+  verbs: ["create", "update", "patch", "delete"]
+  tags:
+    [
+      "WorkloadLifecycle",
+      "PotentialPrivilegeEscalation",
+      "Persistence",
+      "Tampering",
+    ]
+- name: "Manage CronJobs cluster-wide (scheduled privileged execution, persistence)"
+  description: "Permits creating, updating, or deleting CronJobs across all namespaces. CronJobs schedule recurring batch jobs. This is critical as it allows scheduling the execution of pods (potentially privileged) at regular intervals, leading to privilege escalation, persistent access, and tampering."
+  category: "Elevation of Privilege"
+  risk_level: "RiskLevelCritical"
+  api_groups: ["batch"]
+  role_type: "ClusterRole"
+  resources: ["cronjobs"]
+  verbs: ["create", "update", "patch", "delete"]
+  tags: ["WorkloadLifecycle", "PrivilegeEscalation", "Persistence", "Tampering"]
+- name: "Manage CronJobs in a namespace (scheduled privileged execution, persistence)"
+  description: "Grants permission to create, update, or delete CronJobs within a specific namespace. This can be used to schedule the execution of potentially privileged pods, enabling privilege escalation, persistence, and tampering within that namespace."
+  category: "Elevation of Privilege"
+  risk_level: "RiskLevelHigh"
+  api_groups: ["batch"]
+  role_type: "Role"
+  resources: ["cronjobs"]
+  verbs: ["create", "update", "patch", "delete"]
+  tags:
+    [
+      "WorkloadLifecycle",
+      "PotentialPrivilegeEscalation",
+      "Persistence",
+      "Tampering",
+    ]
+- name: "Manage Jobs cluster-wide (one-off privileged execution)"
+  description: "Allows creating, updating, or deleting Jobs across all namespaces. Jobs create one or more pods for batch tasks. This can be used to run a one-off pod with privileged settings, leading to code execution, privilege escalation, and tampering."
+  category: "Elevation of Privilege"
+  risk_level: "RiskLevelCritical"
+  api_groups: ["batch"]
+  role_type: "ClusterRole"
+  resources: ["jobs"]
+  verbs: ["create", "update", "patch", "delete"]
+  tags: ["WorkloadLifecycle", "PrivilegeEscalation", "Tampering"]
+- name: "Manage Jobs in a namespace (one-off privileged execution)"
+  description: "Permits creating, updating, or deleting Jobs within a specific namespace. This can be used to run a one-off pod, potentially with privileged settings, leading to code execution and potential privilege escalation within that namespace."
+  category: "Elevation of Privilege"
+  risk_level: "RiskLevelHigh"
+  api_groups: ["batch"]
+  role_type: "Role"
+  resources: ["jobs"]
+  verbs: ["create", "update", "patch", "delete"]
+  tags: ["WorkloadLifecycle", "PotentialPrivilegeEscalation", "Tampering"]
+
+# --- Admission Control (admissionregistration.k8s.io/v1) ---
+- name: "Manage MutatingWebhookConfigurations"
+  description: "Grants control over MutatingWebhookConfigurations, which can modify API objects during admission. This is extremely critical as an attacker can create or alter webhooks to inject malicious configurations, escalate privileges, bypass security policies, or cause denial of service."
+  category: "Tampering"
+  risk_level: "RiskLevelCritical"
+  api_groups: ["admissionregistration.k8s.io"]
+  role_type: "ClusterRole"
+  resources: ["mutatingwebhookconfigurations"]
+  verbs: ["create", "update", "patch", "delete"]
+  tags:
+    [
+      "WebhookManipulation",
+      "Tampering",
+      "PrivilegeEscalation",
+      "DenialOfService",
+    ]
+- name: "Manage ValidatingWebhookConfigurations"
+  description: "Allows control over ValidatingWebhookConfigurations, which can validate or reject API objects during admission. An attacker can use this to tamper with security policies (e.g., disable a validating webhook that enforces security best practices) or cause denial of service by rejecting legitimate requests."
+  category: "Tampering"
+  risk_level: "RiskLevelCritical"
+  api_groups: ["admissionregistration.k8s.io"]
+  role_type: "ClusterRole"
+  resources: ["validatingwebhookconfigurations"]
+  verbs: ["create", "update", "patch", "delete"]
+  tags: ["WebhookManipulation", "Tampering", "DenialOfService"] # Less direct EoP than mutating, but can still be abused.
+
+# --- API Extensions (apiextensions.k8s.io/v1, apiregistration.k8s.io/v1) ---
+- name: "Manage CustomResourceDefinitions"
+  description: "Permits creating, updating, or deleting CustomResourceDefinitions (CRDs). CRDs extend the Kubernetes API. Modifying CRDs can lead to tampering with custom controllers, potentially causing unexpected behavior, privilege escalation if controllers manage sensitive resources, or denial of service."
+  category: "Tampering"
+  risk_level: "RiskLevelCritical"
+  api_groups: ["apiextensions.k8s.io"]
+  role_type: "ClusterRole"
+  resources: ["customresourcedefinitions"]
+  verbs: ["create", "update", "patch", "delete"]
+  tags: ["CRDManipulation", "Tampering", "PotentialPrivilegeEscalation"]
+- name: "Manage APIServices"
+  description: "Grants control over APIServices, which register aggregated API servers. This is highly critical as an attacker can redirect API requests to a malicious server, intercept traffic, escalate privileges, cause denial of service, or exfiltrate information."
+  category: "Tampering"
+  risk_level: "RiskLevelCritical"
+  api_groups: ["apiregistration.k8s.io"]
+  role_type: "ClusterRole"
+  resources: ["apiservices"]
+  verbs: ["create", "update", "patch", "delete"]
+  tags:
+    [
+      "APIServiceManipulation",
+      "Tampering",
+      "PrivilegeEscalation",
+      "DenialOfService",
+      "InformationDisclosure",
+    ]
+
+# --- Authentication & Authorization (authentication.k8s.io/v1, authorization.k8s.io/v1) ---
+- name: "Create ServiceAccount Tokens"
+  description: "Allows creating tokens for ServiceAccounts within a specific namespace. If a ServiceAccount has powerful permissions, creating a token for it allows impersonating that ServiceAccount, leading to potential privilege escalation, credential access, and spoofing."
+  category: "Spoofing"
+  risk_level: "RiskLevelCritical" # If SA is powerful or can be bound to powerful roles
+  api_groups: ["authentication.k8s.io"] # As per matrix entry for serviceaccounts/token
+  role_type: "Role" # TokenRequest is namespaced for serviceaccounts
+  resources: ["serviceaccounts/token"]
+  verbs: ["create"]
+  tags:
+    [
+      "TokenCreation",
+      "Impersonation",
+      "CredentialAccess",
+      "PotentialPrivilegeEscalation",
+      "Spoofing",
+    ]
+- name: "Create ServiceAccount Tokens (ClusterRole for any SA in any namespace)"
+  description: "Permits creating tokens for any ServiceAccount in any namespace. This is highly critical as it allows an attacker to generate tokens for highly privileged ServiceAccounts (e.g., those bound to cluster-admin), leading to impersonation, credential access, and full privilege escalation."
+  category: "Spoofing"
+  risk_level: "RiskLevelCritical"
+  api_groups: ["authentication.k8s.io"]
+  role_type: "ClusterRole"
+  resources: ["serviceaccounts/token"]
+  verbs: ["create"]
+  tags:
+    [
+      "TokenCreation",
+      "Impersonation",
+      "CredentialAccess",
+      "PrivilegeEscalation",
+      "Spoofing",
+    ]
+- name: "Create TokenReviews (validate arbitrary tokens)"
+  description: "Allows submitting TokenReview requests to the API server to validate arbitrary tokens. This can be used to probe the validity and attributes of tokens, potentially discovering active service account tokens or user tokens, leading to information disclosure about authentication."
+  category: "Information Disclosure"
+  risk_level: "RiskLevelMedium"
+  api_groups: ["authentication.k8s.io"]
+  role_type: "ClusterRole"
+  resources: ["tokenreviews"]
+  verbs: ["create"]
+  tags: ["InformationDisclosure", "CredentialAccess", "RBACQuery"]
+- name: "Create SubjectAccessReviews (check arbitrary permissions)"
+  description: "Permits submitting SubjectAccessReview requests to check if an arbitrary user, group, or service account has specific permissions cluster-wide. This can be used for reconnaissance to understand the RBAC configuration and identify potential privilege escalation paths."
+  category: "Information Disclosure"
+  risk_level: "RiskLevelMedium"
+  api_groups: ["authorization.k8s.io"]
+  role_type: "ClusterRole"
+  resources: ["subjectaccessreviews"]
+  verbs: ["create"]
+  tags: ["InformationDisclosure", "RBACQuery"]
+- name: "Create LocalSubjectAccessReviews (check permissions in a namespace)"
+  description: "Allows submitting LocalSubjectAccessReview requests to check if an arbitrary user, group, or service account has specific permissions within a particular namespace. This aids in reconnaissance of RBAC permissions within a limited scope."
+  category: "Information Disclosure"
+  risk_level: "RiskLevelLow"
+  api_groups: ["authorization.k8s.io"]
+  role_type: "Role"
+  resources: ["localsubjectaccessreviews"]
+  verbs: ["create"]
+  tags: ["InformationDisclosure", "RBACQuery"]
+
+# --- Certificates (certificates.k8s.io/v1) ---
+- name: "Approve CertificateSigningRequests"
+  description: "Grants the ability to approve CertificateSigningRequests (CSRs). This is extremely critical as approving a CSR for a user or group with high privileges (e.g., system:masters group) allows an attacker to mint a client certificate that grants them those privileges, leading to full cluster compromise."
+  category: "Elevation of Privilege"
+  risk_level: "RiskLevelCritical"
+  api_groups: ["certificates.k8s.io"]
+  role_type: "ClusterRole"
+  resources: ["certificatesigningrequests/approval"]
+  verbs: ["update", "patch"] # "get" to view, "update/patch" to approve
+  tags: ["CSRApproval", "PrivilegeEscalation", "Spoofing", "ClusterAdminAccess"]
+- name: "Create CertificateSigningRequests"
+  description: "Allows creating CertificateSigningRequests. While creating a CSR itself isn't immediately dangerous, if an overly permissive or automated signer approves it, it can lead to the issuance of a certificate with unintended privileges, facilitating spoofing or potential privilege escalation."
+  category: "Spoofing"
+  risk_level: "RiskLevelMedium" # Risk depends on signer configuration
+  api_groups: ["certificates.k8s.io"]
+  role_type: "ClusterRole" # CSRs are cluster-scoped
+  resources: ["certificatesigningrequests"]
+  verbs: ["create"]
+  tags: ["CSRCreation", "PotentialPrivilegeEscalation", "Spoofing"]
+- name: "Manage (get, list, watch, delete) CertificateSigningRequests"
+  description: "Permits viewing, listing, watching, or deleting CertificateSigningRequests. Viewing CSRs can disclose information about pending certificate requests. Deleting CSRs can cause denial of service by preventing legitimate certificates from being issued or renewed."
+  category: "Information Disclosure" # Or Tampering/DoS if delete
+  risk_level: "RiskLevelMedium"
+  api_groups: ["certificates.k8s.io"]
+  role_type: "ClusterRole"
+  resources: ["certificatesigningrequests"]
+  verbs: ["get", "list", "watch", "delete"]
+  tags: ["InformationDisclosure", "Tampering", "DenialOfService"]
+
+# --- Storage (storage.k8s.io/v1) ---
+- name: "Manage CSIDrivers (potential node compromise)"
+  description: "Allows creating, updating, or deleting CSIDrivers. CSIDrivers define how container orchestrators interact with storage systems. A malicious CSIDriver could potentially compromise nodes by running privileged operations or exfiltrating data, leading to privilege escalation and node access."
+  category: "Elevation of Privilege"
+  risk_level: "RiskLevelCritical"
+  api_groups: ["storage.k8s.io"]
+  role_type: "ClusterRole"
+  resources: ["csidrivers"]
+  verbs: ["create", "update", "patch", "delete"]
+  tags:
+    ["StorageManipulation", "Tampering", "PrivilegeEscalation", "NodeAccess"]
+- name: "Manage StorageClasses"
+  description: "Grants permission to create, update, or delete StorageClasses. StorageClasses define how dynamic provisioning of persistent volumes occurs. Tampering with StorageClasses can lead to denial of service (e.g., by making storage provisioning fail) or misconfiguration of storage resources."
+  category: "Tampering"
+  risk_level: "RiskLevelHigh"
+  api_groups: ["storage.k8s.io"]
+  role_type: "ClusterRole"
+  resources: ["storageclasses"]
+  verbs: ["create", "update", "patch", "delete"]
+  tags: ["StorageManipulation", "Tampering", "DenialOfService"]
+
+# --- Policy (policy/v1) ---
+- name: "Evict Pods cluster-wide"
+  description: "Permits evicting (deleting) pods across all namespaces using the eviction API. This can be used to cause denial of service by disrupting running applications throughout the cluster."
+  category: "Denial of Service"
+  risk_level: "RiskLevelMedium"
+  api_groups: ["policy"] # As per matrix entry for pods/eviction
+  role_type: "ClusterRole"
+  resources: ["pods/eviction"]
+  verbs: ["create"]
+  tags: ["DenialOfService", "WorkloadLifecycle"]
+- name: "Evict Pods in a namespace"
+  description: "Allows evicting (deleting) pods within a specific namespace using the eviction API. This can disrupt applications running in that namespace, leading to a localized denial of service."
+  category: "Denial of Service"
+  risk_level: "RiskLevelMedium"
+  api_groups: ["policy"]
+  role_type: "Role"
+  resources: ["pods/eviction"]
+  verbs: ["create"]
+  tags: ["DenialOfService", "WorkloadLifecycle"]
+
+# --- Node related (node.k8s.io/v1) ---
+- name: "Manage RuntimeClasses"
+  description: "Grants control over RuntimeClasses, which define different container runtime configurations. A malicious RuntimeClass could specify a compromised runtime or allow for escape to the underlying node, leading to node access, tampering, and privilege escalation."
+  category: "Elevation of Privilege"
+  risk_level: "RiskLevelCritical"
+  api_groups: ["node.k8s.io"]
+  role_type: "ClusterRole"
+  resources: ["runtimeclasses"]
+  verbs: ["create", "update", "patch", "delete"]
+  tags:
+    [
+      "NodeAccess",
+      "Tampering",
+      "PrivilegeEscalation",
+      "PotentialPrivilegeEscalation",
+    ]
+
+# --- Wildcard Permissions ---
+- name: "Wildcard permission on all resources cluster-wide (Cluster Admin)"
+  description: "Grants unrestricted, wildcard ('*') access to all API groups, resources, and verbs across the entire cluster. This is equivalent to full cluster administrator privileges, allowing complete control and compromise of the Kubernetes cluster."
+  category: "Elevation of Privilege"
+  risk_level: "RiskLevelCritical"
+  api_groups: ["*"]
+  role_type: "ClusterRole"
+  resources: ["*"]
+  verbs: ["*"]
+  tags:
+    [
+      "ClusterAdminAccess",
+      "PrivilegeEscalation",
+      "WildcardPermission",
+      "Tampering",
+      "InformationDisclosure",
+      "DenialOfService",
+      "Spoofing",
+    ]
+- name: "Wildcard permission on all resources in a namespace (Namespace Admin)"
+  description: "Grants unrestricted, wildcard ('*') access to all API groups, resources, and verbs within a specific namespace. This provides full administrative control over that namespace and can often be leveraged to escalate privileges to cluster-wide admin depending on the cluster configuration and installed operators."
+  category: "Elevation of Privilege"
+  risk_level: "RiskLevelCritical" # Namespace admin can often escalate to cluster admin
+  api_groups: ["*"]
+  role_type: "Role"
+  resources: ["*"]
+  verbs: ["*"]
+  tags:
+    [
+      "NamespaceAdmin",
+      "PotentialPrivilegeEscalation",
+      "WildcardPermission",
+      "Tampering",
+      "InformationDisclosure",
+      "DenialOfService",
+      "Spoofing",
+    ]
+
+# --- Specific CRDs (Examples) ---
+- name: "Manage ClusterIssuers (cert-manager.io)"
+  description: "Allows managing cert-manager ClusterIssuers, which are responsible for signing certificate requests for the entire cluster. Control over ClusterIssuers can enable an attacker to issue arbitrary certificates, potentially for privileged identities or domains, leading to spoofing, tampering, and privilege escalation."
+  category: "Spoofing"
+  risk_level: "RiskLevelCritical"
+  api_groups: ["cert-manager.io"]
+  role_type: "ClusterRole"
+  resources: ["clusterissuers"]
+  verbs: ["create", "update", "patch", "delete"]
+  tags:
+    ["CertificateManagement", "Spoofing", "Tampering", "ElevationOfPrivilege"]
+- name: "Manage ArgoCD Applications (argoproj.io)"
+  description: "Grants permission to manage ArgoCD Application resources. This allows deploying, modifying, or deleting applications managed by ArgoCD, potentially leading to the deployment of malicious workloads, unauthorized code execution, tampering with production systems, and privilege escalation if ArgoCD has high privileges."
+  category: "Tampering" # Can lead to EoP by deploying malicious workloads
+  risk_level: "RiskLevelCritical"
+  api_groups: ["argoproj.io"]
+  role_type: "Role" # Typically namespaced, but impact can be cluster-wide
+  resources: ["applications"] # Also applicationsets, appprojects
+  verbs: ["create", "update", "patch", "delete", "sync"] # sync is an argo verb often mapped
+  tags:
+    [
+      "WorkloadDeployment",
+      "Tampering",
+      "PotentialPrivilegeEscalation",
+      "CodeExecution",
+    ]
+- name: "Manage Cilium ClusterwideNetworkPolicies (cilium.io)"
+  description: "Permits managing CiliumClusterwideNetworkPolicies, which control network traffic flow across the entire cluster when using Cilium CNI. An attacker can modify these policies to bypass network segmentation, eavesdrop on traffic, or cause denial of service by isolating critical components."
+  category: "NetworkManipulation"
+  risk_level: "RiskLevelCritical"
+  api_groups: ["cilium.io"]
+  role_type: "ClusterRole"
+  resources: ["ciliumclusterwidenetworkpolicies"]
+  verbs: ["create", "update", "patch", "delete"]
+  tags:
+    [
+      "NetworkPolicyManagement",
+      "NetworkManipulation",
+      "Tampering",
+      "DenialOfService",
+    ]
+- name: "Manage ETCDSnapshotFiles (k3s.cattle.io)"
+  description: "Grants access to manage ETCD snapshot files, typically in a K3s environment. ETCD snapshots contain the entire state of the Kubernetes cluster, including all secrets, configurations, and resource definitions. Access allows complete data exposure, credential harvesting, and potentially restoring a compromised state or tampering with backups."
+  category: "Information Disclosure" # Access to full cluster state
+  risk_level: "RiskLevelCritical"
+  api_groups: ["k3s.cattle.io"]
+  role_type: "ClusterRole"
+  resources: ["etcdsnapshotfiles"]
+  verbs: ["get", "list", "create", "update", "delete"] # All verbs are dangerous
+  tags:
+    [
+      "BackupAccess",
+      "ClusterAdminAccess",
+      "DataExposure",
+      "CredentialAccess",
+      "Tampering",
+    ]

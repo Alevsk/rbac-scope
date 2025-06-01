@@ -10,11 +10,11 @@ import (
 
 func TestMatchRiskRules(t *testing.T) {
 	// Save original rules and restore them after test
-	originalRules := RiskRules
-	defer func() { RiskRules = originalRules }()
+	originalRules := riskRules
+	defer func() { riskRules = originalRules }()
 
 	// Setup test custom rules
-	RiskRules = []RiskRule{
+	riskRules = []RiskRule{
 		{
 			Name:      "High Risk Custom Rule",
 			RiskLevel: RiskLevelHigh,

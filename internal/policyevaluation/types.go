@@ -1,6 +1,11 @@
 package policyevaluation
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+
+	"gopkg.in/yaml.v3"
+)
 
 type RiskLevel int
 
@@ -10,6 +15,28 @@ const (
 	RiskLevelHigh                      // cluster-wide access across all namespaces but limited to a specific API group
 	RiskLevelCritical                  // cluster-wide access across all namespaces and all API groups
 )
+
+// UnmarshalYAML implements the yaml.Unmarshaler interface for RiskLevel
+func (rl *RiskLevel) UnmarshalYAML(value *yaml.Node) error {
+	var str string
+	if err := value.Decode(&str); err != nil {
+		return err
+	}
+
+	switch str {
+	case "RiskLevelLow":
+		*rl = RiskLevelLow
+	case "RiskLevelMedium":
+		*rl = RiskLevelMedium
+	case "RiskLevelHigh":
+		*rl = RiskLevelHigh
+	case "RiskLevelCritical":
+		*rl = RiskLevelCritical
+	default:
+		return fmt.Errorf("invalid risk level: %s", str)
+	}
+	return nil
+}
 
 // Implement Stringer for RiskLevel
 func (rl RiskLevel) String() string {
@@ -107,15 +134,15 @@ const (
 )
 
 type RiskRule struct {
-	Name        string
-	Description string
-	Category    string // STRIDE Category
-	RiskLevel   RiskLevel
-	APIGroups   []string
-	RoleType    string // "Role" or "ClusterRole"
-	Resources   []string
-	Verbs       []string
-	Tags        RiskTags
+	Name        string    `yaml:"name"`
+	Description string    `yaml:"description"`
+	Category    string    `yaml:"category"`
+	RiskLevel   RiskLevel `yaml:"risk_level"`
+	APIGroups   []string  `yaml:"api_groups"`
+	RoleType    string    `yaml:"role_type"`
+	Resources   []string  `yaml:"resources"`
+	Verbs       []string  `yaml:"verbs"`
+	Tags        RiskTags  `yaml:"tags"`
 }
 
 type Policy struct {

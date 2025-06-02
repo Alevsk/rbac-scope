@@ -92,12 +92,12 @@ func matchesAPIGroups(policy *Policy, rule *RiskRule) bool {
 	// Case 4: Check if policy's APIGroup matches any of rule's APIGroups
 	for _, ruleGroup := range rule.APIGroups {
 		if ruleGroup == policy.APIGroup || (ruleGroup == "" && policy.APIGroup == "") {
-			logger.Debug().Msg(fmt.Sprintf("Rule's APIGroup %s matches policy's APIGroup", ruleGroup))
+			logger.Debug().Msgf("Rule's APIGroup %s matches policy's APIGroup %s", ruleGroup, policy.APIGroup)
 			return true
 		}
 	}
 
-	logger.Debug().Msg(fmt.Sprintf("No rule's APIGroup matches policy's APIGroup %s", policy.APIGroup))
+	logger.Debug().Msgf("No rule's APIGroup matches policy's APIGroup %s", policy.APIGroup)
 	return false
 }
 
@@ -121,11 +121,11 @@ func matchesResources(policy *Policy, rule *RiskRule) bool {
 	// Case 3: No wildcards, check if rule's Resources are contained in policy's Resources
 	for _, ruleResource := range rule.Resources {
 		if ruleResource == policy.Resource {
-			logger.Debug().Msg(fmt.Sprintf("Rule's Resource %s matches policy's Resource %s", ruleResource, policy.Resource))
+			logger.Debug().Msgf("Rule's Resource %s matches policy's Resource %s", ruleResource, policy.Resource)
 			return true
 		}
 	}
-	logger.Debug().Msg(fmt.Sprintf("No rule's Resource matches policy's Resource %s", policy.Resource))
+	logger.Debug().Msgf("No rule's Resource matches policy's Resource %s", policy.Resource)
 	return false
 }
 
@@ -160,7 +160,7 @@ func matchesVerbs(policy *Policy, rule *RiskRule) bool {
 			}
 		}
 		if !found {
-			logger.Debug().Msg(fmt.Sprintf("Rule's verb %s not found in policy's verbs", ruleVerb))
+			logger.Debug().Msgf("Rule's verb %s not found in policy's verbs %v", ruleVerb, policy.Verbs)
 			return false
 		}
 	}
@@ -173,7 +173,7 @@ func matchesCustomRule(policy *Policy, rule *RiskRule) bool {
 	// RoleType must match exactly, except for Role vs ClusterRole
 	if policy.RoleType == "Role" && rule.RoleType == "ClusterRole" {
 		// A Role cannot match a ClusterRole rule
-		logger.Debug().Msg(fmt.Sprintf("RoleType mismatch: rule=%s, policy=%s", rule.RoleType, policy.RoleType))
+		logger.Debug().Msgf("RoleType mismatch: rule=%s, policy=%s", rule.RoleType, policy.RoleType)
 		return false
 	}
 
@@ -190,7 +190,7 @@ func matchesCustomRule(policy *Policy, rule *RiskRule) bool {
 		return false
 	}
 
-	logger.Debug().Msg(fmt.Sprintf("Rule %q matches!", rule.Name))
+	logger.Debug().Msgf("Rule %q matches!", rule.Name)
 	return true
 }
 

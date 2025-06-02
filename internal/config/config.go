@@ -15,6 +15,8 @@ const (
 
 // Config holds all configuration for the application
 type Config struct {
+	// Debug enables verbose logging and additional debug information
+	Debug bool `mapstructure:"debug"`
 	// Server configuration
 	Server struct {
 		Host     string        `mapstructure:"host"`

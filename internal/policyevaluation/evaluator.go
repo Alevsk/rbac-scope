@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/alevsk/rbac-ops/internal/logger"
 )
 
 // containsWildcard checks if a string equals "*" or contains "*"
@@ -61,16 +63,16 @@ func matchesAPIGroups(policy *Policy, rule *RiskRule) bool {
 	// Case 1: If rule has wildcard, policy must have wildcard
 	if containsWildcardInSlice(rule.APIGroups) {
 		if policy.APIGroup != "*" {
-			fmt.Printf("Rule has wildcard APIGroup but policy doesn't\n")
+			logger.Debug().Msg("Rule has wildcard APIGroup but policy doesn't")
 			return false
 		}
-		fmt.Printf("Matched wildcard APIGroup\n")
+		logger.Debug().Msg("Matched wildcard APIGroup")
 		return true
 	}
 
 	// Case 2: Policy has wildcard, matches any rule's APIGroups
 	if policy.APIGroup == "*" {
-		fmt.Printf("Policy has wildcard APIGroup, matches any rule's APIGroups\n")
+		logger.Debug().Msg("Policy has wildcard APIGroup, matches any rule's APIGroups")
 		return true
 	}
 
@@ -79,23 +81,23 @@ func matchesAPIGroups(policy *Policy, rule *RiskRule) bool {
 		// Policy is for core API group, check if rule matches
 		for _, ruleGroup := range rule.APIGroups {
 			if ruleGroup == "" {
-				fmt.Printf("Matched core API group\n")
+				logger.Debug().Msg("Matched core API group")
 				return true
 			}
 		}
-		fmt.Printf("Policy is for core API group but rule has different APIGroups\n")
+		logger.Debug().Msg("Policy is for core API group but rule has different APIGroups")
 		return false
 	}
 
 	// Case 4: Check if policy's APIGroup matches any of rule's APIGroups
 	for _, ruleGroup := range rule.APIGroups {
 		if ruleGroup == policy.APIGroup || (ruleGroup == "" && policy.APIGroup == "") {
-			fmt.Printf("Rule's APIGroup %s matches policy's APIGroup\n", ruleGroup)
+			logger.Debug().Msg(fmt.Sprintf("Rule's APIGroup %s matches policy's APIGroup", ruleGroup))
 			return true
 		}
 	}
 
-	fmt.Printf("No rule's APIGroup matches policy's APIGroup %s\n", policy.APIGroup)
+	logger.Debug().Msg(fmt.Sprintf("No rule's APIGroup matches policy's APIGroup %s", policy.APIGroup))
 	return false
 }
 
@@ -103,27 +105,27 @@ func matchesResources(policy *Policy, rule *RiskRule) bool {
 	// Case 1: If rule has wildcard, policy must have wildcard
 	if containsWildcardInSlice(rule.Resources) {
 		if policy.Resource != "*" {
-			fmt.Printf("Rule has wildcard Resource but policy doesn't\n")
+			logger.Debug().Msg("Rule has wildcard Resource but policy doesn't")
 			return false
 		}
-		fmt.Printf("Matched wildcard Resource\n")
+		logger.Debug().Msg("Matched wildcard Resource")
 		return true
 	}
 
 	// Case 2: Policy has wildcard, matches any rule's Resources
 	if policy.Resource == "*" {
-		fmt.Printf("Policy has wildcard Resource, matches any rule's Resources\n")
+		logger.Debug().Msg("Policy has wildcard Resource, matches any rule's Resources")
 		return true
 	}
 
 	// Case 3: No wildcards, check if rule's Resources are contained in policy's Resources
 	for _, ruleResource := range rule.Resources {
 		if ruleResource == policy.Resource {
-			fmt.Printf("Rule's Resource %s matches policy's Resource %s\n", ruleResource, policy.Resource)
+			logger.Debug().Msg(fmt.Sprintf("Rule's Resource %s matches policy's Resource %s", ruleResource, policy.Resource))
 			return true
 		}
 	}
-	fmt.Printf("No rule's Resource matches policy's Resource %s\n", policy.Resource)
+	logger.Debug().Msg(fmt.Sprintf("No rule's Resource matches policy's Resource %s", policy.Resource))
 	return false
 }
 
@@ -132,18 +134,18 @@ func matchesVerbs(policy *Policy, rule *RiskRule) bool {
 	if containsWildcardInSlice(rule.Verbs) {
 		for _, policyVerb := range policy.Verbs {
 			if policyVerb == "*" {
-				fmt.Printf("Matched wildcard Verbs\n")
+				logger.Debug().Msg("Matched wildcard Verbs")
 				return true
 			}
 		}
-		fmt.Printf("Rule has wildcard Verbs but policy doesn't\n")
+		logger.Debug().Msg("Rule has wildcard Verbs but policy doesn't")
 		return false
 	}
 
 	// Case 2: Policy has wildcard, matches any rule's verbs
 	for _, policyVerb := range policy.Verbs {
 		if policyVerb == "*" {
-			fmt.Printf("Policy has wildcard Verbs, matches any rule's verbs\n")
+			logger.Debug().Msg("Policy has wildcard Verbs, matches any rule's verbs")
 			return true
 		}
 	}
@@ -158,11 +160,11 @@ func matchesVerbs(policy *Policy, rule *RiskRule) bool {
 			}
 		}
 		if !found {
-			fmt.Printf("Rule's verb %s not found in policy's verbs\n", ruleVerb)
+			logger.Debug().Msg(fmt.Sprintf("Rule's verb %s not found in policy's verbs", ruleVerb))
 			return false
 		}
 	}
-	fmt.Printf("Rule's verbs are a subset of policy's verbs\n")
+	logger.Debug().Msg("Rule's verbs are a subset of policy's verbs")
 	return true
 }
 
@@ -171,7 +173,7 @@ func matchesCustomRule(policy *Policy, rule *RiskRule) bool {
 	// RoleType must match exactly, except for Role vs ClusterRole
 	if policy.RoleType == "Role" && rule.RoleType == "ClusterRole" {
 		// A Role cannot match a ClusterRole rule
-		fmt.Printf("RoleType mismatch: rule=%s, policy=%s\n", rule.RoleType, policy.RoleType)
+		logger.Debug().Msg(fmt.Sprintf("RoleType mismatch: rule=%s, policy=%s", rule.RoleType, policy.RoleType))
 		return false
 	}
 
@@ -188,7 +190,7 @@ func matchesCustomRule(policy *Policy, rule *RiskRule) bool {
 		return false
 	}
 
-	fmt.Printf("Rule %q matches!\n", rule.Name)
+	logger.Debug().Msg(fmt.Sprintf("Rule %q matches!", rule.Name))
 	return true
 }
 

@@ -862,7 +862,7 @@
   description: "Allows reading all events across all namespaces. Events can reveal sensitive operational information, error messages, pod creation/deletion activity, image names, and other details that could aid an attacker in reconnaissance or identifying vulnerabilities."
   category: "Information Disclosure"
   risk_level: "RiskLevelMedium" # Usually not directly exploitable but aids attackers
-  api_groups: [""] # or "events.k8s.io"
+  api_groups: ["", "events.k8s.io"]
   role_type: "ClusterRole"
   resources: ["events"]
   verbs: ["get", "list", "watch"]
@@ -902,7 +902,7 @@
   description: "Allows creating, updating, or deleting Endpoints/EndpointSlices for services across all namespaces. This can be used to redirect traffic intended for legitimate services to malicious pods (Man-in-the-Middle), cause denial of service, or bypass network policies."
   category: "NetworkManipulation"
   risk_level: "RiskLevelCritical"
-  api_groups: [""] # Core for Endpoints, discovery.k8s.io for EndpointSlices
+  api_groups: ["", "discovery.k8s.io"] # Core for Endpoints, discovery.k8s.io for EndpointSlices
   role_type: "ClusterRole"
   resources: ["endpoints", "endpointslices"]
   verbs: ["create", "update", "patch", "delete", "get", "list"] # get/list for reconnaissance
@@ -918,7 +918,7 @@
   description: "Permits creating, updating, or deleting Endpoints/EndpointSlices for services within a specific namespace. This can lead to traffic redirection, denial of service, or network policy bypass for applications within that namespace."
   category: "NetworkManipulation"
   risk_level: "RiskLevelHigh"
-  api_groups: [""] # Core for Endpoints, discovery.k8s.io for EndpointSlices
+  api_groups: ["", "discovery.k8s.io"] # Core for Endpoints, discovery.k8s.io for EndpointSlices
   role_type: "Role"
   resources: ["endpoints", "endpointslices"]
   verbs: ["create", "update", "patch", "delete", "get", "list"]
@@ -992,7 +992,7 @@
 - name: "Manage Leases cluster-wide"
   description: "Allows managing Lease objects across all namespaces. Leases are used for leader election by control plane components and controllers. Tampering with leases can disrupt critical cluster operations, cause denial of service, or potentially force a malicious controller to become a leader."
   category: "Tampering" # Can lead to DoS or controller compromise
-  risk_level: "RiskLevelHigh" # Could be Critical depending on which lease
+  risk_level: "RiskLevelCritical"
   api_groups: ["coordination.k8s.io"]
   role_type: "ClusterRole"
   resources: ["leases"]

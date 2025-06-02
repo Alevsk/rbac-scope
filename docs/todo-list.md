@@ -48,30 +48,6 @@ A curated database of RBAC policies used by popular Kubernetes Operators, with s
 - [x] **E505** On the ingestor.go, modify `reader, metadata, err := resolver.Resolve(ctx)` to return the renderer.Result instead of io.ReadCloser as the reader will not be used, then use each extractor to extract the data from each Manifest and print it to stdout in a tabular format for now
 - [x] **E506** Document supported extractors in `docs/extractor.md`
 
-### 🧩 Normalizer
+### 🧩 Policy Evaluator
 
-- [ ] **F600** Create normalizer package
-- [ ] **F601** Design in-memory data model (`Operator`, `ServiceAccount`, `Role`, …)  
-- [ ] **F602** Implement concurrency-safe map with mutexes / sync primitives  
-- [ ] **F603** Build loader that merges extractor output into the model  
-- [ ] **F604** Track operator name + version (`argocd/2.6.7`) in model keys  
-- [ ] **F605** Run `go test -race` and fix any data races
-- [ ] **F606** Map `ServiceAccount → Workload` usage (e.g., `argocd-server → Deployment/argocd-server`)  
-- [ ] **F607** Associate each service account and role with its **namespace** and store in the model  
-- [ ] **F608** Aggregate **RBAC capability summaries** per service account (verbs, resources, cluster-scoped vs namespace-scoped)  
-- [ ] **F609** Compute **risk flags** for dangerous combinations (e.g., `secrets:get` + `pods/exec`) and attach to summaries  
-- [ ] **F60A** Track **operator version lineage** so multiple versions can coexist (`prometheus-operator/0.64.1` vs `0.65.0`)  
-- [ ] **F60B** Implement **duplicate-detection / merge logic** when identical objects are discovered across sources  
-- [ ] **F60C** Expose **query helpers** (e.g., “What can SA X do across namespaces?”) for later CLI/UI layers  
-- [ ] **F60D** Produce **visualization-ready payloads** (e.g., DOT, JSON graph) from normalized data model  
-- [ ] **F60E** Add unit tests for namespace mapping, risk flag computation, and lineage handling  
-- [ ] **F60F** Benchmark model build under concurrent ingestion to validate mutex strategy (target ≤ 5 ms/op on 8 CPU)  
-
-### 📦 Output Store
-
-- [ ] **G700** Create output store package
-- [ ] **G701** Define `OutputStore` interface (model → persistence)  
-- [ ] **G702** Implement **FilesystemStore** (folder per operator version)  
-- [ ] **G703** Add **JSONSerializer** with indented output  
-- [ ] **G704** Add **YAMLSerializer** preserving ordering for diff-friendliness  
-- [ ] **G705** Unit tests + sample outputs in `examples/`  
+- [ ] **F600** Add support for `resourceNames` evaluation

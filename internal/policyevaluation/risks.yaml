@@ -3,7 +3,7 @@
   description: "Allows executing commands within any pod across the entire cluster. This provides direct shell access to running containers, enabling code execution, lateral movement, and potential privilege escalation by compromising sensitive workloads or accessing node resources."
   category: "Elevation of Privilege"
   risk_level: "RiskLevelCritical"
-  api_groups: [] # Core API group
+  api_groups: [""] # Core API group
   role_type: "ClusterRole"
   resources: ["pods/exec"]
   verbs: ["create"] # "create" initiates exec, "get" is for streaming
@@ -18,7 +18,7 @@
   description: "Permits executing commands within pods in a specific namespace. This grants shell access to containers within that namespace, potentially leading to code execution, lateral movement within the namespace, and privilege escalation if sensitive workloads or service accounts are compromised."
   category: "Elevation of Privilege"
   risk_level: "RiskLevelHigh"
-  api_groups: []
+  api_groups: [""]
   role_type: "Role"
   resources: ["pods/exec"]
   verbs: ["create"]
@@ -33,7 +33,7 @@
   description: "Enables attaching to the input/output streams of any pod across the cluster. Similar to exec, this can grant interactive shell access, facilitating code execution, lateral movement, and privilege escalation by interacting with running processes."
   category: "Elevation of Privilege"
   risk_level: "RiskLevelCritical"
-  api_groups: []
+  api_groups: [""]
   role_type: "ClusterRole"
   resources: ["pods/attach"]
   verbs: ["create"]
@@ -48,7 +48,7 @@
   description: "Allows attaching to the input/output streams of pods within a specific namespace. This can provide interactive access to containers in that namespace, risking code execution, lateral movement, and potential privilege escalation through compromised workloads."
   category: "Elevation of Privilege"
   risk_level: "RiskLevelHigh"
-  api_groups: []
+  api_groups: [""]
   role_type: "Role"
   resources: ["pods/attach"]
   verbs: ["create"]
@@ -63,7 +63,7 @@
   description: "Grants the ability to forward local ports to ports on any pod across the cluster. This can expose internal services, facilitate lateral movement by bypassing network policies, and lead to information disclosure from otherwise inaccessible applications."
   category: "Information Disclosure" # Can be used for lateral movement too
   risk_level: "RiskLevelHigh"
-  api_groups: []
+  api_groups: [""]
   role_type: "ClusterRole"
   resources: ["pods/portforward"]
   verbs: ["create"]
@@ -72,7 +72,7 @@
   description: "Permits forwarding local ports to ports on pods within a specific namespace. This can expose internal services within that namespace, enable lateral movement, and potentially lead to information disclosure from applications not intended for external access."
   category: "Information Disclosure"
   risk_level: "RiskLevelMedium"
-  api_groups: []
+  api_groups: [""]
   role_type: "Role"
   resources: ["pods/portforward"]
   verbs: ["create"]
@@ -81,7 +81,7 @@
   description: "Allows creating new pods in any namespace across the cluster. This is highly critical as it can be used to deploy pods with elevated privileges (e.g., hostPath mounts, privileged security context), leading to node compromise, cluster-wide code execution, and establishing persistence."
   category: "Elevation of Privilege"
   risk_level: "RiskLevelCritical"
-  api_groups: []
+  api_groups: [""]
   role_type: "ClusterRole"
   resources: ["pods"]
   verbs: ["create"]
@@ -96,7 +96,7 @@
   description: "Grants permission to create new pods within a specific namespace. This can lead to privilege escalation if allowed to create pods with hostPath mounts, privileged security context, or access to sensitive service accounts within that namespace. It also enables workload execution and potential persistence."
   category: "Elevation of Privilege"
   risk_level: "RiskLevelHigh"
-  api_groups: []
+  api_groups: [""]
   role_type: "Role"
   resources: ["pods"]
   verbs: ["create"]
@@ -111,7 +111,7 @@
   description: "Permits modifying existing pods in any namespace across the cluster. This is critical as an attacker can alter a pod's specification to grant it elevated privileges (e.g., change image, add privileged security context, mount sensitive host paths), leading to code execution, privilege escalation, and tampering with running workloads."
   category: "Elevation of Privilege"
   risk_level: "RiskLevelCritical"
-  api_groups: []
+  api_groups: [""]
   role_type: "ClusterRole"
   resources: ["pods"]
   verbs: ["update", "patch"]
@@ -120,7 +120,7 @@
   description: "Allows modifying existing pods within a specific namespace. This can be used to escalate privileges by changing a pod's configuration to run with higher permissions, execute arbitrary code, or tamper with application behavior within that namespace."
   category: "Elevation of Privilege"
   risk_level: "RiskLevelHigh"
-  api_groups: []
+  api_groups: [""]
   role_type: "Role"
   resources: ["pods"]
   verbs: ["update", "patch"]
@@ -129,7 +129,7 @@
   description: "Grants access to read all secrets across all namespaces in the cluster. This is extremely critical as secrets often contain sensitive credentials, API keys, tokens, and other confidential data, leading to widespread data exposure and potential full cluster compromise."
   category: "Information Disclosure"
   risk_level: "RiskLevelCritical"
-  api_groups: []
+  api_groups: [""]
   role_type: "ClusterRole"
   resources: ["secrets"]
   verbs: ["get", "list", "watch"]
@@ -144,7 +144,7 @@
   description: "Permits reading all secrets within a specific namespace. Even though namespaced, this is critical as secrets store sensitive information like database credentials, API keys, and service account tokens, which can lead to data exposure and privilege escalation within or beyond the namespace."
   category: "Information Disclosure"
   risk_level: "RiskLevelCritical" # Secrets are critical even namespaced
-  api_groups: []
+  api_groups: [""]
   role_type: "Role"
   resources: ["secrets"]
   verbs: ["get", "list", "watch"]
@@ -159,7 +159,7 @@
   description: "Allows creating, updating, patching, or deleting secrets in any namespace across the cluster. This is highly critical as it enables an attacker to inject malicious credentials, tamper with existing secrets, or delete critical ones, leading to privilege escalation, persistence, and service disruption."
   category: "Tampering"
   risk_level: "RiskLevelCritical"
-  api_groups: []
+  api_groups: [""]
   role_type: "ClusterRole"
   resources: ["secrets"]
   verbs: ["create", "update", "patch", "delete"]
@@ -174,7 +174,7 @@
   description: "Grants permission to create, update, patch, or delete secrets within a specific namespace. This allows an attacker to tamper with sensitive credentials, potentially escalate privileges by modifying service account tokens or application secrets, and establish persistence within that namespace."
   category: "Tampering"
   risk_level: "RiskLevelCritical"
-  api_groups: []
+  api_groups: [""]
   role_type: "Role"
   resources: ["secrets"]
   verbs: ["create", "update", "patch", "delete"]
@@ -184,7 +184,7 @@
   description: "Provides direct access to the Kubelet API on any node in the cluster. This is equivalent to cluster admin access, allowing an attacker to run commands on nodes, access pod logs, execute commands in containers, and retrieve sensitive information directly from the nodes, leading to full cluster compromise."
   category: "Elevation of Privilege"
   risk_level: "RiskLevelCritical"
-  api_groups: []
+  api_groups: [""]
   role_type: "ClusterRole"
   resources: ["nodes/proxy"]
   verbs: ["get", "create", "update", "patch", "delete"] # All verbs are dangerous
@@ -201,7 +201,7 @@
   description: "Allows modifying node configurations, such as labels and taints, across the cluster. This can be abused to influence pod scheduling, potentially forcing sensitive workloads onto compromised nodes or causing denial of service by misconfiguring taints. It can also be a step towards privilege escalation."
   category: "Elevation of Privilege"
   risk_level: "RiskLevelCritical"
-  api_groups: []
+  api_groups: [""]
   role_type: "ClusterRole"
   resources: ["nodes"]
   verbs: ["patch", "update"]
@@ -216,7 +216,7 @@
   description: "Grants permission to delete nodes from the cluster. This can lead to a severe denial of service by removing compute capacity, disrupting running applications, and potentially causing data loss for workloads not designed for sudden node disappearance."
   category: "Denial of Service"
   risk_level: "RiskLevelCritical"
-  api_groups: []
+  api_groups: [""]
   role_type: "ClusterRole"
   resources: ["nodes"]
   verbs: ["delete", "deletecollection"]
@@ -225,7 +225,7 @@
   description: "Permits creating, updating, patching, or deleting PersistentVolumes across the cluster. This allows manipulation of cluster-wide storage, potentially leading to data exposure by accessing sensitive data, data loss by deleting volumes, tampering with stored information, or denial of service."
   category: "Tampering"
   risk_level: "RiskLevelCritical"
-  api_groups: []
+  api_groups: [""]
   role_type: "ClusterRole"
   resources: ["persistentvolumes"]
   verbs: ["create", "update", "patch", "delete", "deletecollection"]
@@ -241,7 +241,7 @@
   description: "Allows accessing logs from any pod across all namespaces in the cluster. This can lead to information disclosure if logs contain sensitive data, credentials, or operational details that could be exploited."
   category: "Information Disclosure"
   risk_level: "RiskLevelHigh"
-  api_groups: []
+  api_groups: [""]
   role_type: "ClusterRole"
   resources: ["pods/log"]
   verbs: ["get"]
@@ -250,7 +250,7 @@
   description: "Grants permission to read logs from pods within a specific namespace. This can expose sensitive application data, credentials, or operational details if present in the logs, leading to information disclosure."
   category: "Information Disclosure"
   risk_level: "RiskLevelMedium"
-  api_groups: []
+  api_groups: [""]
   role_type: "Role"
   resources: ["pods/log"]
   verbs: ["get"]
@@ -259,7 +259,7 @@
   description: "Permits adding or modifying ephemeral containers in any pod across the cluster. This is highly risky as it allows injecting arbitrary code into running pods, facilitating code execution, lateral movement, tampering with live applications, and privilege escalation."
   category: "Elevation of Privilege"
   risk_level: "RiskLevelCritical"
-  api_groups: []
+  api_groups: [""]
   role_type: "ClusterRole"
   resources: ["pods/ephemeralcontainers"]
   verbs: ["update", "patch"]
@@ -275,7 +275,7 @@
   description: "Allows adding or modifying ephemeral containers in pods within a specific namespace. This enables injecting code into running pods in that namespace, potentially leading to code execution, lateral movement, tampering, and privilege escalation if sensitive pods are targeted."
   category: "Elevation of Privilege"
   risk_level: "RiskLevelHigh"
-  api_groups: []
+  api_groups: [""]
   role_type: "Role"
   resources: ["pods/ephemeralcontainers"]
   verbs: ["update", "patch"]
@@ -291,7 +291,7 @@
   description: "Grants access to read all ConfigMaps across all namespaces. ConfigMaps can store non-sensitive configuration data but may sometimes inadvertently contain sensitive information, API endpoints, or settings that could be exploited, leading to information disclosure."
   category: "Information Disclosure"
   risk_level: "RiskLevelHigh"
-  api_groups: []
+  api_groups: [""]
   role_type: "ClusterRole"
   resources: ["configmaps"]
   verbs: ["get", "list", "watch"]
@@ -300,7 +300,7 @@
   description: "Permits reading ConfigMaps within a specific namespace. This can lead to information disclosure if ConfigMaps store sensitive configuration details, connection strings, or other exploitable data for applications within that namespace."
   category: "Information Disclosure"
   risk_level: "RiskLevelMedium"
-  api_groups: []
+  api_groups: [""]
   role_type: "Role"
   resources: ["configmaps"]
   verbs: ["get", "list", "watch"]
@@ -309,7 +309,7 @@
   description: "Allows creating, updating, patching, or deleting ConfigMaps in any namespace. This enables an attacker to tamper with application configurations across the cluster, potentially leading to misconfigurations, denial of service, or privilege escalation if applications consume malicious configurations."
   category: "Tampering"
   risk_level: "RiskLevelCritical"
-  api_groups: []
+  api_groups: [""]
   role_type: "ClusterRole"
   resources: ["configmaps"]
   verbs: ["create", "update", "patch", "delete"]
@@ -318,7 +318,7 @@
   description: "Grants permission to create, update, patch, or delete ConfigMaps within a specific namespace. This allows an attacker to tamper with application configurations, potentially causing service disruption or enabling further exploitation if applications load malicious settings."
   category: "Tampering"
   risk_level: "RiskLevelHigh"
-  api_groups: []
+  api_groups: [""]
   role_type: "Role"
   resources: ["configmaps"]
   verbs: ["create", "update", "patch", "delete"]
@@ -327,7 +327,7 @@
   description: "Permits deleting entire namespaces from the cluster. This is a destructive action that can lead to a significant denial of service by removing all resources, applications, and configurations within the targeted namespaces."
   category: "Denial of Service"
   risk_level: "RiskLevelHigh"
-  api_groups: []
+  api_groups: [""]
   role_type: "ClusterRole"
   resources: ["namespaces"]
   verbs: ["delete"]

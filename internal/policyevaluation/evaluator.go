@@ -56,145 +56,136 @@ func determineBaseRiskLevel(policy *Policy) RiskLevel {
 	return RiskLevelLow
 }
 
+// matchesAPIGroups checks if policy's APIGroup matches any of rule's APIGroups
+func matchesAPIGroups(policy *Policy, rule *RiskRule) bool {
+	// Case 1: If rule has wildcard, policy must have wildcard
+	if containsWildcardInSlice(rule.APIGroups) {
+		if policy.APIGroup != "*" {
+			fmt.Printf("Rule has wildcard APIGroup but policy doesn't\n")
+			return false
+		}
+		fmt.Printf("Matched wildcard APIGroup\n")
+		return true
+	}
+
+	// Case 2: Policy has wildcard, matches any rule's APIGroups
+	if policy.APIGroup == "*" {
+		fmt.Printf("Policy has wildcard APIGroup, matches any rule's APIGroups\n")
+		return true
+	}
+
+	// Case 3: Check for core API group
+	if policy.APIGroup == "" {
+		// Policy is for core API group, check if rule matches
+		for _, ruleGroup := range rule.APIGroups {
+			if ruleGroup == "" {
+				fmt.Printf("Matched core API group\n")
+				return true
+			}
+		}
+		fmt.Printf("Policy is for core API group but rule has different APIGroups\n")
+		return false
+	}
+
+	// Case 4: Check if policy's APIGroup matches any of rule's APIGroups
+	for _, ruleGroup := range rule.APIGroups {
+		if ruleGroup == policy.APIGroup || (ruleGroup == "" && policy.APIGroup == "") {
+			fmt.Printf("Rule's APIGroup %s matches policy's APIGroup\n", ruleGroup)
+			return true
+		}
+	}
+
+	fmt.Printf("No rule's APIGroup matches policy's APIGroup %s\n", policy.APIGroup)
+	return false
+}
+
+func matchesResources(policy *Policy, rule *RiskRule) bool {
+	// Case 1: If rule has wildcard, policy must have wildcard
+	if containsWildcardInSlice(rule.Resources) {
+		if policy.Resource != "*" {
+			fmt.Printf("Rule has wildcard Resource but policy doesn't\n")
+			return false
+		}
+		fmt.Printf("Matched wildcard Resource\n")
+		return true
+	}
+
+	// Case 2: Policy has wildcard, matches any rule's Resources
+	if policy.Resource == "*" {
+		fmt.Printf("Policy has wildcard Resource, matches any rule's Resources\n")
+		return true
+	}
+
+	// Case 3: No wildcards, check if rule's Resources are contained in policy's Resources
+	for _, ruleResource := range rule.Resources {
+		if ruleResource == policy.Resource {
+			fmt.Printf("Rule's Resource %s matches policy's Resource %s\n", ruleResource, policy.Resource)
+			return true
+		}
+	}
+	fmt.Printf("No rule's Resource matches policy's Resource %s\n", policy.Resource)
+	return false
+}
+
+func matchesVerbs(policy *Policy, rule *RiskRule) bool {
+	// Case 1: If rule has wildcard, policy must have wildcard
+	if containsWildcardInSlice(rule.Verbs) {
+		for _, policyVerb := range policy.Verbs {
+			if policyVerb == "*" {
+				fmt.Printf("Matched wildcard Verbs\n")
+				return true
+			}
+		}
+		fmt.Printf("Rule has wildcard Verbs but policy doesn't\n")
+		return false
+	}
+
+	// Case 2: Policy has wildcard, matches any rule's verbs
+	for _, policyVerb := range policy.Verbs {
+		if policyVerb == "*" {
+			fmt.Printf("Policy has wildcard Verbs, matches any rule's verbs\n")
+			return true
+		}
+	}
+
+	// Case 3: No wildcards, check if rule's verbs are a subset of policy's verbs
+	for _, ruleVerb := range rule.Verbs {
+		var found bool
+		for _, policyVerb := range policy.Verbs {
+			if ruleVerb == policyVerb {
+				found = true
+				break
+			}
+		}
+		if !found {
+			fmt.Printf("Rule's verb %s not found in policy's verbs\n", ruleVerb)
+			return false
+		}
+	}
+	fmt.Printf("Rule's verbs are a subset of policy's verbs\n")
+	return true
+}
+
 // matchesCustomRule checks if a policy matches a custom risk rule
 func matchesCustomRule(policy *Policy, rule *RiskRule) bool {
-	fmt.Printf("Checking rule %q against policy %+v\n", rule.Name, policy)
-
-	// Check RoleType match
-	if rule.RoleType != "" && rule.RoleType != policy.RoleType {
+	// RoleType must match exactly, except for Role vs ClusterRole
+	if policy.RoleType == "Role" && rule.RoleType == "ClusterRole" {
+		// A Role cannot match a ClusterRole rule
 		fmt.Printf("RoleType mismatch: rule=%s, policy=%s\n", rule.RoleType, policy.RoleType)
 		return false
 	}
 
-	// Check APIGroups match
-	if len(rule.APIGroups) > 0 {
-		// Case 2a: If rule has wildcard, policy must have wildcard
-		if containsWildcardInSlice(rule.APIGroups) {
-			if policy.APIGroup != "*" {
-				fmt.Printf("Rule has wildcard APIGroup but policy doesn't\n")
-				return false
-			}
-			fmt.Printf("Matched wildcard APIGroup\n")
-		} else if policy.APIGroup == "*" {
-			// Case 2b: Policy has wildcard, expand it and check if any rule APIGroup matches
-			hasMatch := false
-			for _, ruleGroup := range rule.APIGroups {
-				for _, apiGroup := range AllAPIGroups {
-					if ruleGroup == apiGroup {
-						hasMatch = true
-						break
-					}
-				}
-				if hasMatch {
-					break
-				}
-			}
-			if !hasMatch {
-				fmt.Printf("No APIGroup match found after wildcard expansion\n")
-				return false
-			}
-		} else {
-			// Case 2c: No wildcards, check exact matches
-			hasMatch := false
-			for _, apiGroup := range rule.APIGroups {
-				if apiGroup == policy.APIGroup {
-					hasMatch = true
-					break
-				}
-			}
-			if !hasMatch {
-				fmt.Printf("No exact APIGroup match found\n")
-				return false
-			}
-		}
+	// Check all three conditions
+	if !matchesAPIGroups(policy, rule) {
+		return false
 	}
 
-	// Check Resources match
-	if len(rule.Resources) > 0 {
-		// Case 2a: If rule has wildcard, policy must have wildcard
-		if containsWildcardInSlice(rule.Resources) {
-			if policy.Resource != "*" {
-				fmt.Printf("Rule has wildcard Resource but policy doesn't\n")
-				return false
-			}
-			fmt.Printf("Matched wildcard Resource\n")
-		} else if policy.Resource == "*" {
-			// Case 2b: Policy has wildcard, expand it and check if any rule Resource matches
-			hasMatch := false
-			for _, ruleResource := range rule.Resources {
-				for _, resource := range AllResources {
-					if ruleResource == resource {
-						hasMatch = true
-						break
-					}
-				}
-				if hasMatch {
-					break
-				}
-			}
-			if !hasMatch {
-				fmt.Printf("No Resource match found after wildcard expansion\n")
-				return false
-			}
-		} else {
-			// Case 2c: No wildcards, check exact matches
-			hasMatch := false
-			for _, resource := range rule.Resources {
-				if resource == policy.Resource {
-					hasMatch = true
-					break
-				}
-			}
-			if !hasMatch {
-				fmt.Printf("No exact Resource match found\n")
-				return false
-			}
-		}
+	if !matchesResources(policy, rule) {
+		return false
 	}
 
-	// Check Verbs match
-	if len(rule.Verbs) > 0 {
-		// Case 2a: If rule has wildcard, policy must have wildcard verbs
-		if containsWildcardInSlice(rule.Verbs) {
-			if !containsWildcardInSlice(policy.Verbs) {
-				fmt.Printf("Rule has wildcard Verbs but policy doesn't\n")
-				return false
-			}
-			fmt.Printf("Matched wildcard Verbs\n")
-		} else if containsWildcardInSlice(policy.Verbs) {
-			// Case 2b: Policy has wildcard, expand it and check if any rule Verb matches
-			hasMatch := false
-			for _, ruleVerb := range rule.Verbs {
-				for _, verb := range AllVerbs {
-					if ruleVerb == verb {
-						hasMatch = true
-						break
-					}
-				}
-				if hasMatch {
-					break
-				}
-			}
-			if !hasMatch {
-				fmt.Printf("No Verb match found after wildcard expansion\n")
-				return false
-			}
-		} else {
-			// Case 2c: No wildcards, check if all rule verbs are in policy verbs
-			for _, verb := range rule.Verbs {
-				hasMatch := false
-				for _, policyVerb := range policy.Verbs {
-					if verb == policyVerb {
-						hasMatch = true
-						break
-					}
-				}
-				if !hasMatch {
-					fmt.Printf("Missing verb match: %s\n", verb)
-					return false
-				}
-			}
-		}
+	if !matchesVerbs(policy, rule) {
+		return false
 	}
 
 	fmt.Printf("Rule %q matches!\n", rule.Name)
@@ -224,26 +215,12 @@ func MatchRiskRules(policy Policy) ([]RiskRule, error) {
 		RiskLevel: baseLevel,
 	}
 
-	// If we found custom rule matches, sort them by risk level and handle special cases
+	// If we found custom rule matches, sort them by risk level
 	if len(matches) > 0 {
+		// Sort matches by risk level (highest to lowest)
 		sort.Slice(matches, func(i, j int) bool {
-			// First prioritize cluster-admin rule
-			iIsClusterAdmin := matches[i].Name == "Wildcard permission on all resources cluster-wide (Cluster Admin)"
-			jIsClusterAdmin := matches[j].Name == "Wildcard permission on all resources cluster-wide (Cluster Admin)"
-			if iIsClusterAdmin != jIsClusterAdmin {
-				return iIsClusterAdmin
-			}
-			// Then sort by risk level
 			return matches[i].RiskLevel > matches[j].RiskLevel
 		})
-
-		// Special case: if we're using mock rules (like in TestMatchRiskRules)
-		// and the policy has full wildcard access, just return the base risk level
-		isFullWildcard := policy.APIGroup == "*" && policy.Resource == "*" && containsWildcard(policy.Verbs[0])
-		isMockRules := len(riskRules) <= 3 // In TestMatchRiskRules we only have 3 mock rules
-		if isFullWildcard && isMockRules {
-			return []RiskRule{baseRule}, nil
-		}
 
 		// Return highest risk match and base risk level
 		return []RiskRule{matches[0], baseRule}, nil

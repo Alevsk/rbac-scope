@@ -67,7 +67,7 @@ func TestMatchRiskRules(t *testing.T) {
 		{
 			name: "Cluster-wide pod port-forward",
 			policy: Policy{
-				RoleType: "Role",
+				RoleType: "ClusterRole",
 				APIGroup: "",
 				Resource: "pods/portforward",
 				Verbs:    []string{"create"},

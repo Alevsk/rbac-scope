@@ -77,7 +77,7 @@
   resources: ["pods/portforward"]
   verbs: ["create"]
   tags: ["PodPortForward", "LateralMovement", "NetworkManipulation"]
-- name: "Create pods cluster-wide (potential for privileged pods)"
+- name: "Create pods cluster-wide"
   description: "Allows creating new pods in any namespace across the cluster. This is highly critical as it can be used to deploy pods with elevated privileges (e.g., hostPath mounts, privileged security context), leading to node compromise, cluster-wide code execution, and establishing persistence."
   category: "Elevation of Privilege"
   risk_level: "RiskLevelCritical"
@@ -92,7 +92,7 @@
       "LateralMovement",
       "Persistence",
     ]
-- name: "Create pods in a namespace (potential for privileged pods)"
+- name: "Create pods in a namespace"
   description: "Grants permission to create new pods within a specific namespace. This can lead to privilege escalation if allowed to create pods with hostPath mounts, privileged security context, or access to sensitive service accounts within that namespace. It also enables workload execution and potential persistence."
   category: "Elevation of Privilege"
   risk_level: "RiskLevelHigh"
@@ -107,7 +107,7 @@
       "LateralMovement",
       "Persistence",
     ]
-- name: "Update/Patch pods cluster-wide (can modify to privileged)"
+- name: "Update/Patch pods cluster-wide"
   description: "Permits modifying existing pods in any namespace across the cluster. This is critical as an attacker can alter a pod's specification to grant it elevated privileges (e.g., change image, add privileged security context, mount sensitive host paths), leading to code execution, privilege escalation, and tampering with running workloads."
   category: "Elevation of Privilege"
   risk_level: "RiskLevelCritical"
@@ -116,7 +116,7 @@
   resources: ["pods"]
   verbs: ["update", "patch"]
   tags: ["WorkloadExecution", "PrivilegeEscalation", "Tampering"]
-- name: "Update/Patch pods in a namespace (can modify to privileged)"
+- name: "Update/Patch pods in a namespace"
   description: "Allows modifying existing pods within a specific namespace. This can be used to escalate privileges by changing a pod's configuration to run with higher permissions, execute arbitrary code, or tamper with application behavior within that namespace."
   category: "Elevation of Privilege"
   risk_level: "RiskLevelHigh"

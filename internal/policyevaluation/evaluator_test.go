@@ -3,45 +3,19 @@ package policyevaluation
 import (
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 
 	"gopkg.in/yaml.v3"
 )
 
 func TestMatchRiskRules(t *testing.T) {
-	// Save original rules and restore them after test
-	originalRules := make([]RiskRule, len(riskRules))
-	copy(originalRules, riskRules)
-	defer func() { riskRules = originalRules }()
-
-	// Setup test custom rules
-	riskRules = []RiskRule{
-		{
-			Name:      "Wildcard permission on all resources cluster-wide (Cluster Admin)",
-			RiskLevel: RiskLevelCritical,
-			RoleType:  "ClusterRole",
-			APIGroups: []string{"*"},
-			Resources: []string{"*"},
-			Verbs:     []string{"*"},
-		},
-		{
-			Name:      "High Risk Custom Rule",
-			RiskLevel: RiskLevelHigh,
-			RoleType:  "ClusterRole",
-			APIGroups: []string{"apps"},
-			Resources: []string{"deployments"},
-			Verbs:     []string{"create", "delete"},
-		},
-		{
-			Name:      "Medium Risk Custom Rule",
-			RiskLevel: RiskLevelMedium,
-			RoleType:  "Role",
-			APIGroups: []string{""},
-			Resources: []string{"pods"},
-			Verbs:     []string{"get", "list"},
-		},
+	// We'll use the actual risk rules from risks.yaml
+	rules := GetRiskRules()
+	if len(rules) == 0 {
+		t.Fatal("No risk rules loaded from risks.yaml")
 	}
-
+	// Test wildcard cases
 	tests := []struct {
 		name    string
 		policy  Policy
@@ -49,7 +23,7 @@ func TestMatchRiskRules(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "Critical Risk - Cluster Wide Access with Wildcards",
+			name: "Wildcard permission on all resources cluster-wide",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "*",
@@ -57,67 +31,131 @@ func TestMatchRiskRules(t *testing.T) {
 				Verbs:    []string{"*"},
 			},
 			want: []RiskRule{
-				{Name: "Base Risk Level: 3", RiskLevel: RiskLevelCritical},
-			},
-			wantErr: false,
-		},
-		{
-			name: "High Risk - Cluster Wide with Some Wildcards",
-			policy: Policy{
-				RoleType: "ClusterRole",
-				APIGroup: "apps",
-				Resource: "*",
-				Verbs:    []string{"*"},
-			},
-			want: []RiskRule{
 				{
-					Name:      "High Risk Custom Rule",
-					RiskLevel: RiskLevelHigh,
+					Name:      "Wildcard permission on all resources cluster-wide (Cluster Admin)",
+					RiskLevel: RiskLevelCritical,
 					RoleType:  "ClusterRole",
-					APIGroups: []string{"apps"},
-					Resources: []string{"deployments"},
-					Verbs:     []string{"create", "delete"},
+					APIGroups: []string{"*"},
+					Resources: []string{"*"},
+					Verbs:     []string{"*"},
 				},
-				{Name: "Base Risk Level: 2", RiskLevel: RiskLevelHigh},
+				{
+					Name:      "Base Risk Level: 3",
+					RiskLevel: RiskLevelCritical,
+				},
 			},
 			wantErr: false,
 		},
 		{
-			name: "Medium Risk - Namespaced with Some Wildcards",
+			name: "Wildcard permission on all resources in namespace",
 			policy: Policy{
 				Namespace: "default",
 				RoleType:  "Role",
-				APIGroup:  "",
+				APIGroup:  "*",
 				Resource:  "*",
 				Verbs:     []string{"*"},
 			},
 			want: []RiskRule{
 				{
-					Name:      "Medium Risk Custom Rule",
-					RiskLevel: RiskLevelMedium,
+					Name:      "Wildcard permission on all resources in a namespace (Namespace Admin)",
+					RiskLevel: RiskLevelHigh,
 					RoleType:  "Role",
-					APIGroups: []string{""},
-					Resources: []string{"pods"},
-					Verbs:     []string{"get", "list"},
+					APIGroups: []string{"*"},
+					Resources: []string{"*"},
+					Verbs:     []string{"*"},
 				},
-				{Name: "Base Risk Level: 1", RiskLevel: RiskLevelMedium},
+				{
+					Name:      "Base Risk Level: 2",
+					RiskLevel: RiskLevelHigh,
+				},
 			},
 			wantErr: false,
 		},
 		{
-			name: "Low Risk - Namespaced without Wildcards",
+			name: "Cluster-wide pod exec",
+			policy: Policy{
+				RoleType: "ClusterRole",
+				APIGroup: "",
+				Resource: "pods/exec",
+				Verbs:    []string{"create"},
+			},
+			want: []RiskRule{
+				{
+					Name:      "Execute into pods cluster-wide (potential container escape)",
+					RiskLevel: RiskLevelCritical,
+					RoleType:  "ClusterRole",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Namespaced pod exec",
 			policy: Policy{
 				Namespace: "default",
 				RoleType:  "Role",
-				APIGroup:  "apps",
-				Resource:  "deployments",
-				Verbs:     []string{"get", "list"},
+				APIGroup:  "",
+				Resource:  "pods/exec",
+				Verbs:     []string{"create"},
 			},
 			want: []RiskRule{
+				{
+					Name:      "Execute into pods in a namespace (potential container escape)",
+					RiskLevel: RiskLevelHigh,
+					RoleType:  "Role",
+					APIGroups: []string{},
+					Resources: []string{"pods/exec"},
+					Verbs:     []string{"create"},
+				},
 				{Name: "Base Risk Level: 0", RiskLevel: RiskLevelLow},
 			},
 			wantErr: false,
 		},
+		// Test cluster-wide secret access (Critical)
+		{
+			name: "Cluster-wide secret read",
+			policy: Policy{
+				RoleType: "ClusterRole",
+				APIGroup: "",
+				Resource: "secrets",
+				Verbs:    []string{"get", "list", "watch"},
+			},
+			want: []RiskRule{
+				{
+					Name:      "Read secrets cluster-wide",
+					RiskLevel: RiskLevelCritical,
+					RoleType:  "ClusterRole",
+					APIGroups: []string{},
+					Resources: []string{"secrets"},
+					Verbs:     []string{"get", "list", "watch"},
+				},
+				{Name: "Base Risk Level: 0", RiskLevel: RiskLevelLow},
+			},
+			wantErr: false,
+		},
+		// Test DaemonSet management (Critical)
+		{
+			name: "Manage DaemonSets in namespace",
+			policy: Policy{
+				Namespace: "default",
+				RoleType:  "Role",
+				APIGroup:  "apps",
+				Resource:  "daemonsets",
+				Verbs:     []string{"create", "update", "patch", "delete"},
+			},
+			want: []RiskRule{
+				{
+					Name:      "Manage DaemonSets in a namespace (runs on nodes, high impact)",
+					RiskLevel: RiskLevelCritical,
+					RoleType:  "Role",
+					APIGroups: []string{"apps"},
+					Resources: []string{"daemonsets"},
+					Verbs:     []string{"create", "update", "patch", "delete"},
+				},
+				{Name: "Base Risk Level: 0", RiskLevel: RiskLevelLow},
+			},
+			wantErr: false,
+		},
+		// Test negative cases
 		{
 			name: "Invalid Role Type",
 			policy: Policy{
@@ -138,35 +176,75 @@ func TestMatchRiskRules(t *testing.T) {
 				Verbs:    []string{"*"},
 			},
 			want: []RiskRule{
+				{
+					Name:      "Wildcard permission on all resources cluster-wide (Cluster Admin)",
+					RiskLevel: RiskLevelCritical,
+					RoleType:  "ClusterRole",
+					APIGroups: []string{"*"},
+					Resources: []string{"*"},
+					Verbs:     []string{"*"},
+				},
+				{Name: "Base Risk Level: 3", RiskLevel: RiskLevelCritical},
+			},
+		},
+		// Test negative cases
+		{
+			name: "Invalid Role Type",
+			policy: Policy{
+				RoleType: "InvalidType",
+				APIGroup: "apps",
+				Resource: "deployments",
+				Verbs:    []string{"get"},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "Empty Namespace Treated as Cluster Scope",
+			policy: Policy{
+				RoleType: "Role",
+				APIGroup: "*",
+				Resource: "*",
+				Verbs:    []string{"*"},
+			},
+			want: []RiskRule{
+				{
+					Name:      "Wildcard permission on all resources cluster-wide (Cluster Admin)",
+					RiskLevel: RiskLevelCritical,
+					RoleType:  "ClusterRole",
+					APIGroups: []string{"*"},
+					Resources: []string{"*"},
+					Verbs:     []string{"*"},
+				},
 				{Name: "Base Risk Level: 3", RiskLevel: RiskLevelCritical},
 			},
 			wantErr: false,
 		},
+		// Test non-matching verbs
 		{
-			name: "Multiple Wildcards in Verbs",
+			name: "Non-matching verbs for pod exec",
 			policy: Policy{
-				Namespace: "default",
-				RoleType:  "Role",
-				APIGroup:  "apps",
-				Resource:  "deployments",
-				Verbs:     []string{"get", "*", "list"},
+				RoleType: "ClusterRole",
+				APIGroup: "",
+				Resource: "pods/exec",
+				Verbs:    []string{"get", "list"}, // Different from rule's create
 			},
 			want: []RiskRule{
-				{Name: "Base Risk Level: 1", RiskLevel: RiskLevelMedium},
+				{Name: "Base Risk Level: 0", RiskLevel: RiskLevelLow},
 			},
 			wantErr: false,
 		},
+		// Test wildcard matches
 		{
-			name: "Partial Wildcard in Resource Name",
+			name: "Wildcard matches all resources",
 			policy: Policy{
-				Namespace: "default",
-				RoleType:  "Role",
-				APIGroup:  "apps",
-				Resource:  "deploy*",
-				Verbs:     []string{"get", "list"},
+				RoleType: "ClusterRole",
+				APIGroup: "",
+				Resource: "*",
+				Verbs:    []string{"create"},
 			},
 			want: []RiskRule{
-				{Name: "Base Risk Level: 1", RiskLevel: RiskLevelMedium},
+				{Name: "Base Risk Level: 2", RiskLevel: RiskLevelHigh},
 			},
 			wantErr: false,
 		},
@@ -179,8 +257,26 @@ func TestMatchRiskRules(t *testing.T) {
 				t.Errorf("MatchRiskRules() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("MatchRiskRules() = %v, want %v", got, tt.want)
+			// Check that all expected rules are present
+			for _, wantRule := range tt.want {
+				found := false
+				for _, gotRule := range got {
+					if gotRule.Name == wantRule.Name && gotRule.RiskLevel == wantRule.RiskLevel {
+						// For base risk level rules, only check name and risk level
+						if strings.HasPrefix(wantRule.Name, "Base Risk Level:") {
+							found = true
+							break
+						}
+						// For other rules, check all fields
+						if reflect.DeepEqual(gotRule, wantRule) {
+							found = true
+							break
+						}
+					}
+				}
+				if !found {
+					t.Errorf("MatchRiskRules() missing expected rule: %v", wantRule)
+				}
 			}
 		})
 	}

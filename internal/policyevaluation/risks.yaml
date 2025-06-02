@@ -821,3 +821,213 @@
       "CredentialAccess",
       "Tampering",
     ]
+- name: "Impersonate users, groups, or service accounts (cluster-wide)"
+  description: "Allows impersonating any user, group, or service account across the entire cluster via impersonation headers. This can be used to escalate privileges to the level of the impersonated identity, potentially gaining cluster-admin access."
+  category: "Elevation of Privilege"
+  risk_level: "RiskLevelCritical"
+  api_groups: [""] # Core API group for impersonation headers, but the check is on "users", "groups", "serviceaccounts"
+  role_type: "ClusterRole"
+  resources: ["users", "groups", "serviceaccounts", "userextras", "uids"]
+  verbs: ["impersonate"]
+  tags:
+    ["Impersonation", "PrivilegeEscalation", "ClusterAdminAccess", "Spoofing"]
+- name: "Manage ServiceAccounts cluster-wide"
+  description: "Allows creating, updating, or deleting ServiceAccounts in any namespace. This can be used to create SAs, then bind them to privileged roles (if other RBAC permissions allow), or modify existing SAs, potentially interfering with workload identities."
+  category: "Elevation of Privilege" # Can lead to it
+  risk_level: "RiskLevelHigh"
+  api_groups: [""]
+  role_type: "ClusterRole"
+  resources: ["serviceaccounts"]
+  verbs: ["create", "update", "patch", "delete"]
+  tags: ["IdentityManagement", "PotentialPrivilegeEscalation", "Tampering"]
+- name: "Manage ServiceAccounts in a namespace"
+  description: "Allows creating, updating, or deleting ServiceAccounts within a specific namespace. This can be used to create SAs within the namespace, which could then be bound to roles for privilege escalation within or from that namespace."
+  category: "Elevation of Privilege"
+  risk_level: "RiskLevelMedium" # Risk increases if combined with RoleBinding permissions
+  api_groups: [""]
+  role_type: "Role"
+  resources: ["serviceaccounts"]
+  verbs: ["create", "update", "patch", "delete"]
+  tags: ["IdentityManagement", "PotentialPrivilegeEscalation", "Tampering"]
+- name: "Patch node status cluster-wide"
+  description: "Allows patching the status of any node in the cluster. This can be abused to mark nodes as (un)healthy or (un)schedulable, impacting workload scheduling, potentially tricking controllers, or causing denial of service."
+  category: "Tampering" # Can lead to DoS or assist other attacks
+  risk_level: "RiskLevelHigh"
+  api_groups: [""]
+  role_type: "ClusterRole"
+  resources: ["nodes/status"]
+  verbs: ["patch", "update"]
+  tags: ["NodeManipulation", "Tampering", "DenialOfService", "SchedulingAbuse"]
+- name: "Read events cluster-wide"
+  description: "Allows reading all events across all namespaces. Events can reveal sensitive operational information, error messages, pod creation/deletion activity, image names, and other details that could aid an attacker in reconnaissance or identifying vulnerabilities."
+  category: "Information Disclosure"
+  risk_level: "RiskLevelMedium" # Usually not directly exploitable but aids attackers
+  api_groups: [""] # or "events.k8s.io"
+  role_type: "ClusterRole"
+  resources: ["events"]
+  verbs: ["get", "list", "watch"]
+  tags: ["InformationDisclosure", "Reconnaissance", "OperationalData"]
+- name: "Manage NetworkPolicies cluster-wide"
+  description: "Allows creating, modifying, or deleting NetworkPolicies in any namespace. This can be used to disable network segmentation, allow/deny traffic to sensitive pods, or isolate critical components, leading to information disclosure, lateral movement, or denial of service."
+  category: "NetworkManipulation"
+  risk_level: "RiskLevelCritical" # Full control over network flow
+  api_groups: ["networking.k8s.io"]
+  role_type: "ClusterRole"
+  resources: ["networkpolicies"]
+  verbs: ["create", "update", "patch", "delete"]
+  tags:
+    [
+      "NetworkPolicyManagement",
+      "NetworkManipulation",
+      "Tampering",
+      "DenialOfService",
+      "LateralMovement",
+    ]
+- name: "Manage NetworkPolicies in a namespace"
+  description: "Permits creating, modifying, or deleting NetworkPolicies within a specific namespace. This allows control over network traffic flow for applications within that namespace, potentially bypassing intended segmentation or causing denial of service."
+  category: "NetworkManipulation"
+  risk_level: "RiskLevelHigh"
+  api_groups: ["networking.k8s.io"]
+  role_type: "Role"
+  resources: ["networkpolicies"]
+  verbs: ["create", "update", "patch", "delete"]
+  tags:
+    [
+      "NetworkPolicyManagement",
+      "NetworkManipulation",
+      "Tampering",
+      "DenialOfService",
+    ]
+- name: "Manage Endpoints or EndpointSlices cluster-wide"
+  description: "Allows creating, updating, or deleting Endpoints/EndpointSlices for services across all namespaces. This can be used to redirect traffic intended for legitimate services to malicious pods (Man-in-the-Middle), cause denial of service, or bypass network policies."
+  category: "NetworkManipulation"
+  risk_level: "RiskLevelCritical"
+  api_groups: [""] # Core for Endpoints, discovery.k8s.io for EndpointSlices
+  role_type: "ClusterRole"
+  resources: ["endpoints", "endpointslices"]
+  verbs: ["create", "update", "patch", "delete", "get", "list"] # get/list for reconnaissance
+  tags:
+    [
+      "NetworkManipulation",
+      "TrafficRedirection",
+      "ManInTheMiddle",
+      "DenialOfService",
+      "Tampering",
+    ]
+- name: "Manage Endpoints or EndpointSlices in a namespace"
+  description: "Permits creating, updating, or deleting Endpoints/EndpointSlices for services within a specific namespace. This can lead to traffic redirection, denial of service, or network policy bypass for applications within that namespace."
+  category: "NetworkManipulation"
+  risk_level: "RiskLevelHigh"
+  api_groups: [""] # Core for Endpoints, discovery.k8s.io for EndpointSlices
+  role_type: "Role"
+  resources: ["endpoints", "endpointslices"]
+  verbs: ["create", "update", "patch", "delete", "get", "list"]
+  tags:
+    [
+      "NetworkManipulation",
+      "TrafficRedirection",
+      "DenialOfService",
+      "Tampering",
+    ]
+- name: "Manage Services cluster-wide"
+  description: "Allows creating, updating, or deleting Services in any namespace. This can be abused to expose internal applications, modify service types (e.g., ClusterIP to LoadBalancer), redirect traffic (by changing selectors), or cause denial of service."
+  category: "NetworkManipulation"
+  risk_level: "RiskLevelCritical"
+  api_groups: [""]
+  role_type: "ClusterRole"
+  resources: ["services"]
+  verbs: ["create", "update", "patch", "delete"]
+  tags:
+    ["NetworkManipulation", "ServiceExposure", "DenialOfService", "Tampering"]
+- name: "Manage Services in a namespace"
+  description: "Permits creating, updating, or deleting Services within a specific namespace. This can lead to unintended exposure of applications, traffic misdirection, or denial of service within that namespace."
+  category: "NetworkManipulation"
+  risk_level: "RiskLevelHigh"
+  api_groups: [""]
+  role_type: "Role"
+  resources: ["services"]
+  verbs: ["create", "update", "patch", "delete"]
+  tags:
+    ["NetworkManipulation", "ServiceExposure", "DenialOfService", "Tampering"]
+
+# --- RBAC API Group (rbac.authorization.k8s.io/v1) ---
+- name: "Read RBAC configuration cluster-wide"
+  description: "Allows listing and getting all ClusterRoles, Roles, ClusterRoleBindings, and RoleBindings. This provides full visibility into the cluster's authorization model, aiding attackers in finding privilege escalation paths or understanding defenses."
+  category: "Information Disclosure"
+  risk_level: "RiskLevelMedium"
+  api_groups: ["rbac.authorization.k8s.io"]
+  role_type: "ClusterRole"
+  resources: ["clusterroles", "roles", "clusterrolebindings", "rolebindings"]
+  verbs: ["get", "list", "watch"]
+  tags: ["InformationDisclosure", "RBACQuery", "Reconnaissance"]
+
+# --- Policy API Group (policy/v1, policy/v1beta1 for older PSPs) ---
+- name: "Use privileged PodSecurityPolicy (deprecated)"
+  description: "Allows a user/service account to use a specific PodSecurityPolicy (PSP) that may grant excessive privileges (e.g., hostPath mounts, privileged mode). If the PSP is overly permissive, this leads to direct privilege escalation by creating pods that use it. (Note: PSPs are deprecated in 1.21 and removed in 1.25)."
+  category: "Elevation of Privilege"
+  risk_level: "RiskLevelCritical" # If the PSP is privileged
+  api_groups: ["policy", "extensions"] # PSPs moved from extensions to policy
+  role_type: "ClusterRole" # Usually, or Role if PSP is bound in namespace
+  resources: ["podsecuritypolicies"]
+  verbs: ["use"]
+  # `resourceNames` would specify *which* PSP. A wildcard here with "use" is very bad.
+  tags:
+    [
+      "PrivilegeEscalation",
+      "PodSecurityPolicy",
+      "DeprecatedFeature",
+      "NodeAccess",
+    ]
+- name: "Manage PodDisruptionBudgets cluster-wide"
+  description: "Allows creating, updating, or deleting PodDisruptionBudgets (PDBs) cluster-wide. Maliciously configured PDBs (e.g., setting maxUnavailable to 0 for critical components) can prevent voluntary disruptions, or conversely, allow too many disruptions, leading to denial of service or impacting application availability."
+  category: "Denial of Service"
+  risk_level: "RiskLevelMedium"
+  api_groups: ["policy"]
+  role_type: "ClusterRole"
+  resources: ["poddisruptionbudgets"]
+  verbs: ["create", "update", "patch", "delete"]
+  tags: ["DenialOfService", "AvailabilityImpact", "Tampering"]
+
+# --- Coordination API Group (coordination.k8s.io/v1) ---
+- name: "Manage Leases cluster-wide"
+  description: "Allows managing Lease objects across all namespaces. Leases are used for leader election by control plane components and controllers. Tampering with leases can disrupt critical cluster operations, cause denial of service, or potentially force a malicious controller to become a leader."
+  category: "Tampering" # Can lead to DoS or controller compromise
+  risk_level: "RiskLevelHigh" # Could be Critical depending on which lease
+  api_groups: ["coordination.k8s.io"]
+  role_type: "ClusterRole"
+  resources: ["leases"]
+  verbs: ["create", "update", "patch", "delete", "get", "list"]
+  tags:
+    [
+      "Tampering",
+      "DenialOfService",
+      "ControlPlaneDisruption",
+      "LeaderElectionAbuse",
+    ]
+- name: "Manage Leases in kube-system or kube-node-lease namespace"
+  description: "Allows managing Lease objects in critical namespaces like 'kube-system' or 'kube-node-lease'. This is highly critical as it can disrupt core Kubernetes components, lead to node instability, or denial of service."
+  category: "Tampering"
+  risk_level: "RiskLevelCritical"
+  api_groups: ["coordination.k8s.io"]
+  role_type: "Role" # If namespaced to kube-system/kube-node-lease, but likely granted via ClusterRole
+  # This rule would need logic to check the namespace of the RoleBinding/Role.
+  # For a general scanner, this might be hard to enforce without context.
+  # Simpler to flag ClusterRole access to leases as High/Critical.
+  resources: ["leases"]
+  verbs: ["create", "update", "patch", "delete"]
+  tags:
+    [
+      "Tampering",
+      "DenialOfService",
+      "ControlPlaneDisruption",
+      "CriticalNamespace",
+    ]
+- name: "List Namespaces (Cluster Reconnaissance)"
+  description: "Allows listing all namespaces in the cluster. This helps an attacker map out the cluster structure, identify potential targets, and understand workload separation. It's a foundational reconnaissance step."
+  category: "Information Disclosure"
+  risk_level: "RiskLevelLow" # Generally low, but essential for attackers
+  api_groups: [""]
+  role_type: "ClusterRole" # Or Role if the identity also has other cluster-scoped list perms
+  resources: ["namespaces"]
+  verbs: ["list", "watch"]
+  tags: ["InformationDisclosure", "Reconnaissance", "ClusterStructure"]

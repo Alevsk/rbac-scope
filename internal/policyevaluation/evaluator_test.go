@@ -808,6 +808,345 @@ func TestMatchRiskRules(t *testing.T) {
 			wantRiskLevel:    RiskLevelCritical,
 			wantMatchesCount: 2,
 		},
+		{
+			name: "Impersonate users cluster-wide",
+			policy: Policy{
+				RoleType: "ClusterRole",
+				APIGroup: "",
+				Resource: "users",
+				Verbs:    []string{"impersonate"},
+			},
+			wantErr:          false,
+			wantRiskLevel:    RiskLevelCritical,
+			wantMatchesCount: 2, // Assuming this specific policy matches one defined rule
+		},
+		{
+			name: "Impersonate groups cluster-wide",
+			policy: Policy{
+				RoleType: "ClusterRole",
+				APIGroup: "",
+				Resource: "groups",
+				Verbs:    []string{"impersonate"},
+			},
+			wantErr:          false,
+			wantRiskLevel:    RiskLevelCritical,
+			wantMatchesCount: 2,
+		},
+		{
+			name: "Impersonate serviceaccounts cluster-wide",
+			policy: Policy{
+				RoleType: "ClusterRole",
+				APIGroup: "",
+				Resource: "serviceaccounts",
+				Verbs:    []string{"impersonate"},
+			},
+			wantErr:          false,
+			wantRiskLevel:    RiskLevelCritical,
+			wantMatchesCount: 2,
+		},
+		{
+			name: "Impersonate userextras cluster-wide",
+			policy: Policy{
+				RoleType: "ClusterRole",
+				APIGroup: "",
+				Resource: "userextras",
+				Verbs:    []string{"impersonate"},
+			},
+			wantErr:          false,
+			wantRiskLevel:    RiskLevelCritical,
+			wantMatchesCount: 2,
+		},
+		{
+			name: "Impersonate uids cluster-wide",
+			policy: Policy{
+				RoleType: "ClusterRole",
+				APIGroup: "",
+				Resource: "uids",
+				Verbs:    []string{"impersonate"},
+			},
+			wantErr:          false,
+			wantRiskLevel:    RiskLevelCritical,
+			wantMatchesCount: 2,
+		},
+		{
+			name: "Manage ServiceAccounts cluster-wide",
+			policy: Policy{
+				RoleType: "ClusterRole",
+				APIGroup: "",
+				Resource: "serviceaccounts",
+				Verbs:    []string{"create", "update", "patch", "delete"},
+			},
+			wantErr:          false,
+			wantRiskLevel:    RiskLevelHigh,
+			wantMatchesCount: 2,
+		},
+		{
+			name: "Manage ServiceAccounts in a namespace",
+			policy: Policy{
+				RoleType: "Role",
+				APIGroup: "",
+				Resource: "serviceaccounts",
+				Verbs:    []string{"create", "update", "patch", "delete"},
+			},
+			wantErr:          false,
+			wantRiskLevel:    RiskLevelMedium,
+			wantMatchesCount: 2,
+		},
+		{
+			name: "Patch node status cluster-wide",
+			policy: Policy{
+				RoleType: "ClusterRole",
+				APIGroup: "",
+				Resource: "nodes/status",
+				Verbs:    []string{"patch", "update"},
+			},
+			wantErr:          false,
+			wantRiskLevel:    RiskLevelHigh,
+			wantMatchesCount: 2,
+		},
+		{
+			name: "Read events cluster-wide (core API group)",
+			policy: Policy{
+				RoleType: "ClusterRole",
+				APIGroup: "", // Core API group for events
+				Resource: "events",
+				Verbs:    []string{"get", "list", "watch"},
+			},
+			wantErr:          false,
+			wantRiskLevel:    RiskLevelMedium,
+			wantMatchesCount: 2,
+		},
+		{
+			name: "Read events cluster-wide (events.k8s.io API group)",
+			policy: Policy{
+				RoleType: "ClusterRole",
+				APIGroup: "events.k8s.io", // events.k8s.io API group
+				Resource: "events",
+				Verbs:    []string{"get", "list", "watch"},
+			},
+			wantErr:          false,
+			wantRiskLevel:    RiskLevelMedium,
+			wantMatchesCount: 2,
+		},
+		{
+			name: "Manage NetworkPolicies cluster-wide",
+			policy: Policy{
+				RoleType: "ClusterRole",
+				APIGroup: "networking.k8s.io",
+				Resource: "networkpolicies",
+				Verbs:    []string{"create", "update", "patch", "delete"},
+			},
+			wantErr:          false,
+			wantRiskLevel:    RiskLevelCritical,
+			wantMatchesCount: 2,
+		},
+		{
+			name: "Manage NetworkPolicies in a namespace",
+			policy: Policy{
+				RoleType: "Role",
+				APIGroup: "networking.k8s.io",
+				Resource: "networkpolicies",
+				Verbs:    []string{"create", "update", "patch", "delete"},
+			},
+			wantErr:          false,
+			wantRiskLevel:    RiskLevelHigh,
+			wantMatchesCount: 2,
+		},
+		{
+			name: "Manage Endpoints cluster-wide (core API)",
+			policy: Policy{
+				RoleType: "ClusterRole",
+				APIGroup: "", // Core API group for Endpoints
+				Resource: "endpoints",
+				Verbs:    []string{"create", "update", "patch", "delete", "get", "list"},
+			},
+			wantErr:          false,
+			wantRiskLevel:    RiskLevelCritical,
+			wantMatchesCount: 2,
+		},
+		{
+			name: "Manage EndpointSlices cluster-wide (discovery.k8s.io API)",
+			policy: Policy{
+				RoleType: "ClusterRole",
+				APIGroup: "discovery.k8s.io", // discovery.k8s.io for EndpointSlices
+				Resource: "endpointslices",
+				Verbs:    []string{"create", "update", "patch", "delete", "get", "list"},
+			},
+			wantErr:          false,
+			wantRiskLevel:    RiskLevelCritical,
+			wantMatchesCount: 2,
+		},
+		{
+			name: "Manage Endpoints in a namespace (core API)",
+			policy: Policy{
+				RoleType: "Role",
+				APIGroup: "", // Core API group for Endpoints
+				Resource: "endpoints",
+				Verbs:    []string{"create", "update", "patch", "delete", "get", "list"},
+			},
+			wantErr:          false,
+			wantRiskLevel:    RiskLevelHigh,
+			wantMatchesCount: 2,
+		},
+		{
+			name: "Manage EndpointSlices in a namespace (discovery.k8s.io API)",
+			policy: Policy{
+				RoleType: "Role",
+				APIGroup: "discovery.k8s.io", // discovery.k8s.io for EndpointSlices
+				Resource: "endpointslices",
+				Verbs:    []string{"create", "update", "patch", "delete", "get", "list"},
+			},
+			wantErr:          false,
+			wantRiskLevel:    RiskLevelHigh,
+			wantMatchesCount: 2,
+		},
+		{
+			name: "Manage Services cluster-wide",
+			policy: Policy{
+				RoleType: "ClusterRole",
+				APIGroup: "",
+				Resource: "services",
+				Verbs:    []string{"create", "update", "patch", "delete"},
+			},
+			wantErr:          false,
+			wantRiskLevel:    RiskLevelCritical,
+			wantMatchesCount: 2,
+		},
+		{
+			name: "Manage Services in a namespace",
+			policy: Policy{
+				RoleType: "Role",
+				APIGroup: "",
+				Resource: "services",
+				Verbs:    []string{"create", "update", "patch", "delete"},
+			},
+			wantErr:          false,
+			wantRiskLevel:    RiskLevelHigh,
+			wantMatchesCount: 2,
+		},
+		{
+			name: "Read RBAC ClusterRoles cluster-wide",
+			policy: Policy{
+				RoleType: "ClusterRole",
+				APIGroup: "rbac.authorization.k8s.io",
+				Resource: "clusterroles",
+				Verbs:    []string{"get", "list", "watch"},
+			},
+			wantErr:          false,
+			wantRiskLevel:    RiskLevelMedium,
+			wantMatchesCount: 2,
+		},
+		{
+			name: "Read RBAC Roles cluster-wide",
+			policy: Policy{
+				RoleType: "ClusterRole",
+				APIGroup: "rbac.authorization.k8s.io",
+				Resource: "roles",
+				Verbs:    []string{"get", "list", "watch"},
+			},
+			wantErr:          false,
+			wantRiskLevel:    RiskLevelMedium,
+			wantMatchesCount: 2,
+		},
+		{
+			name: "Read RBAC ClusterRoleBindings cluster-wide",
+			policy: Policy{
+				RoleType: "ClusterRole",
+				APIGroup: "rbac.authorization.k8s.io",
+				Resource: "clusterrolebindings",
+				Verbs:    []string{"get", "list", "watch"},
+			},
+			wantErr:          false,
+			wantRiskLevel:    RiskLevelMedium,
+			wantMatchesCount: 2,
+		},
+		{
+			name: "Read RBAC RoleBindings cluster-wide",
+			policy: Policy{
+				RoleType: "ClusterRole",
+				APIGroup: "rbac.authorization.k8s.io",
+				Resource: "rolebindings",
+				Verbs:    []string{"get", "list", "watch"},
+			},
+			wantErr:          false,
+			wantRiskLevel:    RiskLevelMedium,
+			wantMatchesCount: 2,
+		},
+		{
+			name: "Use privileged PodSecurityPolicy (policy API group)",
+			policy: Policy{
+				RoleType: "ClusterRole", // Or Role, depending on binding context
+				APIGroup: "policy",
+				Resource: "podsecuritypolicies",
+				Verbs:    []string{"use"},
+			},
+			wantErr:          false,
+			wantRiskLevel:    RiskLevelCritical, // Risk depends on specific PSP, but "use" is key
+			wantMatchesCount: 2,
+		},
+		{
+			name: "Use privileged PodSecurityPolicy (extensions API group)",
+			policy: Policy{
+				RoleType: "ClusterRole", // Or Role
+				APIGroup: "extensions",  // Older API group for PSPs
+				Resource: "podsecuritypolicies",
+				Verbs:    []string{"use"},
+			},
+			wantErr:          false,
+			wantRiskLevel:    RiskLevelCritical,
+			wantMatchesCount: 2,
+		},
+		{
+			name: "Manage PodDisruptionBudgets cluster-wide",
+			policy: Policy{
+				RoleType: "ClusterRole",
+				APIGroup: "policy",
+				Resource: "poddisruptionbudgets",
+				Verbs:    []string{"create", "update", "patch", "delete"},
+			},
+			wantErr:          false,
+			wantRiskLevel:    RiskLevelMedium,
+			wantMatchesCount: 2,
+		},
+		{
+			name: "Manage Leases cluster-wide",
+			policy: Policy{
+				RoleType: "ClusterRole",
+				APIGroup: "coordination.k8s.io",
+				Resource: "leases",
+				Verbs:    []string{"create", "update", "patch", "delete", "get", "list"},
+			},
+			wantErr:          false,
+			wantRiskLevel:    RiskLevelHigh,
+			wantMatchesCount: 2,
+		},
+		{
+			name: "Manage Leases in critical namespace (Role)",
+			// This test case assumes the scanner can identify the namespace from RoleBinding context.
+			// The Policy struct here only defines the RBAC rule part.
+			// The RiskLevelCritical is for the *combination* of this rule in a critical namespace.
+			policy: Policy{
+				RoleType: "Role",
+				APIGroup: "coordination.k8s.io",
+				Resource: "leases",
+				Verbs:    []string{"create", "update", "patch", "delete"},
+			},
+			wantErr:          false,
+			wantRiskLevel:    RiskLevelCritical, // Risk is high if this Role is bound in kube-system etc.
+			wantMatchesCount: 2,
+		},
+		{
+			name: "List Namespaces (Cluster Reconnaissance)",
+			policy: Policy{
+				RoleType: "ClusterRole",
+				APIGroup: "",
+				Resource: "namespaces",
+				Verbs:    []string{"list", "watch"},
+			},
+			wantErr:          false,
+			wantRiskLevel:    RiskLevelLow,
+			wantMatchesCount: 2,
+		},
 	}
 
 	for _, tt := range tests {

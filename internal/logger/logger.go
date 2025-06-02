@@ -3,21 +3,16 @@ package logger
 import (
 	"github.com/alevsk/rbac-ops/internal/config"
 	"github.com/rs/zerolog"
-)
-
-var (
-	log zerolog.Logger
+	"github.com/rs/zerolog/log"
 )
 
 // Init initializes the logger using the application configuration
 func Init(cfg *config.Config) {
-	// Set global log level based on debug mode
-	level := zerolog.InfoLevel
+	// Default level for this example is info, unless debug flag is present
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	if cfg.Debug {
-		level = zerolog.DebugLevel
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	}
-
-	log = log.Level(level)
 }
 
 // Debug logs a debug message if debug mode is enabled

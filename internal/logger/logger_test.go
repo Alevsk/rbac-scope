@@ -8,11 +8,13 @@ import (
 
 	"github.com/alevsk/rbac-ops/internal/config"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 func TestLogger(t *testing.T) {
 	// Create a custom writer that doesn't include timestamps
 	var buf bytes.Buffer
+	log.Logger = log.Output(&buf)
 
 	tests := []struct {
 		name    string
@@ -67,8 +69,6 @@ func TestLogger(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			buf.Reset()
-			// Set up a new logger for each test
-			log = zerolog.New(&buf).Level(zerolog.DebugLevel)
 
 			// Initialize with config
 			Init(&config.Config{Debug: tt.debug})

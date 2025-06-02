@@ -5,13 +5,16 @@ import (
 	"os"
 
 	"github.com/alevsk/rbac-ops/internal/config"
+	"github.com/alevsk/rbac-ops/internal/logger"
 	"github.com/spf13/cobra"
 )
 
 var (
 	configPath string
-	cfg        *config.Config
+	debug      bool
 )
+
+var cfg = &config.Config{}
 
 var rootCmd = &cobra.Command{
 	Use:   "rbac-ops",
@@ -21,19 +24,27 @@ helping identify permissions, potential risks, and abuse scenarios.`,
 	SilenceErrors: true, // We'll handle error printing ourselves
 	SilenceUsage:  true, // We'll handle usage printing ourselves
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		// // Load configuration
-		// var err error
-		// cfg, err = config.Load(configPath)
-		// if err != nil {
-		// 	return fmt.Errorf("error loading configuration: %w", err)
-		// }
+		var err error
+		// Load configuration from file or environment variable
+		cfg, err = config.Load(configPath)
+		if err != nil {
+			return fmt.Errorf("error loading configuration: %w", err)
+		}
 
-		// // Print configuration source
-		// if configPath != "" || os.Getenv(config.RbacOpsConfigPathEnvVar) != "" {
-		// 	fmt.Printf("Using config file: %s\n", configPath)
-		// } else {
-		// 	fmt.Println("Using default configuration")
-		// }
+		// flags override config due to highest precedence
+		if debug {
+			cfg.Debug = true
+		}
+
+		// Initialize logger
+		logger.Init(cfg)
+
+		// Print configuration source
+		if configPath != "" || os.Getenv(config.RbacOpsConfigPathEnvVar) != "" {
+			logger.Debug().Msgf("Using config file: %s", configPath)
+		} else {
+			logger.Debug().Msg("Using default configuration")
+		}
 
 		return nil
 	},
@@ -42,6 +53,7 @@ helping identify permissions, potential risks, and abuse scenarios.`,
 func init() {
 	// Add global flags
 	rootCmd.PersistentFlags().StringVar(&configPath, "config", "", "path to config file (default: config.yml in current directory)")
+	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "enable verbose logging and additional debug information")
 
 	// Add commands
 	rootCmd.AddCommand(serveCmd)

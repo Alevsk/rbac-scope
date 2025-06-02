@@ -97,6 +97,8 @@ func Load(configPath string) (*Config, error) {
 
 // setDefaults sets default values for all configuration options
 func setDefaults(v *viper.Viper) {
+	// Global defaults
+	v.SetDefault("debug", false)
 	// Server defaults
 	v.SetDefault("server.host", "0.0.0.0")
 	v.SetDefault("server.port", 8080)

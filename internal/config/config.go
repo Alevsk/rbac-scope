@@ -64,8 +64,11 @@ func Load(configPath string) (*Config, error) {
 	if configPath != "" {
 		v.SetConfigFile(configPath)
 	} else {
-		// Look for config.yml in the current directory
-		v.SetConfigName("config")
+		// Look for config.yml or config.yaml in the current directory only
+		v.SetConfigName("config.yml")
+		if _, err := os.Stat("config.yml"); os.IsNotExist(err) {
+			v.SetConfigName("config.yaml")
+		}
 		v.SetConfigType("yaml")
 		v.AddConfigPath(".")
 	}

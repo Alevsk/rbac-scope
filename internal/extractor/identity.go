@@ -70,10 +70,15 @@ func (e *IdentityExtractor) Extract(ctx context.Context, manifests []*renderer.M
 			continue
 		}
 
+		namespace := "default" // Default namespace for cluster scoped resources
+		if ns, ok := metadata["namespace"]; ok {
+			namespace = ns.(string)
+		}
+
 		// Convert ServiceAccount to Identity
 		identity := Identity{
 			Name:        metadata["name"].(string),
-			Namespace:   metadata["namespace"].(string),
+			Namespace:   namespace,
 			Labels:      make(map[string]string),
 			Annotations: make(map[string]string),
 		}

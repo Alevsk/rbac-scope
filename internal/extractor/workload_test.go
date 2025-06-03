@@ -69,6 +69,31 @@ spec:
 			wantErr: false,
 		},
 		{
+			name: "valid deployment without namespace",
+			manifest: `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: test
+  template:
+    metadata:
+      labels:
+        app: test
+    spec:
+      serviceAccountName: test-sa
+      securityContext:
+        runAsNonRoot: true
+      containers:
+      - name: nginx
+        image: nginx:1.14.2`,
+			want:    1,
+			wantErr: false,
+		},
+		{
 			name: "multiple workloads",
 			manifest: `apiVersion: v1
 kind: Pod

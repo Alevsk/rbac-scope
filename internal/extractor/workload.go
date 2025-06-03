@@ -174,10 +174,15 @@ func (e *WorkloadExtractor) extractDeploymentWorkload(metadata, spec map[string]
 		return nil
 	}
 
+	namespace := "default" // Default namespace for cluster scoped resources
+	if ns, ok := metadata["namespace"]; ok {
+		namespace = ns.(string)
+	}
+
 	workload := &Workload{
 		Type:            WorkloadTypeDeployment,
 		Name:            metadata["name"].(string),
-		Namespace:       metadata["namespace"].(string),
+		Namespace:       namespace,
 		ServiceAccount:  getStringValue(templateSpec, "serviceAccountName"),
 		Labels:          toStringMap(metadata["labels"]),
 		Annotations:     toStringMap(metadata["annotations"]),

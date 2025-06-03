@@ -69,6 +69,22 @@ metadata:
 			},
 		},
 		{
+			name: "service account with without namespace",
+			manifest: `apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: minimal-sa`,
+			want:    1,
+			wantErr: false,
+			wantIdentity: &Identity{
+				Name:           "minimal-sa",
+				Namespace:      "default",
+				AutomountToken: false,
+				Labels:         map[string]string{},
+				Annotations:    map[string]string{},
+			},
+		},
+		{
 			name: "multiple service accounts",
 			manifest: `apiVersion: v1
 kind: ServiceAccount

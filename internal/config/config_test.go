@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -142,5 +143,112 @@ server:
 	_, err := Load(configPath)
 	if err == nil {
 		t.Error("expected error for invalid duration")
+	}
+}
+
+func TestLoadConfigWithEnvVarPath(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "env_config.yml")
+	configContent := []byte(`debug: true
+server:
+  port: 1234`)
+	if err := os.WriteFile(configPath, configContent, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	originalEnvVal := os.Getenv(RbacOpsConfigPathEnvVar)
+	os.Setenv(RbacOpsConfigPathEnvVar, configPath)
+	t.Cleanup(func() {
+		os.Setenv(RbacOpsConfigPathEnvVar, originalEnvVal)
+	})
+
+	cfg, err := Load("") // Pass empty string to trigger env var check
+	if err != nil {
+		t.Fatalf("Load() error = %v, wantErr nil", err)
+	}
+	if !cfg.Debug {
+		t.Errorf("cfg.Debug = %v, want true", cfg.Debug)
+	}
+	if cfg.Server.Port != 1234 {
+		t.Errorf("cfg.Server.Port = %d, want 1234", cfg.Server.Port)
+	}
+}
+
+func TestLoadConfigWithEnvVarPathNonExistent(t *testing.T) {
+	nonExistentPath := filepath.Join(t.TempDir(), "non_existent_config.yml") // Use TempDir for safety
+	originalEnvVal := os.Getenv(RbacOpsConfigPathEnvVar)
+	os.Setenv(RbacOpsConfigPathEnvVar, nonExistentPath)
+	t.Cleanup(func() {
+		os.Setenv(RbacOpsConfigPathEnvVar, originalEnvVal)
+	})
+
+	_, err := Load("") // Pass empty string to trigger env var check
+	if err == nil {
+		t.Fatalf("Load() error = nil, wantErr non-nil")
+	}
+	expectedErrorMsg := "config file specified in " + RbacOpsConfigPathEnvVar + " not found: " + nonExistentPath
+	if !strings.Contains(err.Error(), expectedErrorMsg) { // Use Contains for flexibility
+		t.Errorf("Load() error = %q, want to contain %q", err.Error(), expectedErrorMsg)
+	}
+}
+
+func TestLoadConfigWithAlternativeYamlName(t *testing.T) {
+	tmpDir := t.TempDir()
+	// Create config.yaml, but not config.yml
+	configYamlPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := []byte(`debug: false
+server:
+  port: 5678`)
+	if err := os.WriteFile(configYamlPath, configContent, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	originalWd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		os.Chdir(originalWd)
+	})
+
+	// Ensure config.yml does not exist in tmpDir (it shouldn't by default)
+	// No need to explicitly delete if TempDir is fresh
+
+	cfg, err := Load("") // configPath is empty, should find config.yaml
+	if err != nil {
+		t.Fatalf("Load() error = %v, wantErr nil", err)
+	}
+	if cfg.Debug {
+		t.Errorf("cfg.Debug = %v, want false", cfg.Debug)
+	}
+	if cfg.Server.Port != 5678 {
+		t.Errorf("cfg.Server.Port = %d, want 5678", cfg.Server.Port)
+	}
+}
+
+func TestLoadConfigMalformedYaml(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "malformed_config.yml")
+	// Create a malformed YAML file (e.g., unclosed quote)
+	configContent := []byte(`
+server:
+  host: "localhost
+  port: 1234
+`)
+	if err := os.WriteFile(configPath, configContent, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := Load(configPath)
+	if err == nil {
+		t.Fatalf("Load() error = nil, wantErr non-nil for malformed YAML")
+	}
+	// Check if the error message contains a hint of YAML parsing error
+	// Specific error messages from Viper can be complex, so we check for a general indication.
+	if !strings.Contains(err.Error(), "While parsing config") && !strings.Contains(err.Error(), "yaml") {
+		t.Errorf("Load() error = %q, expected error indicating YAML parsing issue", err.Error())
 	}
 }

@@ -38,7 +38,6 @@ func TestHealthCheckHandler(t *testing.T) {
 	// s.healthCheck(rr, req) // Option 1: Direct call
 	s.router.ServeHTTP(rr, req) // Option 2: Serve via router (tests routing too)
 
-
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("healthCheck handler returned wrong status code: got %v want %v",
 			status, http.StatusOK)
@@ -82,7 +81,6 @@ func TestHealthCheckHandler_EncodingError(t *testing.T) {
 	// We need to initialize it properly.
 	// The ResponseRecorder part will store the status code.
 	rr := &mockResponseWriter{ResponseRecorder: *httptest.NewRecorder(), failWrite: true}
-
 
 	// Call the handler function directly as we are testing its internal error handling
 	s.healthCheck(rr, req)

@@ -215,6 +215,7 @@ func MatchRiskRules(policy Policy) ([]RiskRule, error) {
 	baseRule := RiskRule{
 		Name:      fmt.Sprintf("Base Risk Level: %d", baseLevel),
 		RiskLevel: baseLevel,
+		Tags:      RiskTags{},
 	}
 
 	// If we found custom rule matches, sort them by risk level

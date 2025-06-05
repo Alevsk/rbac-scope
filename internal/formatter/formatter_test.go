@@ -7,7 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alevsk/rbac-ops/internal/config"
 	"github.com/alevsk/rbac-ops/internal/extractor"
+	"github.com/alevsk/rbac-ops/internal/logger"
 	"github.com/alevsk/rbac-ops/internal/policyevaluation"
 	"github.com/alevsk/rbac-ops/internal/types"
 )
@@ -201,20 +203,41 @@ func sortSARoleBindingEntries(entries []SARoleBindingEntry) {
 		sort.Slice(entries[i].Tags, func(k, l int) bool { return entries[i].Tags[k] < entries[i].Tags[l] })
 	}
 	sort.SliceStable(entries, func(i, j int) bool {
-		if entries[i].ServiceAccountName != entries[j].ServiceAccountName { return entries[i].ServiceAccountName < entries[j].ServiceAccountName }
-		if entries[i].Namespace != entries[j].Namespace { return entries[i].Namespace < entries[j].Namespace }
-		if entries[i].RoleType != entries[j].RoleType { return entries[i].RoleType < entries[j].RoleType }
-		if entries[i].RoleName != entries[j].RoleName { return entries[i].RoleName < entries[j].RoleName }
-		if entries[i].APIGroup != entries[j].APIGroup { return entries[i].APIGroup < entries[j].APIGroup }
-		if entries[i].Resource != entries[j].Resource { return entries[i].Resource < entries[j].Resource }
+		if entries[i].ServiceAccountName != entries[j].ServiceAccountName {
+			return entries[i].ServiceAccountName < entries[j].ServiceAccountName
+		}
+		if entries[i].Namespace != entries[j].Namespace {
+			return entries[i].Namespace < entries[j].Namespace
+		}
+		if entries[i].RoleType != entries[j].RoleType {
+			return entries[i].RoleType < entries[j].RoleType
+		}
+		if entries[i].RoleName != entries[j].RoleName {
+			return entries[i].RoleName < entries[j].RoleName
+		}
+		if entries[i].APIGroup != entries[j].APIGroup {
+			return entries[i].APIGroup < entries[j].APIGroup
+		}
+		if entries[i].Resource != entries[j].Resource {
+			return entries[i].Resource < entries[j].Resource
+		}
 		verbI := strings.Join(entries[i].Verbs, ",")
 		verbJ := strings.Join(entries[j].Verbs, ",")
-		if verbI != verbJ { return verbI < verbJ }
+		if verbI != verbJ {
+			return verbI < verbJ
+		}
 		return entries[i].RiskLevel < entries[j].RiskLevel
 	})
 }
 
 func TestPrepareData(t *testing.T) {
+
+	// suppress debug logging
+	cfg := &config.Config{
+		Debug: false,
+	}
+	logger.Init(cfg)
+
 	timestamp := time.Now().Unix()
 
 	t.Run("emptyResult", func(t *testing.T) {
@@ -274,8 +297,18 @@ func TestPrepareData(t *testing.T) {
 
 		saRBACEntryData := extractor.ServiceAccountRBAC{
 			Roles: []extractor.RBACRole{
-				{Type: "Role", Name: "role1", Namespace: "ns1", Permissions: map[string]map[string]map[string]struct{}{"": {"pods": {"get": {}, "list": {}}}}},
-				{Type: "ClusterRole", Name: "clusterrole1", Namespace: "*", Permissions: map[string]map[string]map[string]struct{}{"apps": {"deployments": {"watch": {}}}}},
+				{
+					Type:        "Role",
+					Name:        "role1",
+					Namespace:   "ns1",
+					Permissions: map[string]map[string]map[string]struct{}{"": {"pods": {"get": {}, "list": {}}}},
+				},
+				{
+					Type:        "ClusterRole",
+					Name:        "clusterrole1",
+					Namespace:   "*",
+					Permissions: map[string]map[string]map[string]struct{}{"apps": {"deployments": {"watch": {}}}},
+				},
 			},
 		}
 		addRawRBACData(&res, "sa1", "ns1", saRBACEntryData)
@@ -285,12 +318,20 @@ func TestPrepareData(t *testing.T) {
 
 		opts := DefaultOptions()
 		parsed, err := PrepareData(res, opts)
-		if err != nil { t.Fatalf("PrepareData returned error: %v", err) }
+		if err != nil {
+			t.Fatalf("PrepareData returned error: %v", err)
+		}
 
-		if parsed.Metadata == nil { t.Fatal("Metadata is nil") }
-		if parsed.Metadata.Name != "full-app" { t.Errorf("Metadata.Name got %s, want full-app", parsed.Metadata.Name) }
+		if parsed.Metadata == nil {
+			t.Fatal("Metadata is nil")
+		}
+		if parsed.Metadata.Name != "full-app" {
+			t.Errorf("Metadata.Name got %s, want full-app", parsed.Metadata.Name)
+		}
 
-		if len(parsed.IdentityData) != 1 { t.Fatalf("IdentityData len got %d, want 1", len(parsed.IdentityData)) }
+		if len(parsed.IdentityData) != 1 {
+			t.Fatalf("IdentityData len got %d, want 1", len(parsed.IdentityData))
+		}
 		expectedID := SAIdentityEntry{ServiceAccountName: "sa1", Namespace: "ns1", AutomountToken: true, Secrets: nil, ImagePullSecrets: nil}
 		if !reflect.DeepEqual(parsed.IdentityData[0], expectedID) {
 			t.Errorf("IdentityData[0] got %+v, want %+v", parsed.IdentityData[0], expectedID)
@@ -300,8 +341,28 @@ func TestPrepareData(t *testing.T) {
 			t.Fatalf("RBACData len got %d, want 2. Got: %+v", len(parsed.RBACData), parsed.RBACData)
 		}
 		expectedRBACEntries := []SARoleBindingEntry{
-			{ServiceAccountName: "sa1", Namespace: "ns1", RoleType: "Role", RoleName: "role1", APIGroup: "", Resource: "pods", Verbs: []string{"get", "list"}, RiskLevel: "Low", Tags: policyevaluation.RiskTags{}},
-			{ServiceAccountName: "sa1", Namespace: "ns1", RoleType: "ClusterRole", RoleName: "clusterrole1", APIGroup: "apps", Resource: "deployments", Verbs: []string{"watch"}, RiskLevel: "Low", Tags: policyevaluation.RiskTags{}},
+			{
+				ServiceAccountName: "sa1",
+				Namespace:          "ns1",
+				RoleType:           "Role",
+				RoleName:           "role1",
+				APIGroup:           "",
+				Resource:           "pods",
+				Verbs:              []string{"get", "list"},
+				RiskLevel:          "Low",
+				Tags:               policyevaluation.RiskTags{},
+			},
+			{
+				ServiceAccountName: "sa1",
+				Namespace:          "ns1",
+				RoleType:           "ClusterRole",
+				RoleName:           "clusterrole1",
+				APIGroup:           "apps",
+				Resource:           "deployments",
+				Verbs:              []string{"watch"},
+				RiskLevel:          "Low",
+				Tags:               policyevaluation.RiskTags{},
+			},
 		}
 
 		sortSARoleBindingEntries(parsed.RBACData)
@@ -316,21 +377,40 @@ func TestPrepareData(t *testing.T) {
 			gotEntry := parsed.RBACData[i]
 			wantEntry := expectedRBACEntries[i]
 
-			if !reflect.DeepEqual(gotEntry.ServiceAccountName, wantEntry.ServiceAccountName) { t.Errorf("idx %d: ServiceAccountName mismatch: got %s, want %s", i, gotEntry.ServiceAccountName, wantEntry.ServiceAccountName) }
-			if !reflect.DeepEqual(gotEntry.Namespace, wantEntry.Namespace) { t.Errorf("idx %d: Namespace mismatch: got %s, want %s", i, gotEntry.Namespace, wantEntry.Namespace) }
-			if !reflect.DeepEqual(gotEntry.RoleType, wantEntry.RoleType) { t.Errorf("idx %d: RoleType mismatch: got %s, want %s", i, gotEntry.RoleType, wantEntry.RoleType) }
-			if !reflect.DeepEqual(gotEntry.RoleName, wantEntry.RoleName) { t.Errorf("idx %d: RoleName mismatch: got %s, want %s", i, gotEntry.RoleName, wantEntry.RoleName) }
-			if !reflect.DeepEqual(gotEntry.APIGroup, wantEntry.APIGroup) { t.Errorf("idx %d: APIGroup mismatch: got %s, want %s", i, gotEntry.APIGroup, wantEntry.APIGroup) }
-			if !reflect.DeepEqual(gotEntry.Resource, wantEntry.Resource) { t.Errorf("idx %d: Resource mismatch: got %s, want %s", i, gotEntry.Resource, wantEntry.Resource) }
-			if !reflect.DeepEqual(gotEntry.Verbs, wantEntry.Verbs) { t.Errorf("idx %d: Verbs mismatch: got %v, want %v", i, gotEntry.Verbs, wantEntry.Verbs) }
-			if !reflect.DeepEqual(gotEntry.RiskLevel, wantEntry.RiskLevel) { t.Errorf("idx %d: RiskLevel mismatch: got %s, want %s", i, gotEntry.RiskLevel, wantEntry.RiskLevel) }
-			if !reflect.DeepEqual(gotEntry.Tags, wantEntry.Tags) { t.Errorf("idx %d: Tags mismatch: got %v, want %v", i, gotEntry.Tags, wantEntry.Tags) }
+			if !reflect.DeepEqual(gotEntry.ServiceAccountName, wantEntry.ServiceAccountName) {
+				t.Errorf("idx %d: ServiceAccountName mismatch: got %s, want %s", i, gotEntry.ServiceAccountName, wantEntry.ServiceAccountName)
+			}
+			if !reflect.DeepEqual(gotEntry.Namespace, wantEntry.Namespace) {
+				t.Errorf("idx %d: Namespace mismatch: got %s, want %s", i, gotEntry.Namespace, wantEntry.Namespace)
+			}
+			if !reflect.DeepEqual(gotEntry.RoleType, wantEntry.RoleType) {
+				t.Errorf("idx %d: RoleType mismatch: got %s, want %s", i, gotEntry.RoleType, wantEntry.RoleType)
+			}
+			if !reflect.DeepEqual(gotEntry.RoleName, wantEntry.RoleName) {
+				t.Errorf("idx %d: RoleName mismatch: got %s, want %s", i, gotEntry.RoleName, wantEntry.RoleName)
+			}
+			if !reflect.DeepEqual(gotEntry.APIGroup, wantEntry.APIGroup) {
+				t.Errorf("idx %d: APIGroup mismatch: got %s, want %s", i, gotEntry.APIGroup, wantEntry.APIGroup)
+			}
+			if !reflect.DeepEqual(gotEntry.Resource, wantEntry.Resource) {
+				t.Errorf("idx %d: Resource mismatch: got %s, want %s", i, gotEntry.Resource, wantEntry.Resource)
+			}
+			if !reflect.DeepEqual(gotEntry.Verbs, wantEntry.Verbs) {
+				t.Errorf("idx %d: Verbs mismatch: got %v, want %v", i, gotEntry.Verbs, wantEntry.Verbs)
+			}
+			if !reflect.DeepEqual(gotEntry.RiskLevel, wantEntry.RiskLevel) {
+				t.Errorf("idx %d: RiskLevel mismatch: got %s, want %s", i, gotEntry.RiskLevel, wantEntry.RiskLevel)
+			}
+			if !reflect.DeepEqual(gotEntry.Tags, wantEntry.Tags) {
+				t.Errorf("idx %d: Tags mismatch: got %v, want %v", i, gotEntry.Tags, wantEntry.Tags)
+			}
 		}
 		// The granular checks above are now the sole source of truth for RBACData comparison in this sub-test.
 		// The potentially problematic DeepEqual on the whole slice has been removed.
 
-
-		if len(parsed.WorkloadData) != 1 { t.Fatalf("WorkloadData len got %d, want 1", len(parsed.WorkloadData)) }
+		if len(parsed.WorkloadData) != 1 {
+			t.Fatalf("WorkloadData len got %d, want 1", len(parsed.WorkloadData))
+		}
 		expectedWkld := SAWorkloadEntry{ServiceAccountName: "sa1", Namespace: "ns1", WorkloadType: "Deployment", WorkloadName: "dep1", ContainerName: "c1", Image: "img1"}
 		if !reflect.DeepEqual(parsed.WorkloadData[0], expectedWkld) {
 			t.Errorf("WorkloadData[0] got %+v, want %+v", parsed.WorkloadData[0], expectedWkld)

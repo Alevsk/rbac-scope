@@ -4,10 +4,18 @@ import (
 	"os"
 	"testing"
 
+	"github.com/alevsk/rbac-ops/internal/config"
+	"github.com/alevsk/rbac-ops/internal/logger"
 	"gopkg.in/yaml.v3"
 )
 
 func TestMatchRiskRules(t *testing.T) {
+	// suppress debug logging
+	cfg := &config.Config{
+		Debug: false,
+	}
+	logger.Init(cfg)
+
 	tests := []struct {
 		name             string
 		policy           Policy
@@ -1120,22 +1128,22 @@ func TestMatchRiskRules(t *testing.T) {
 			wantRiskLevel:    RiskLevelCritical,
 			wantMatchesCount: 2,
 		},
-		// {
-		// 	// TODO: implement resourceNames: ["kube-system", "kube-node-lease"]
-		// 	name: "Manage Leases in critical namespace (Role)",
-		// 	// This test case assumes the scanner can identify the namespace from RoleBinding context.
-		// 	// The Policy struct here only defines the RBAC rule part.
-		// 	// The RiskLevelCritical is for the *combination* of this rule in a critical namespace.
-		// 	policy: Policy{
-		// 		RoleType: "Role",
-		// 		APIGroup: "coordination.k8s.io",
-		// 		Resource: "leases",
-		// 		Verbs:    []string{"create", "update", "patch", "delete"},
-		// 	},
-		// 	wantErr:          false,
-		// 	wantRiskLevel:    RiskLevelCritical, // Risk is high if this Role is bound in kube-system etc.
-		// 	wantMatchesCount: 2,
-		// },
+		{
+			// TODO: implement resourceNames: ["kube-system", "kube-node-lease"]
+			name: "Manage Leases in critical namespace (Role)",
+			// This test case assumes the scanner can identify the namespace from RoleBinding context.
+			// The Policy struct here only defines the RBAC rule part.
+			// The RiskLevelCritical is for the *combination* of this rule in a critical namespace.
+			policy: Policy{
+				RoleType: "Role",
+				APIGroup: "coordination.k8s.io",
+				Resource: "leases",
+				Verbs:    []string{"create", "update", "patch", "delete"},
+			},
+			wantErr:          false,
+			wantRiskLevel:    RiskLevelCritical, // Risk is high if this Role is bound in kube-system etc.
+			wantMatchesCount: 2,
+		},
 		{
 			name: "List Namespaces (Cluster Reconnaissance)",
 			policy: Policy{

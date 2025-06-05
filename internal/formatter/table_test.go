@@ -60,7 +60,6 @@ func addRawWorkloadDataForTable(res *types.Result, workloads []extractor.Workloa
 	}
 }
 
-
 func TestBuildTables(t *testing.T) {
 	timestamp := time.Now().Unix()
 	// defaultOpts := DefaultOptions() // Options might not be needed for buildTables
@@ -73,19 +72,41 @@ func TestBuildTables(t *testing.T) {
 			t.Fatalf("buildTables returned error: %v", err)
 		}
 
-		if metadataTable == nil { t.Error("metadataTable is nil") }
-		if identityTable == nil { t.Error("identityTable is nil") }
-		if rbacTable == nil { t.Error("rbacTable is nil") }
-		if workloadTable == nil { t.Error("workloadTable is nil") }
+		if metadataTable == nil {
+			t.Error("metadataTable is nil")
+		}
+		if identityTable == nil {
+			t.Error("identityTable is nil")
+		}
+		if rbacTable == nil {
+			t.Error("rbacTable is nil")
+		}
+		if workloadTable == nil {
+			t.Error("workloadTable is nil")
+		}
 
-		if !strings.Contains(renderTableForTest(metadataTable), "METADATA") { t.Error("Metadata table missing title") }
-		if !strings.Contains(renderTableForTest(identityTable), "IDENTITIES") { t.Error("Identity table missing title") }
-		if !strings.Contains(renderTableForTest(rbacTable), "PERMISSIONS") { t.Error("RBAC table missing title") }
-		if !strings.Contains(renderTableForTest(workloadTable), "WORKLOADS") { t.Error("Workload table missing title") }
+		if !strings.Contains(renderTableForTest(metadataTable), "METADATA") {
+			t.Error("Metadata table missing title")
+		}
+		if !strings.Contains(renderTableForTest(identityTable), "SERVICE ACCOUNT IDENTITIES") {
+			t.Error("Identity table missing title")
+		}
+		if !strings.Contains(renderTableForTest(rbacTable), "SERVICE ACCOUNT BINDINGS") {
+			t.Error("RBAC table missing title")
+		}
+		if !strings.Contains(renderTableForTest(workloadTable), "SERVICE ACCOUNT WORKLOADS") {
+			t.Error("Workload table missing title")
+		}
 
-		if identityTable.Length() != 0 { t.Errorf("identityTable should have 0 data rows, got %d", identityTable.Length())}
-		if rbacTable.Length() != 0 { t.Errorf("rbacTable should have 0 data rows, got %d", rbacTable.Length())}
-		if workloadTable.Length() != 0 { t.Errorf("workloadTable should have 0 data rows, got %d", workloadTable.Length())}
+		if identityTable.Length() != 0 {
+			t.Errorf("identityTable should have 0 data rows, got %d", identityTable.Length())
+		}
+		if rbacTable.Length() != 0 {
+			t.Errorf("rbacTable should have 0 data rows, got %d", rbacTable.Length())
+		}
+		if workloadTable.Length() != 0 {
+			t.Errorf("workloadTable should have 0 data rows, got %d", workloadTable.Length())
+		}
 	})
 
 	t.Run("fullData", func(t *testing.T) {
@@ -112,27 +133,57 @@ func TestBuildTables(t *testing.T) {
 		}
 
 		mdRendered := renderTableForTest(metadataTable)
-		if !strings.Contains(mdRendered, "full-data-app") { t.Error("Metadata table missing app name") }
-		if !strings.Contains(mdRendered, "v1.0") { t.Error("Metadata table missing version") }
+		if !strings.Contains(mdRendered, "full-data-app") {
+			t.Error("Metadata table missing app name")
+		}
+		if !strings.Contains(mdRendered, "v1.0") {
+			t.Error("Metadata table missing version")
+		}
 
 		idRendered := renderTableForTest(identityTable)
-		if !strings.Contains(idRendered, "sa-1") { t.Error("Identity table missing sa-1") }
-		if !strings.Contains(idRendered, "ns-a") { t.Error("Identity table missing ns-a") }
-		if identityTable.Length() != 1 {t.Errorf("Expected 1 identity, got %d", identityTable.Length())}
+		if !strings.Contains(idRendered, "sa-1") {
+			t.Error("Identity table missing sa-1")
+		}
+		if !strings.Contains(idRendered, "ns-a") {
+			t.Error("Identity table missing ns-a")
+		}
+		if identityTable.Length() != 1 {
+			t.Errorf("Expected 1 identity, got %d", identityTable.Length())
+		}
 
 		rbacRendered := renderTableForTest(rbacTable)
-		if !strings.Contains(rbacRendered, "sa-1") { t.Error("RBAC table missing sa-1") }
-		if !strings.Contains(rbacRendered, "Role") { t.Error("RBAC table missing Role type") }
-		if !strings.Contains(rbacRendered, "pod-reader") { t.Error("RBAC table missing pod-reader role") }
-		if !strings.Contains(rbacRendered, "pods") { t.Error("RBAC table missing pods resource") }
-		if !strings.Contains(rbacRendered, "get,list") && !strings.Contains(rbacRendered, "list,get") { t.Error("RBAC table missing get,list verbs") }
-		if rbacTable.Length() != 1 {t.Errorf("Expected 1 RBAC entry (verbs combined), got %d", rbacTable.Length())}
+		if !strings.Contains(rbacRendered, "sa-1") {
+			t.Error("RBAC table missing sa-1")
+		}
+		if !strings.Contains(rbacRendered, "Role") {
+			t.Error("RBAC table missing Role type")
+		}
+		if !strings.Contains(rbacRendered, "pod-reader") {
+			t.Error("RBAC table missing pod-reader role")
+		}
+		if !strings.Contains(rbacRendered, "pods") {
+			t.Error("RBAC table missing pods resource")
+		}
+		if !strings.Contains(rbacRendered, "get,list") && !strings.Contains(rbacRendered, "list,get") {
+			t.Error("RBAC table missing get,list verbs")
+		}
+		if rbacTable.Length() != 1 {
+			t.Errorf("Expected 1 RBAC entry (verbs combined), got %d", rbacTable.Length())
+		}
 
 		wlRendered := renderTableForTest(workloadTable)
-		if !strings.Contains(wlRendered, "sa-1") { t.Error("Workload table missing sa-1") }
-		if !strings.Contains(wlRendered, "Deployment") { t.Error("Workload table missing Deployment type") }
-		if !strings.Contains(wlRendered, "app-deploy") { t.Error("Workload table missing app-deploy name") }
-		if workloadTable.Length() != 1 {t.Errorf("Expected 1 workload, got %d", workloadTable.Length())}
+		if !strings.Contains(wlRendered, "sa-1") {
+			t.Error("Workload table missing sa-1")
+		}
+		if !strings.Contains(wlRendered, "Deployment") {
+			t.Error("Workload table missing Deployment type")
+		}
+		if !strings.Contains(wlRendered, "app-deploy") {
+			t.Error("Workload table missing app-deploy name")
+		}
+		if workloadTable.Length() != 1 {
+			t.Errorf("Expected 1 workload, got %d", workloadTable.Length())
+		}
 	})
 
 	t.Run("rbacDataWithRisk", func(t *testing.T) {
@@ -147,8 +198,12 @@ func TestBuildTables(t *testing.T) {
 		addRawRBACDataForTable(&res, "risk-sa", "kube-system", saRBAC)
 
 		_, _, rbacTable, _, err := buildTables(res) // Pass only res
-		if err != nil { t.Fatalf("buildTables error: %v", err) }
-		if rbacTable == nil { t.Fatal("rbacTable is nil") }
+		if err != nil {
+			t.Fatalf("buildTables error: %v", err)
+		}
+		if rbacTable == nil {
+			t.Fatal("rbacTable is nil")
+		}
 
 		rendered := renderTableForTest(rbacTable)
 		if !strings.Contains(rendered, "Critical") {

@@ -211,7 +211,9 @@ server:
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
-		os.Chdir(originalWd)
+		if err := os.Chdir(originalWd); err != nil {
+			t.Fatal(err)
+		}
 	})
 
 	// Ensure config.yml does not exist in tmpDir (it shouldn't by default)

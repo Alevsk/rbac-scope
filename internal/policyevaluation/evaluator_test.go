@@ -1184,6 +1184,291 @@ func TestMatchRiskRules(t *testing.T) {
 	}
 }
 
+func TestIsClusterScoped(t *testing.T) {
+	tests := []struct {
+		name   string
+		policy Policy
+		want   bool
+	}{
+		{
+			name:   "ClusterRole type",
+			policy: Policy{RoleType: "ClusterRole", Namespace: "default"},
+			want:   true,
+		},
+		{
+			name:   "Empty namespace",
+			policy: Policy{RoleType: "Role", Namespace: ""},
+			want:   true,
+		},
+		{
+			name:   "Role type with namespace",
+			policy: Policy{RoleType: "Role", Namespace: "default"},
+			want:   false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isClusterScoped(&tt.policy); got != tt.want {
+				t.Errorf("isClusterScoped() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestDetermineBaseRiskLevel(t *testing.T) {
+	tests := []struct {
+		name   string
+		policy Policy
+		want   RiskLevel
+	}{
+		{
+			name:   "Critical - ClusterRole, all wildcards",
+			policy: Policy{RoleType: "ClusterRole", APIGroup: "*", Resource: "*", Verbs: []string{"*"}},
+			want:   RiskLevelCritical,
+		},
+		{
+			name:   "High - ClusterRole, APIGroup wildcard",
+			policy: Policy{RoleType: "ClusterRole", APIGroup: "*", Resource: "pods", Verbs: []string{"get"}},
+			want:   RiskLevelHigh,
+		},
+		{
+			name:   "High - ClusterRole, Resource wildcard",
+			policy: Policy{RoleType: "ClusterRole", APIGroup: "", Resource: "*", Verbs: []string{"get"}},
+			want:   RiskLevelHigh,
+		},
+		{
+			name:   "High - ClusterRole, Verbs wildcard",
+			policy: Policy{RoleType: "ClusterRole", APIGroup: "", Resource: "pods", Verbs: []string{"*"}},
+			want:   RiskLevelHigh,
+		},
+		{
+			name:   "Medium - Namespaced Role, APIGroup wildcard",
+			policy: Policy{RoleType: "Role", Namespace: "default", APIGroup: "*", Resource: "pods", Verbs: []string{"get"}},
+			want:   RiskLevelMedium,
+		},
+		{
+			name:   "Medium - Namespaced Role, Resource wildcard",
+			policy: Policy{RoleType: "Role", Namespace: "default", APIGroup: "", Resource: "*", Verbs: []string{"get"}},
+			want:   RiskLevelMedium,
+		},
+		{
+			name:   "Medium - Namespaced Role, Verbs wildcard",
+			policy: Policy{RoleType: "Role", Namespace: "default", APIGroup: "", Resource: "pods", Verbs: []string{"*"}},
+			want:   RiskLevelMedium,
+		},
+		{
+			name:   "Low - Namespaced Role, no wildcards",
+			policy: Policy{RoleType: "Role", Namespace: "default", APIGroup: "", Resource: "pods", Verbs: []string{"get"}},
+			want:   RiskLevelLow,
+		},
+		{
+			name:   "Low - ClusterRole, no wildcards (should default to Low as per logic if not Critical/High)",
+			policy: Policy{RoleType: "ClusterRole", APIGroup: "apps", Resource: "deployments", Verbs: []string{"list"}},
+			want:   RiskLevelLow,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := determineBaseRiskLevel(&tt.policy); got != tt.want {
+				t.Errorf("determineBaseRiskLevel() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMatchesAPIGroups(t *testing.T) {
+	tests := []struct {
+		name   string
+		policy Policy
+		rule   RiskRule
+		want   bool
+	}{
+		// Rule has wildcard
+		{
+			name:   "Rule wildcard, policy wildcard",
+			policy: Policy{APIGroup: "*"},
+			rule:   RiskRule{APIGroups: []string{"*"}},
+			want:   true,
+		},
+		{
+			name:   "Rule wildcard, policy specific (fail)",
+			policy: Policy{APIGroup: "apps"},
+			rule:   RiskRule{APIGroups: []string{"*"}},
+			want:   false,
+		},
+		// Policy has wildcard
+		{
+			name:   "Policy wildcard, rule specific",
+			policy: Policy{APIGroup: "*"},
+			rule:   RiskRule{APIGroups: []string{"apps"}},
+			want:   true,
+		},
+		{
+			name:   "Policy wildcard, rule core",
+			policy: Policy{APIGroup: "*"},
+			rule:   RiskRule{APIGroups: []string{""}},
+			want:   true,
+		},
+		// Core API group matching
+		{
+			name:   "Policy core, rule core",
+			policy: Policy{APIGroup: ""},
+			rule:   RiskRule{APIGroups: []string{""}},
+			want:   true,
+		},
+		{
+			name:   "Policy core, rule specific (fail)",
+			policy: Policy{APIGroup: ""},
+			rule:   RiskRule{APIGroups: []string{"apps"}},
+			want:   false,
+		},
+		{
+			name:   "Policy specific, rule core (fail)",
+			policy: Policy{APIGroup: "apps"},
+			rule:   RiskRule{APIGroups: []string{""}},
+			want:   false,
+		},
+		// Specific matching
+		{
+			name:   "Policy specific, rule specific (match)",
+			policy: Policy{APIGroup: "apps"},
+			rule:   RiskRule{APIGroups: []string{"apps", "extensions"}},
+			want:   true,
+		},
+		{
+			name:   "Policy specific, rule specific (no match)",
+			policy: Policy{APIGroup: "batch"},
+			rule:   RiskRule{APIGroups: []string{"apps", "extensions"}},
+			want:   false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := matchesAPIGroups(&tt.policy, &tt.rule); got != tt.want {
+				t.Errorf("matchesAPIGroups() = %v, want %v for policy %v and rule %v", got, tt.want, tt.policy, tt.rule.APIGroups)
+			}
+		})
+	}
+}
+
+func TestMatchesResources(t *testing.T) {
+	tests := []struct {
+		name   string
+		policy Policy
+		rule   RiskRule
+		want   bool
+	}{
+		// Rule has wildcard
+		{
+			name:   "Rule wildcard, policy wildcard",
+			policy: Policy{Resource: "*"},
+			rule:   RiskRule{Resources: []string{"*"}},
+			want:   true,
+		},
+		{
+			name:   "Rule wildcard, policy specific (fail)",
+			policy: Policy{Resource: "pods"},
+			rule:   RiskRule{Resources: []string{"*"}},
+			want:   false,
+		},
+		// Policy has wildcard
+		{
+			name:   "Policy wildcard, rule specific",
+			policy: Policy{Resource: "*"},
+			rule:   RiskRule{Resources: []string{"pods"}},
+			want:   true,
+		},
+		// Specific matching
+		{
+			name:   "Policy specific, rule specific (match)",
+			policy: Policy{Resource: "pods"},
+			rule:   RiskRule{Resources: []string{"pods", "deployments"}},
+			want:   true,
+		},
+		{
+			name:   "Policy specific, rule specific (no match)",
+			policy: Policy{Resource: "services"},
+			rule:   RiskRule{Resources: []string{"pods", "deployments"}},
+			want:   false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := matchesResources(&tt.policy, &tt.rule); got != tt.want {
+				t.Errorf("matchesResources() = %v, want %v for policy %v and rule %v", got, tt.want, tt.policy, tt.rule.Resources)
+			}
+		})
+	}
+}
+
+func TestMatchesVerbs(t *testing.T) {
+	tests := []struct {
+		name   string
+		policy Policy
+		rule   RiskRule
+		want   bool
+	}{
+		// Rule has wildcard
+		{
+			name:   "Rule wildcard, policy wildcard",
+			policy: Policy{Verbs: []string{"*"}},
+			rule:   RiskRule{Verbs: []string{"*"}},
+			want:   true,
+		},
+		{
+			name:   "Rule wildcard, policy specific (fail)",
+			policy: Policy{Verbs: []string{"get"}},
+			rule:   RiskRule{Verbs: []string{"*"}},
+			want:   false,
+		},
+		// Policy has wildcard
+		{
+			name:   "Policy wildcard, rule specific",
+			policy: Policy{Verbs: []string{"*"}},
+			rule:   RiskRule{Verbs: []string{"get"}},
+			want:   true,
+		},
+		// Specific matching (subset)
+		{
+			name:   "Policy verbs superset of rule verbs",
+			policy: Policy{Verbs: []string{"get", "list", "watch"}},
+			rule:   RiskRule{Verbs: []string{"get", "list"}},
+			want:   true,
+		},
+		{
+			name:   "Policy verbs exact match rule verbs",
+			policy: Policy{Verbs: []string{"get", "list"}},
+			rule:   RiskRule{Verbs: []string{"get", "list"}},
+			want:   true,
+		},
+		{
+			name:   "Policy verbs subset of rule verbs (fail)",
+			policy: Policy{Verbs: []string{"get"}},
+			rule:   RiskRule{Verbs: []string{"get", "list"}},
+			want:   false,
+		},
+		{
+			name:   "Policy verbs no overlap with rule verbs (fail)",
+			policy: Policy{Verbs: []string{"update"}},
+			rule:   RiskRule{Verbs: []string{"get", "list"}},
+			want:   false,
+		},
+		{
+			name:   "Policy verbs has one match, one miss (fail)",
+			policy: Policy{Verbs: []string{"get", "update"}},
+			rule:   RiskRule{Verbs: []string{"get", "list"}},
+			want:   false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := matchesVerbs(&tt.policy, &tt.rule); got != tt.want {
+				t.Errorf("matchesVerbs() = %v, want %v for policy %v and rule %v", got, tt.want, tt.policy, tt.rule.Verbs)
+			}
+		})
+	}
+}
+
 func TestContainsWildcard(t *testing.T) {
 	tests := []struct {
 		name string

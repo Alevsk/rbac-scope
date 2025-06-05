@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha512"
 	"fmt"
+	// "io/fs" // Standard library io/fs - REMOVED as it's unused
 	"path/filepath"
 	"strings"
 	"sync"
@@ -34,21 +35,25 @@ func NewKustomizeRenderer(opts *Options) *KustomizeRenderer {
 // Render processes a Kustomize directory and returns the rendered manifests
 func (r *KustomizeRenderer) Render(ctx context.Context, folder []byte) (*Result, error) {
 	// Create an in-memory filesystem
-	fs := filesys.MakeFsInMemory()
+	fsys := filesys.MakeFsInMemory() // Renamed to fsys to avoid conflict with package fs
 
 	// Write all files from the map to the in-memory filesystem
+	r.mux.RLock() // Ensure read lock when accessing r.files
 	for name, content := range r.files {
 		// Create parent directories if they don't exist
 		dir := filepath.Dir("/" + name)
-		if err := fs.MkdirAll(dir); err != nil {
+		if err := fsys.MkdirAll(dir); err != nil {
+			r.mux.RUnlock()
 			return nil, fmt.Errorf("failed to create directory %s: %w", dir, err)
 		}
 
 		// Write the file
-		if err := fs.WriteFile("/"+name, content); err != nil {
+		if err := fsys.WriteFile("/"+name, content); err != nil {
+			r.mux.RUnlock()
 			return nil, fmt.Errorf("failed to write file %s: %w", name, err)
 		}
 	}
+	r.mux.RUnlock()
 
 	// Create kustomize builder
 	k := krusty.MakeKustomizer(
@@ -56,7 +61,10 @@ func (r *KustomizeRenderer) Render(ctx context.Context, folder []byte) (*Result,
 	)
 
 	// Build the resources
-	resources, err := k.Run(fs, "/")
+	// The target for k.Run should be the directory containing kustomization.yaml within the fsys.
+	// Since all files are written with a leading "/", and kustomization.yaml is at the root of what was added,
+	// "/" should be the correct target.
+	resources, err := k.Run(fsys, "/")
 	if err != nil {
 		return nil, fmt.Errorf("failed to build resources: %w", err)
 	}
@@ -73,7 +81,7 @@ func (r *KustomizeRenderer) Render(ctx context.Context, folder []byte) (*Result,
 
 	// Parse the rendered manifests
 	result := &Result{
-		Name:      string(folder),
+		Name:      string(folder), // This is the original source folder path
 		Version:   version,
 		Manifests: make([]*Manifest, 0),
 	}
@@ -84,7 +92,16 @@ func (r *KustomizeRenderer) Render(ctx context.Context, folder []byte) (*Result,
 		var obj map[string]interface{}
 		err := decoder.Decode(&obj)
 		if err == nil {
+			// Re-marshal the object to get its raw YAML form for the Manifest
+			rawManifest, marshalErr := yaml.Marshal(obj)
+			if marshalErr != nil {
+				// Log or handle error, perhaps skip this manifest
+				fmt.Printf("Error marshaling manifest object: %v\n", marshalErr)
+				continue
+			}
+
 			manifest := &Manifest{
+				Raw:      rawManifest,
 				Content:  obj,
 				Metadata: make(map[string]interface{}),
 			}
@@ -100,6 +117,7 @@ func (r *KustomizeRenderer) Render(ctx context.Context, folder []byte) (*Result,
 		} else if err.Error() == "EOF" {
 			break
 		} else {
+			// If not EOF, it's a real parsing error
 			return nil, fmt.Errorf("failed to parse manifest: %w", err)
 		}
 	}
@@ -132,12 +150,16 @@ func (r *KustomizeRenderer) SetOptions(opts *Options) error {
 	if opts == nil {
 		return fmt.Errorf("options cannot be nil")
 	}
+	r.mux.Lock()
+	defer r.mux.Unlock()
 	r.opts = opts
 	return nil
 }
 
 // GetOptions returns the current renderer options
 func (r *KustomizeRenderer) GetOptions() *Options {
+	r.mux.RLock()
+	defer r.mux.RUnlock()
 	return r.opts
 }
 

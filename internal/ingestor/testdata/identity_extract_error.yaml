@@ -1,0 +1,4 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata: "this-should-be-a-map"
+automountServiceAccountToken: true

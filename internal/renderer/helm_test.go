@@ -2,8 +2,82 @@ package renderer
 
 import (
 	"context"
+	"reflect"
 	"testing"
 )
+
+func TestHelmRenderer_GetOptions(t *testing.T) {
+	defaultOpts := DefaultOptions()
+	r := NewHelmRenderer(nil)
+	if !reflect.DeepEqual(r.GetOptions(), defaultOpts) {
+		t.Errorf("GetOptions() for new renderer with nil opts = %v, want %v", r.GetOptions(), defaultOpts)
+	}
+
+	customOpts := &Options{OutputFormat: "json", IncludeMetadata: false}
+	r = NewHelmRenderer(customOpts)
+	if !reflect.DeepEqual(r.GetOptions(), customOpts) {
+		t.Errorf("GetOptions() for new renderer with custom opts = %v, want %v", r.GetOptions(), customOpts)
+	}
+
+	setOpts := &Options{OutputFormat: "yaml", IncludeMetadata: true, ValidateOutput: false}
+	err := r.SetOptions(setOpts)
+	if err != nil {
+		t.Fatalf("SetOptions() returned error: %v", err)
+	}
+	if !reflect.DeepEqual(r.GetOptions(), setOpts) {
+		t.Errorf("GetOptions() after SetOptions = %v, want %v", r.GetOptions(), setOpts)
+	}
+}
+
+func TestHelmRenderer_ValidateSchema(t *testing.T) {
+	validChartFiles := map[string][]byte{
+		"Chart.yaml": []byte("apiVersion: v2\nname: test\nversion: 0.1.0"),
+		"templates/role.yaml": []byte("kind: Role\napiVersion: rbac.authorization.k8s.io/v1\nmetadata:\n  name: test-role"),
+	}
+	invalidChartFilesMissingChartYaml := map[string][]byte{
+		"templates/role.yaml": []byte("kind: Role\napiVersion: rbac.authorization.k8s.io/v1\nmetadata:\n  name: test-role"),
+	}
+
+	tests := []struct {
+		name    string
+		files   map[string][]byte
+		wantErr bool
+	}{
+		{
+			name:    "valid chart schema",
+			files:   validChartFiles,
+			wantErr: false,
+		},
+		{
+			name:    "invalid chart schema (missing Chart.yaml)",
+			files:   invalidChartFilesMissingChartYaml,
+			wantErr: true,
+		},
+		{
+			name:    "empty files (should be invalid)",
+			files:   map[string][]byte{},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := NewHelmRenderer(DefaultOptions())
+			for name, content := range tt.files {
+				if err := r.AddFile(name, content); err != nil {
+					t.Fatalf("Failed to add file %s: %v", name, err)
+				}
+			}
+			// ValidateSchema calls Validate, which for HelmRenderer doesn't take input bytes but uses added files.
+			// Passing nil as input to ValidateSchema as it's not used by Helm's Validate.
+			err := r.ValidateSchema(nil)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("HelmRenderer.ValidateSchema() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
 
 func TestHelmRenderer(t *testing.T) {
 	tests := []struct {

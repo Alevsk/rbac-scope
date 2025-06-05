@@ -10,6 +10,29 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+func TestRBACExtractor_GetSetOptions(t *testing.T) {
+	defaultOpts := DefaultOptions()
+	e := NewRBACExtractor(nil) // Starts with default options
+
+	// 1. Test GetOptions returns default options initially
+	if !reflect.DeepEqual(e.GetOptions(), defaultOpts) {
+		t.Errorf("GetOptions() initial = %v, want %v", e.GetOptions(), defaultOpts)
+	}
+
+	// 2. Test SetOptions with new options
+	newOpts := &Options{StrictParsing: true, IncludeMetadata: false}
+	e.SetOptions(newOpts)
+	if !reflect.DeepEqual(e.GetOptions(), newOpts) {
+		t.Errorf("GetOptions() after SetOptions(newOpts) = %v, want %v", e.GetOptions(), newOpts)
+	}
+
+	// 3. Test SetOptions with nil (should retain current options)
+	e.SetOptions(nil)
+	if !reflect.DeepEqual(e.GetOptions(), newOpts) {
+		t.Errorf("GetOptions() after SetOptions(nil) = %v, want %v (should be unchanged)", e.GetOptions(), newOpts)
+	}
+}
+
 func TestRBACExtractor_Extract(t *testing.T) {
 	tests := []struct {
 		name          string

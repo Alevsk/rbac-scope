@@ -66,11 +66,51 @@ func TestIngest(t *testing.T) {
 			wantErr: false,
 			errType: nil,
 		},
+		{
+			name:    "resolver factory error for non-yaml local file",
+			source:  "testdata/resolver_error.txt",
+			wantErr: true,
+			// Error will be from resolver.ResolverFactory, specific message depends on factory logic
+			// e.g., "no suitable resolver found for source: testdata/resolver_error.txt"
+			// or "URL does not point to a YAML file" if it were a URL.
+			// For now, just check wantErr is true. We can refine errType later if needed.
+		},
+		{
+			name:    "identity extractor error (skipped due to StrictParsing=false)",
+			source:  "testdata/identity_extract_error.yaml",
+			wantErr: false, // Extractor will skip malformed item if StrictParsing is false
+		},
+		{
+			name:    "workload extractor error (skipped due to StrictParsing=false)",
+			source:  "testdata/workload_extract_error.yaml",
+			wantErr: false, // Extractor will skip malformed item if StrictParsing is false
+		},
+		{
+			name:    "rbac extractor error (skipped due to StrictParsing=false)",
+			source:  "testdata/rbac_extract_error.yaml",
+			wantErr: false, // Extractor will skip malformed item if StrictParsing is false
+		},
+		{
+			name:    "truly invalid yaml syntax",
+			source:  "testdata/truly_invalid.yaml",
+			wantErr: true, // Expecting a YAML parsing error from resolver or renderer
+		},
+		{
+			name:    "formatter parse type error",
+			source:  "testdata/valid.yaml", // Needs valid data to reach formatter stage
+			wantErr: true,                  // Expecting "failed to parse formatter type: ..."
+			// errType will be checked by string containment if not exact
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			i := New(nil)
+			opts := DefaultOptions() // Start with default options for most tests
+			if tt.name == "formatter parse type error" {
+				opts.OutputFormat = "invalid-format"
+			}
+
+			i := New(opts)
 			ctx := context.Background()
 
 			result, err := i.Ingest(ctx, tt.source)
@@ -80,9 +120,16 @@ func TestIngest(t *testing.T) {
 				return
 			}
 
-			if tt.wantErr && err.Error() != tt.errType.Error() {
-				t.Errorf("Ingest() error message = %v, want %v", err, tt.errType)
-				return
+			// If we expect an error and a specific type is provided, check it.
+			// For some errors (like resolver factory or extractor errors), the exact message might be too brittle,
+			// so we might only check if an error occurred (tt.wantErr = true).
+			if tt.wantErr && tt.errType != nil {
+				// For wrapped errors, direct comparison might fail. Consider strings.Contains or errors.Is.
+				// For now, simple comparison for ErrInvalidSource.
+				if err.Error() != tt.errType.Error() {
+					t.Errorf("Ingest() error message = %q, want %q", err.Error(), tt.errType.Error())
+					return
+				}
 			}
 
 			if !tt.wantErr {

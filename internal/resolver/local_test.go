@@ -44,6 +44,11 @@ func TestLocalYAMLResolver_CanResolve(t *testing.T) {
 			source: "nonexistent.yaml",
 			want:   false,
 		},
+		{
+			name:   "directory source",
+			source: tmpDir, // Use the temp directory itself
+			want:   false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -92,7 +97,27 @@ func TestLocalYAMLResolver_Resolve(t *testing.T) {
 			validate: true,
 			wantErr:  true,
 		},
+		{
+			name:     "empty yaml file",
+			source:   "testdata/empty.yaml", // Will create this file
+			validate: true,
+			wantErr:  true,
+			errType:  renderer.ErrInvalidInput, // Corrected expected error for empty file
+		},
 	}
+
+	// Create an empty.yaml file for the test case
+	emptyYAMLPath := filepath.Join("testdata", "empty.yaml")
+	if _, err := os.Stat(filepath.Dir(emptyYAMLPath)); os.IsNotExist(err) {
+		os.MkdirAll(filepath.Dir(emptyYAMLPath), 0755)
+	}
+	f, err := os.Create(emptyYAMLPath)
+	if err != nil {
+		t.Fatalf("Failed to create empty.yaml for test: %v", err)
+	}
+	f.Close()
+	// Defer removal if you want to clean it up after tests, or handle in test setup/teardown
+	// For now, it will persist in testdata if it doesn't exist.
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

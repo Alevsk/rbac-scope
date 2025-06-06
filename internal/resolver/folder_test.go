@@ -60,13 +60,13 @@ func TestFolderResolver_Resolve(t *testing.T) {
 	testDataDir := "testdata/folder"
 
 	tests := []struct {
-		name           string
-		source         string
-		followSymlinks bool
-		wantErr        bool
-		wantFiles      int // For YAML/mixed, this is number of YAML files. For Helm/Kustomize, usually 1 (the rendered result of the chart/kustomization)
-		wantType       SourceType // To check metadata
-		wantRenderType RendererType // To check metadata
+		name            string
+		source          string
+		followSymlinks  bool
+		wantErr         bool
+		wantFiles       int                                         // For YAML/mixed, this is number of YAML files. For Helm/Kustomize, usually 1 (the rendered result of the chart/kustomization)
+		wantType        SourceType                                  // To check metadata
+		wantRenderType  RendererType                                // To check metadata
 		validateContent func(t *testing.T, result *renderer.Result) // Custom validation for Helm/Kustomize
 	}{
 		{

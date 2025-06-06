@@ -31,7 +31,7 @@ func TestHelmRenderer_GetOptions(t *testing.T) {
 
 func TestHelmRenderer_ValidateSchema(t *testing.T) {
 	validChartFiles := map[string][]byte{
-		"Chart.yaml": []byte("apiVersion: v2\nname: test\nversion: 0.1.0"),
+		"Chart.yaml":          []byte("apiVersion: v2\nname: test\nversion: 0.1.0"),
 		"templates/role.yaml": []byte("kind: Role\napiVersion: rbac.authorization.k8s.io/v1\nmetadata:\n  name: test-role"),
 	}
 	invalidChartFilesMissingChartYaml := map[string][]byte{
@@ -77,7 +77,6 @@ func TestHelmRenderer_ValidateSchema(t *testing.T) {
 		})
 	}
 }
-
 
 func TestHelmRenderer(t *testing.T) {
 	tests := []struct {

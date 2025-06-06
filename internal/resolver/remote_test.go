@@ -108,13 +108,12 @@ func TestNewRemoteYAMLResolver(t *testing.T) {
 				if tt.client != nil && r.client != tt.client {
 					// This check might be flaky if the default client instance is somehow the same as mockClient
 					// For now, this is a basic check.
-					// t.Logf("Note: Client instance check is basic. r.client: %p, tt.client: %p", r.client, tt.client)
+					t.Logf("Note: Client instance check is basic. r.client: %p, tt.client: %p", r.client, tt.client)
 				}
 			}
 		})
 	}
 }
-
 
 func TestRemoteYAMLResolver_CanResolve(t *testing.T) {
 	tests := []struct {

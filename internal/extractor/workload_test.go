@@ -3,8 +3,8 @@ package extractor
 import (
 	"bytes"
 	"context"
-	"testing"
 	"reflect"
+	"testing"
 
 	"github.com/alevsk/rbac-ops/internal/renderer"
 	"gopkg.in/yaml.v3"

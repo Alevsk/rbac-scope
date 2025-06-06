@@ -106,20 +106,20 @@ func TestResolverFactory(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "local file source",
-			source:  filepath.Join(tmpDir, "test.yaml"), // Corrected path construction
-			wantErr: false,
+			name:     "local file source",
+			source:   filepath.Join(tmpDir, "test.yaml"), // Corrected path construction
+			wantErr:  false,
 			wantType: SourceTypeFile,
 		},
 		{
-			name:    "local directory source",
-			source:  tmpDir, // Use the created temp directory
-			wantErr: false,
+			name:     "local directory source",
+			source:   tmpDir, // Use the created temp directory
+			wantErr:  false,
 			wantType: SourceTypeFolder,
 		},
 		{
-			name: "non existent local file",
-			source: "non_existent_file.yaml",
+			name:    "non existent local file",
+			source:  "non_existent_file.yaml",
 			wantErr: true,
 		},
 	}

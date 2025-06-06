@@ -109,7 +109,9 @@ func TestLocalYAMLResolver_Resolve(t *testing.T) {
 	// Create an empty.yaml file for the test case
 	emptyYAMLPath := filepath.Join("testdata", "empty.yaml")
 	if _, err := os.Stat(filepath.Dir(emptyYAMLPath)); os.IsNotExist(err) {
-		os.MkdirAll(filepath.Dir(emptyYAMLPath), 0755)
+		if err := os.MkdirAll(filepath.Dir(emptyYAMLPath), 0755); err != nil {
+			t.Fatalf("Failed to create testdata directory: %v", err)
+		}
 	}
 	f, err := os.Create(emptyYAMLPath)
 	if err != nil {

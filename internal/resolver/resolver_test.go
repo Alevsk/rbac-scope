@@ -2,8 +2,21 @@ package resolver
 
 import (
 	"net/http"
+	"path/filepath" // Ensured import
+	"reflect"
 	"testing"
 )
+
+func TestDefaultOptions(t *testing.T) {
+	expected := &Options{
+		FollowSymlinks: false,
+		ValidateYAML:   true,
+	}
+	got := DefaultOptions()
+	if !reflect.DeepEqual(got, expected) {
+		t.Errorf("DefaultOptions() = %v, want %v", got, expected)
+	}
+}
 
 func TestSourceTypeString(t *testing.T) {
 	tests := []struct {
@@ -94,8 +107,20 @@ func TestResolverFactory(t *testing.T) {
 		},
 		{
 			name:    "local file source",
-			source:  "rbac.yaml",
-			wantErr: true, // true for now until LocalYAMLResolver is implemented
+			source:  filepath.Join(tmpDir, "test.yaml"), // Corrected path construction
+			wantErr: false,
+			wantType: SourceTypeFile,
+		},
+		{
+			name:    "local directory source",
+			source:  tmpDir, // Use the created temp directory
+			wantErr: false,
+			wantType: SourceTypeFolder,
+		},
+		{
+			name: "non existent local file",
+			source: "non_existent_file.yaml",
+			wantErr: true,
 		},
 	}
 

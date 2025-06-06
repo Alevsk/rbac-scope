@@ -5,6 +5,15 @@ import (
 	"testing"
 )
 
+func TestYAMLRenderer_AddFile(t *testing.T) {
+	r := NewYAMLRenderer()
+	err := r.AddFile("somefile.yaml", []byte("content"))
+	if err != nil {
+		t.Errorf("YAMLRenderer.AddFile() returned error %v, want nil (as it's a no-op)", err)
+	}
+	// No other state to check as AddFile is a no-op for YAMLRenderer
+}
+
 func TestYAMLRenderer(t *testing.T) {
 	h := newTestHelper(t)
 	ctx := context.Background()

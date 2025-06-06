@@ -37,6 +37,10 @@ func isValidURL(s string) bool {
 
 // NewRemoteYAMLResolver creates a new RemoteYAMLResolver
 func NewRemoteYAMLResolver(source string, opts *Options, client *http.Client) (*RemoteYAMLResolver, error) {
+	if opts == nil {
+		opts = DefaultOptions()
+	}
+
 	if !isValidURL(source) {
 		return nil, fmt.Errorf("invalid URL: %s", source)
 	}

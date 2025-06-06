@@ -1,0 +1,3 @@
+this: is: a: bad: yaml:
+  - item1
+  item2: # Mismatched indentation / map-in-sequence error

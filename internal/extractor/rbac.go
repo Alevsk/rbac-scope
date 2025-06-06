@@ -270,7 +270,9 @@ func (e *RBACExtractor) GetOptions() *Options {
 
 // SetOptions sets the extractor options
 func (e *RBACExtractor) SetOptions(opts *Options) {
-	e.opts = opts
+	if opts != nil {
+		e.opts = opts
+	}
 }
 
 // toStringSlice converts an interface{} to []string

@@ -1031,3 +1031,223 @@
   resources: ["namespaces"]
   verbs: ["list", "watch"]
   tags: ["InformationDisclosure", "Reconnaissance", "ClusterStructure"]
+
+- name: "List ValidatingWebhookConfigurations (Reconnaissance)"
+  description: "Allows listing of ValidatingWebhookConfigurations cluster-wide. This reveals information about admission control mechanisms and security policies enforced, aiding attackers in understanding defense postures."
+  category: "Information Disclosure"
+  risk_level: "RiskLevelMedium"
+  api_groups: ["admissionregistration.k8s.io"]
+  role_type: "ClusterRole"
+  resources: ["validatingwebhookconfigurations"]
+  verbs: ["list", "watch"]
+  tags: ["InformationDisclosure", "WebhookReconnaissance", "Reconnaissance"]
+
+- name: "List MutatingWebhookConfigurations (Reconnaissance)"
+  description: "Allows listing of MutatingWebhookConfigurations cluster-wide. This reveals information about how resources might be altered upon creation/update, aiding attackers in understanding automated modifications and potential vulnerabilities."
+  category: "Information Disclosure"
+  risk_level: "RiskLevelMedium"
+  api_groups: ["admissionregistration.k8s.io"]
+  role_type: "ClusterRole"
+  resources: ["mutatingwebhookconfigurations"]
+  verbs: ["list", "watch"]
+  tags: ["InformationDisclosure", "WebhookReconnaissance", "Reconnaissance"]
+
+- name: "Create/Update ControllerRevisions (Potential Tampering)"
+  description: "Allows creating or updating ControllerRevisions. This could be abused to tamper with the history of workloads like Deployments or StatefulSets, potentially forcing rollbacks to vulnerable versions, manipulating state, or obscuring legitimate changes."
+  category: "Tampering"
+  risk_level: "RiskLevelMedium"
+  api_groups: ["apps"]
+  role_type: "Role"
+  resources: ["controllerrevisions"]
+  verbs: ["create", "update", "patch"]
+  tags: ["Tampering", "ControllerRevisionTampering", "WorkloadLifecycle"]
+
+- name: "Create SelfSubjectRulesReviews (Discover Own Permissions)"
+  description: "Allows creating SelfSubjectRulesReview resources. This enables a user or service account to query the API server for their own permissions within a namespace, which can be used to confirm successful exploitation or to discover their own capabilities for further actions."
+  category: "Information Disclosure"
+  risk_level: "RiskLevelLow"
+  api_groups: ["authorization.k8s.io"]
+  role_type: "Role"
+  resources: ["selfsubjectrulesreviews"]
+  verbs: ["create"]
+  tags: ["InformationDisclosure", "RBACQuery", "SelfPermissionReviewQuery", "Reconnaissance"]
+
+- name: "Read LimitRanges (Namespace Information Disclosure)"
+  description: "Allows reading LimitRange objects within a namespace. This can reveal resource constraints for pods and containers, helping attackers understand default resource allocations and potentially tailor resource exhaustion attacks or identify tightly constrained environments."
+  category: "Information Disclosure"
+  risk_level: "RiskLevelLow"
+  api_groups: [""]
+  role_type: "Role"
+  resources: ["limitranges"]
+  verbs: ["get", "list", "watch"]
+  tags: ["InformationDisclosure", "Reconnaissance", "ResourceConfiguration"]
+
+- name: "Read ResourceQuotas (Namespace Information Disclosure)"
+  description: "Allows reading ResourceQuota objects within a namespace. This reveals configured resource limits for the namespace, aiding attackers in understanding constraints and potentially tailoring resource exhaustion or identifying high-value namespaces."
+  category: "Information Disclosure"
+  risk_level: "RiskLevelLow"
+  api_groups: [""]
+  role_type: "Role"
+  resources: ["resourcequotas"]
+  verbs: ["get", "list", "watch"]
+  tags: ["InformationDisclosure", "Reconnaissance", "ResourceConfiguration", "QuotaTampering"]
+
+- name: "Read All ResourceQuotas (Cluster-wide Information Disclosure)"
+  description: "Allows reading ResourceQuota objects across all namespaces. This provides a comprehensive view of resource limits cluster-wide, aiding attackers in identifying broadly constrained or privileged namespaces and overall resource allocation strategies."
+  category: "Information Disclosure"
+  risk_level: "RiskLevelMedium"
+  api_groups: [""]
+  role_type: "ClusterRole"
+  resources: ["resourcequotas"]
+  verbs: ["get", "list", "watch"]
+  tags: ["InformationDisclosure", "Reconnaissance", "ResourceConfiguration", "QuotaTampering"]
+
+- name: "Update CertificateSigningRequest Status (Tampering/DoS)"
+  description: "Allows updating the status of CertificateSigningRequests (CSRs). This could be abused to prematurely mark CSRs as 'Approved' or 'Denied', potentially bypassing approval workflows (if the approver is weak or misconfigured), blocking legitimate certificate issuance, or causing general confusion. Does not grant approval itself if an approver is required."
+  category: "Tampering"
+  risk_level: "RiskLevelMedium"
+  api_groups: ["certificates.k8s.io"]
+  role_type: "ClusterRole"
+  resources: ["certificatesigningrequests/status"]
+  verbs: ["update", "patch"]
+  tags: ["Tampering", "CertificateManagement", "DenialOfService"]
+
+- name: "Manage Ingresses (Namespace Service Exposure/Traffic Redirection)"
+  description: "Allows creating, updating, or deleting Ingress objects within a namespace. This can be used to expose internal services to external traffic, redirect legitimate traffic to malicious endpoints, or cause denial of service by misconfiguring routing rules."
+  category: "NetworkManipulation"
+  risk_level: "RiskLevelHigh"
+  api_groups: ["networking.k8s.io"]
+  role_type: "Role"
+  resources: ["ingresses"]
+  verbs: ["create", "update", "patch", "delete"]
+  tags: ["NetworkManipulation", "ServiceExposure", "Tampering", "DenialOfService"]
+
+- name: "Manage IngressClasses (Cluster-wide Traffic Control Tampering)"
+  description: "Allows creating, updating, or deleting IngressClasses cluster-wide. IngressClasses define types of ingress controllers. Modifying them can affect how all ingresses in the cluster behave, potentially redirecting traffic globally, disabling ingress controllers, or leading to widespread service exposure or denial of service."
+  category: "NetworkManipulation"
+  risk_level: "RiskLevelCritical"
+  api_groups: ["networking.k8s.io"]
+  role_type: "ClusterRole"
+  resources: ["ingressclasses"]
+  verbs: ["create", "update", "patch", "delete"]
+  tags: ["NetworkManipulation", "ServiceExposure", "Tampering", "DenialOfService", "ClusterAdminAccess"]
+
+- name: "Update NetworkPolicy Status (Cluster-wide Tampering)"
+  description: "Allows updating the status of NetworkPolicy objects across all namespaces. This could be abused to misrepresent the enforcement status of network policies, potentially hiding policy violations or misleading administrators about network segmentation."
+  category: "Tampering"
+  risk_level: "RiskLevelMedium"
+  api_groups: ["networking.k8s.io"]
+  role_type: "ClusterRole"
+  resources: ["networkpolicies/status"]
+  verbs: ["update", "patch"]
+  tags: ["Tampering", "NetworkPolicyManagement", "Reconnaissance"]
+
+- name: "Update PodDisruptionBudget Status (Namespace Tampering/DoS)"
+  description: "Allows creating or updating the status of PodDisruptionBudget (PDB) objects within a namespace. This could be used to misrepresent the health or disruption allowance of workloads, potentially leading to unintended disruptions or bypassing availability safeguards."
+  category: "Tampering"
+  risk_level: "RiskLevelMedium"
+  api_groups: ["policy"]
+  role_type: "Role"
+  resources: ["poddisruptionbudgets/status"]
+  verbs: ["create", "update", "patch"]
+  tags: ["Tampering", "DenialOfService", "AvailabilityImpact"]
+
+- name: "Read ComponentStatuses (Control Plane Reconnaissance)"
+  description: "Allows reading ComponentStatus objects, which show the health of control plane components like etcd, kube-scheduler, and kube-controller-manager. This can reveal operational weaknesses, vulnerabilities, or misconfigurations in the cluster's core."
+  category: "Information Disclosure"
+  risk_level: "RiskLevelMedium"
+  api_groups: [""]
+  role_type: "ClusterRole"
+  resources: ["componentstatuses"]
+  verbs: ["get", "list"]
+  tags: ["InformationDisclosure", "Reconnaissance", "ControlPlaneDisruption"]
+
+- name: "Manage Leases in kube-public Namespace (Potential Misuse)"
+  description: "Allows managing Lease objects specifically within the 'kube-public' namespace. While kube-public is for publicly readable information, write access to leases here could be abused by attackers to create custom lease objects for distracting noise, or potentially for leader election of non-critical malicious components if not properly restricted by other means."
+  category: "Tampering"
+  risk_level: "RiskLevelLow"
+  api_groups: ["coordination.k8s.io"]
+  role_type: "Role"
+  resources: ["leases"]
+  verbs: ["create", "update", "patch", "delete", "get", "list"]
+  tags: ["Tampering", "LeaderElectionAbuse", "Reconnaissance"]
+
+- name: "Update Deployment Scale (Resource Abuse/DoS)"
+  description: "Allows updating the 'scale' subresource of Deployments within a namespace. This can be abused to significantly increase or decrease the number of replicas for a deployment, potentially leading to resource exhaustion, denial of service, or unexpected operational costs."
+  category: "Denial of Service"
+  risk_level: "RiskLevelHigh"
+  api_groups: ["apps"]
+  role_type: "Role"
+  resources: ["deployments/scale"]
+  verbs: ["update", "patch"]
+  tags: ["DenialOfService", "Tampering", "WorkloadLifecycle", "ResourceModification"]
+
+- name: "Update StatefulSet Scale (Resource Abuse/DoS)"
+  description: "Allows updating the 'scale' subresource of StatefulSets within a namespace. This can be abused to significantly increase or decrease the number of replicas for a stateful application, potentially leading to resource exhaustion, denial of service, data inconsistencies, or unexpected operational costs."
+  category: "Denial of Service"
+  risk_level: "RiskLevelHigh"
+  api_groups: ["apps"]
+  role_type: "Role"
+  resources: ["statefulsets/scale"]
+  verbs: ["update", "patch"]
+  tags: ["DenialOfService", "Tampering", "WorkloadLifecycle", "ResourceModification", "DataLoss"]
+
+- name: "Manage FlowSchemas (API Server DoS/Manipulation)"
+  description: "Allows managing FlowSchema objects cluster-wide. FlowSchemas are part of API Priority and Fairness, controlling how API requests are categorized and prioritized. Misconfiguration can lead to denial of service against the API server for critical components or allow certain requests to bypass throttling, potentially overwhelming the server."
+  category: "Denial of Service"
+  risk_level: "RiskLevelCritical"
+  api_groups: ["flowcontrol.apiserver.k8s.io"]
+  role_type: "ClusterRole"
+  resources: ["flowschemas"]
+  verbs: ["create", "update", "patch", "delete"]
+  tags: ["DenialOfService", "APIServerDoS", "Tampering", "ControlPlaneDisruption"]
+
+- name: "Manage PriorityLevelConfigurations (API Server DoS/Manipulation)"
+  description: "Allows managing PriorityLevelConfiguration objects cluster-wide. These are part of API Priority and Fairness, defining concurrency limits and queueing for API requests. Misconfiguration can lead to denial of service against the API server by starving critical requests or by setting unfair limits, impacting cluster stability."
+  category: "Denial of Service"
+  risk_level: "RiskLevelCritical"
+  api_groups: ["flowcontrol.apiserver.k8s.io"]
+  role_type: "ClusterRole"
+  resources: ["prioritylevelconfigurations"]
+  verbs: ["create", "update", "patch", "delete"]
+  tags: ["DenialOfService", "APIServerDoS", "Tampering", "ControlPlaneDisruption"]
+
+- name: "Read CSINode Objects (Node & Storage Reconnaissance)"
+  description: "Allows reading CSINode objects cluster-wide. These objects contain information about CSI drivers running on nodes, including driver names, node IDs, and sometimes topology keys. This can reveal details about the storage architecture and potentially vulnerable CSI driver versions or configurations."
+  category: "Information Disclosure"
+  risk_level: "RiskLevelMedium"
+  api_groups: ["storage.k8s.io"]
+  role_type: "ClusterRole"
+  resources: ["csinodes"]
+  verbs: ["get", "list", "watch"]
+  tags: ["InformationDisclosure", "Reconnaissance", "NodeAccess", "StorageDetailsDisclosure"]
+
+- name: "Read CSIStorageCapacities (Namespace Storage Reconnaissance)"
+  description: "Allows reading CSIStorageCapacity objects, usually within a namespace. These objects provide information about the storage capacity available through CSI drivers for specific storage classes. This can help attackers understand storage limits and potentially identify underutilized or overallocated storage."
+  category: "Information Disclosure"
+  risk_level: "RiskLevelLow"
+  api_groups: ["storage.k8s.io"]
+  role_type: "Role"
+  resources: ["csistoragecapacities"]
+  verbs: ["get", "list", "watch"]
+  tags: ["InformationDisclosure", "Reconnaissance", "StorageDetailsDisclosure"]
+
+- name: "Manage VolumeAttachments (Cluster-wide Storage/Node Manipulation)"
+  description: "Allows managing VolumeAttachment objects cluster-wide. VolumeAttachments link persistent volumes to nodes. Control over these can allow an attacker to detach volumes from nodes (DoS), potentially attach volumes to attacker-controlled nodes (data theft), or interfere with legitimate storage operations."
+  category: "Tampering"
+  risk_level: "RiskLevelCritical"
+  api_groups: ["storage.k8s.io"]
+  role_type: "ClusterRole"
+  resources: ["volumeattachments"]
+  verbs: ["create", "update", "patch", "delete", "get", "list", "watch"]
+  tags: ["StorageManipulation", "Tampering", "DenialOfService", "DataExposure", "NodeAccess", "PotentialPrivilegeEscalation"]
+
+- name: "Watch All Resources in a Namespace (Broad Information Disclosure)"
+  description: "Allows using the 'watch' verb on all resources ('*') within a specific namespace. This provides an attacker with a real-time stream of all changes occurring to any resource in that namespace, offering extensive intelligence for further exploitation, understanding application behavior, or identifying sensitive data flows."
+  category: "Information Disclosure"
+  risk_level: "RiskLevelHigh"
+  api_groups: ["*"]
+  role_type: "Role"
+  resources: ["*"]
+  verbs: ["watch"]
+  tags: ["InformationDisclosure", "Reconnaissance", "DataExposure", "WildcardPermission"]

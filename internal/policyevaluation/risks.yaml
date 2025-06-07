@@ -1070,7 +1070,13 @@
   role_type: "Role"
   resources: ["selfsubjectrulesreviews"]
   verbs: ["create"]
-  tags: ["InformationDisclosure", "RBACQuery", "SelfPermissionReviewQuery", "Reconnaissance"]
+  tags:
+    [
+      "InformationDisclosure",
+      "RBACQuery",
+      "SelfPermissionReviewQuery",
+      "Reconnaissance",
+    ]
 
 - name: "Read LimitRanges (Namespace Information Disclosure)"
   description: "Allows reading LimitRange objects within a namespace. This can reveal resource constraints for pods and containers, helping attackers understand default resource allocations and potentially tailor resource exhaustion attacks or identify tightly constrained environments."
@@ -1090,7 +1096,13 @@
   role_type: "Role"
   resources: ["resourcequotas"]
   verbs: ["get", "list", "watch"]
-  tags: ["InformationDisclosure", "Reconnaissance", "ResourceConfiguration", "QuotaTampering"]
+  tags:
+    [
+      "InformationDisclosure",
+      "Reconnaissance",
+      "ResourceConfiguration",
+      "QuotaTampering",
+    ]
 
 - name: "Read All ResourceQuotas (Cluster-wide Information Disclosure)"
   description: "Allows reading ResourceQuota objects across all namespaces. This provides a comprehensive view of resource limits cluster-wide, aiding attackers in identifying broadly constrained or privileged namespaces and overall resource allocation strategies."
@@ -1100,7 +1112,13 @@
   role_type: "ClusterRole"
   resources: ["resourcequotas"]
   verbs: ["get", "list", "watch"]
-  tags: ["InformationDisclosure", "Reconnaissance", "ResourceConfiguration", "QuotaTampering"]
+  tags:
+    [
+      "InformationDisclosure",
+      "Reconnaissance",
+      "ResourceConfiguration",
+      "QuotaTampering",
+    ]
 
 - name: "Update CertificateSigningRequest Status (Tampering/DoS)"
   description: "Allows updating the status of CertificateSigningRequests (CSRs). This could be abused to prematurely mark CSRs as 'Approved' or 'Denied', potentially bypassing approval workflows (if the approver is weak or misconfigured), blocking legitimate certificate issuance, or causing general confusion. Does not grant approval itself if an approver is required."
@@ -1120,7 +1138,8 @@
   role_type: "Role"
   resources: ["ingresses"]
   verbs: ["create", "update", "patch", "delete"]
-  tags: ["NetworkManipulation", "ServiceExposure", "Tampering", "DenialOfService"]
+  tags:
+    ["NetworkManipulation", "ServiceExposure", "Tampering", "DenialOfService"]
 
 - name: "Manage IngressClasses (Cluster-wide Traffic Control Tampering)"
   description: "Allows creating, updating, or deleting IngressClasses cluster-wide. IngressClasses define types of ingress controllers. Modifying them can affect how all ingresses in the cluster behave, potentially redirecting traffic globally, disabling ingress controllers, or leading to widespread service exposure or denial of service."
@@ -1130,7 +1149,14 @@
   role_type: "ClusterRole"
   resources: ["ingressclasses"]
   verbs: ["create", "update", "patch", "delete"]
-  tags: ["NetworkManipulation", "ServiceExposure", "Tampering", "DenialOfService", "ClusterAdminAccess"]
+  tags:
+    [
+      "NetworkManipulation",
+      "ServiceExposure",
+      "Tampering",
+      "DenialOfService",
+      "ClusterAdminAccess",
+    ]
 
 - name: "Update NetworkPolicy Status (Cluster-wide Tampering)"
   description: "Allows updating the status of NetworkPolicy objects across all namespaces. This could be abused to misrepresent the enforcement status of network policies, potentially hiding policy violations or misleading administrators about network segmentation."
@@ -1162,16 +1188,6 @@
   verbs: ["get", "list"]
   tags: ["InformationDisclosure", "Reconnaissance", "ControlPlaneDisruption"]
 
-- name: "Manage Leases in kube-public Namespace (Potential Misuse)"
-  description: "Allows managing Lease objects specifically within the 'kube-public' namespace. While kube-public is for publicly readable information, write access to leases here could be abused by attackers to create custom lease objects for distracting noise, or potentially for leader election of non-critical malicious components if not properly restricted by other means."
-  category: "Tampering"
-  risk_level: "RiskLevelLow"
-  api_groups: ["coordination.k8s.io"]
-  role_type: "Role"
-  resources: ["leases"]
-  verbs: ["create", "update", "patch", "delete", "get", "list"]
-  tags: ["Tampering", "LeaderElectionAbuse", "Reconnaissance"]
-
 - name: "Update Deployment Scale (Resource Abuse/DoS)"
   description: "Allows updating the 'scale' subresource of Deployments within a namespace. This can be abused to significantly increase or decrease the number of replicas for a deployment, potentially leading to resource exhaustion, denial of service, or unexpected operational costs."
   category: "Denial of Service"
@@ -1180,7 +1196,13 @@
   role_type: "Role"
   resources: ["deployments/scale"]
   verbs: ["update", "patch"]
-  tags: ["DenialOfService", "Tampering", "WorkloadLifecycle", "ResourceModification"]
+  tags:
+    [
+      "DenialOfService",
+      "Tampering",
+      "WorkloadLifecycle",
+      "ResourceModification",
+    ]
 
 - name: "Update StatefulSet Scale (Resource Abuse/DoS)"
   description: "Allows updating the 'scale' subresource of StatefulSets within a namespace. This can be abused to significantly increase or decrease the number of replicas for a stateful application, potentially leading to resource exhaustion, denial of service, data inconsistencies, or unexpected operational costs."
@@ -1190,7 +1212,14 @@
   role_type: "Role"
   resources: ["statefulsets/scale"]
   verbs: ["update", "patch"]
-  tags: ["DenialOfService", "Tampering", "WorkloadLifecycle", "ResourceModification", "DataLoss"]
+  tags:
+    [
+      "DenialOfService",
+      "Tampering",
+      "WorkloadLifecycle",
+      "ResourceModification",
+      "DataLoss",
+    ]
 
 - name: "Manage FlowSchemas (API Server DoS/Manipulation)"
   description: "Allows managing FlowSchema objects cluster-wide. FlowSchemas are part of API Priority and Fairness, controlling how API requests are categorized and prioritized. Misconfiguration can lead to denial of service against the API server for critical components or allow certain requests to bypass throttling, potentially overwhelming the server."
@@ -1200,7 +1229,8 @@
   role_type: "ClusterRole"
   resources: ["flowschemas"]
   verbs: ["create", "update", "patch", "delete"]
-  tags: ["DenialOfService", "APIServerDoS", "Tampering", "ControlPlaneDisruption"]
+  tags:
+    ["DenialOfService", "APIServerDoS", "Tampering", "ControlPlaneDisruption"]
 
 - name: "Manage PriorityLevelConfigurations (API Server DoS/Manipulation)"
   description: "Allows managing PriorityLevelConfiguration objects cluster-wide. These are part of API Priority and Fairness, defining concurrency limits and queueing for API requests. Misconfiguration can lead to denial of service against the API server by starving critical requests or by setting unfair limits, impacting cluster stability."
@@ -1210,7 +1240,8 @@
   role_type: "ClusterRole"
   resources: ["prioritylevelconfigurations"]
   verbs: ["create", "update", "patch", "delete"]
-  tags: ["DenialOfService", "APIServerDoS", "Tampering", "ControlPlaneDisruption"]
+  tags:
+    ["DenialOfService", "APIServerDoS", "Tampering", "ControlPlaneDisruption"]
 
 - name: "Read CSINode Objects (Node & Storage Reconnaissance)"
   description: "Allows reading CSINode objects cluster-wide. These objects contain information about CSI drivers running on nodes, including driver names, node IDs, and sometimes topology keys. This can reveal details about the storage architecture and potentially vulnerable CSI driver versions or configurations."
@@ -1220,7 +1251,13 @@
   role_type: "ClusterRole"
   resources: ["csinodes"]
   verbs: ["get", "list", "watch"]
-  tags: ["InformationDisclosure", "Reconnaissance", "NodeAccess", "StorageDetailsDisclosure"]
+  tags:
+    [
+      "InformationDisclosure",
+      "Reconnaissance",
+      "NodeAccess",
+      "StorageDetailsDisclosure",
+    ]
 
 - name: "Read CSIStorageCapacities (Namespace Storage Reconnaissance)"
   description: "Allows reading CSIStorageCapacity objects, usually within a namespace. These objects provide information about the storage capacity available through CSI drivers for specific storage classes. This can help attackers understand storage limits and potentially identify underutilized or overallocated storage."
@@ -1240,7 +1277,15 @@
   role_type: "ClusterRole"
   resources: ["volumeattachments"]
   verbs: ["create", "update", "patch", "delete", "get", "list", "watch"]
-  tags: ["StorageManipulation", "Tampering", "DenialOfService", "DataExposure", "NodeAccess", "PotentialPrivilegeEscalation"]
+  tags:
+    [
+      "StorageManipulation",
+      "Tampering",
+      "DenialOfService",
+      "DataExposure",
+      "NodeAccess",
+      "PotentialPrivilegeEscalation",
+    ]
 
 - name: "Watch All Resources in a Namespace (Broad Information Disclosure)"
   description: "Allows using the 'watch' verb on all resources ('*') within a specific namespace. This provides an attacker with a real-time stream of all changes occurring to any resource in that namespace, offering extensive intelligence for further exploitation, understanding application behavior, or identifying sensitive data flows."
@@ -1250,4 +1295,10 @@
   role_type: "Role"
   resources: ["*"]
   verbs: ["watch"]
-  tags: ["InformationDisclosure", "Reconnaissance", "DataExposure", "WildcardPermission"]
+  tags:
+    [
+      "InformationDisclosure",
+      "Reconnaissance",
+      "DataExposure",
+      "WildcardPermission",
+    ]

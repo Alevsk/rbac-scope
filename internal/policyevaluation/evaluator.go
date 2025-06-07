@@ -225,8 +225,8 @@ func MatchRiskRules(policy Policy) ([]RiskRule, error) {
 			return matches[i].RiskLevel > matches[j].RiskLevel
 		})
 
-		// Return highest risk match and base risk level
-		return []RiskRule{matches[0], baseRule}, nil
+		// Return matches and base risk level
+		return append(matches, baseRule), nil
 	}
 
 	// No custom rules matched, return only base risk level

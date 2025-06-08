@@ -16,6 +16,9 @@ var riskRules []RiskRule
 
 // validateRiskRule ensures a risk rule has all required fields.
 func validateRiskRule(rule RiskRule) error {
+	if rule.ID == 0 {
+		return fmt.Errorf("risk rule missing ID")
+	}
 	if rule.Name == "" {
 		return fmt.Errorf("risk rule missing name")
 	}

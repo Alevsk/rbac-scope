@@ -157,6 +157,7 @@ const (
 )
 
 type RiskRule struct {
+	ID          int64     `yaml:"id"`
 	Name        string    `yaml:"name"`
 	Description string    `yaml:"description"`
 	Category    string    `yaml:"category"`

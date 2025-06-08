@@ -2,7 +2,6 @@ package policyevaluation
 
 import (
 	"os"
-	"reflect"
 	"sort"
 	"testing"
 
@@ -18,29 +17,17 @@ func TestMatchRiskRules(t *testing.T) {
 	}
 	logger.Init(cfg)
 
-	// Helper function to compare RiskRules by name
-	containsRule := func(rules []RiskRule, name string) bool {
-		for _, rule := range rules {
-			if rule.Name == name {
-				return true
-			}
-		}
-		return false
-	}
-
 	// Helper function to compare slices of RiskRule
-	compareRiskRules := func(got, want []RiskRule) bool {
+	compareRiskRules := func(got []RiskRule, want []int64) bool {
 		if len(got) != len(want) {
 			return false
 		}
-		// Sort both slices by Name to ensure consistent comparison
-		sort.Slice(got, func(i, j int) bool { return got[i].Name < got[j].Name })
-		sort.Slice(want, func(i, j int) bool { return want[i].Name < want[j].Name })
+		// Sort both slices by ID to ensure consistent comparison
+		sort.Slice(got, func(i, j int) bool { return got[i].ID < got[j].ID })
+		sort.Slice(want, func(i, j int) bool { return want[i] < want[j] })
 
 		for i := range got {
-			if got[i].Name != want[i].Name ||
-				got[i].RiskLevel != want[i].RiskLevel ||
-				!reflect.DeepEqual(got[i].Tags, want[i].Tags) {
+			if got[i].ID != want[i] {
 				return false
 			}
 		}
@@ -52,10 +39,9 @@ func TestMatchRiskRules(t *testing.T) {
 		policy        Policy
 		wantErr       bool
 		wantRiskLevel RiskLevel
-		testType      string     // "exact", "minimal", or "count"
-		wantRules     []RiskRule // for exact match validation
-		wantMinRules  []string   // for minimal validation
-		wantCount     int        // for count validation or minimal validation
+		testType      string  // "exact", "count"
+		wantRulesIDs  []int64 // for exact match validation
+		wantCount     int     // for count validation or minimal validation
 	}
 
 	tests := []matchRiskRulesTest{
@@ -457,12 +443,9 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
-			},
-			wantCount: 2,
+			testType:      "exact",
+			wantRulesIDs:  []int64{1027, 0},
+			wantCount:     2,
 		},
 		{
 			name: "Manage ClusterRoleBindings (create, update, patch, delete)", // Matches YAML
@@ -474,12 +457,9 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
-			},
-			wantCount: 2,
+			testType:      "exact",
+			wantRulesIDs:  []int64{1028, 0},
+			wantCount:     2,
 		},
 		{
 			name: "Manage Roles in a namespace (create, update, patch, delete)", // Matches YAML
@@ -519,12 +499,9 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
-			},
-			wantCount: 2,
+			testType:      "exact",
+			wantRulesIDs:  []int64{1031, 0},
+			wantCount:     2,
 		},
 		{
 			name: "Bind ClusterRoles to identities (bind verb)", // Matches YAML
@@ -536,12 +513,9 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
-			},
-			wantCount: 2,
+			testType:      "exact",
+			wantRulesIDs:  []int64{1032, 0},
+			wantCount:     2,
 		},
 		{
 			name: "Manage Deployments cluster-wide (potential for privileged pod execution)", // Matches YAML
@@ -553,12 +527,9 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
-			},
-			wantCount: 3,
+			testType:      "exact",
+			wantRulesIDs:  []int64{1033, 1034, 0},
+			wantCount:     3,
 		},
 		{
 			name: "Manage Deployments in a namespace (potential for privileged pod execution)", // Matches YAML
@@ -583,12 +554,9 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
-			},
-			wantCount: 3,
+			testType:      "exact",
+			wantRulesIDs:  []int64{1035, 1036, 0},
+			wantCount:     3,
 		},
 		{
 			name: "Manage DaemonSets in a namespace (runs on nodes, high impact)", // Matches YAML
@@ -600,12 +568,9 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
-			},
-			wantCount: 2,
+			testType:      "exact",
+			wantRulesIDs:  []int64{1036, 0},
+			wantCount:     2,
 		},
 		{
 			name: "Manage StatefulSets cluster-wide", // Matches YAML
@@ -617,12 +582,9 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
-			},
-			wantCount: 3,
+			testType:      "exact",
+			wantRulesIDs:  []int64{1037, 1038, 0},
+			wantCount:     3,
 		},
 		{
 			name: "Manage StatefulSets in a namespace", // Matches YAML
@@ -647,12 +609,9 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
-			},
-			wantCount: 3,
+			testType:      "exact",
+			wantRulesIDs:  []int64{1039, 1040, 0},
+			wantCount:     3,
 		},
 		{
 			name: "Manage CronJobs in a namespace (scheduled privileged execution, persistence)", // Matches YAML
@@ -677,12 +636,9 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
-			},
-			wantCount: 3,
+			testType:      "exact",
+			wantRulesIDs:  []int64{1041, 1042, 0},
+			wantCount:     3,
 		},
 		{
 			name: "Manage Jobs in a namespace (one-off privileged execution)", // Matches YAML
@@ -707,12 +663,9 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
-			},
-			wantCount: 2,
+			testType:      "exact",
+			wantRulesIDs:  []int64{1043, 0},
+			wantCount:     2,
 		},
 		{
 			name: "Manage ValidatingWebhookConfigurations", // Matches YAML
@@ -724,12 +677,9 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
-			},
-			wantCount: 2,
+			testType:      "exact",
+			wantRulesIDs:  []int64{1044, 0},
+			wantCount:     2,
 		},
 		{
 			name: "Manage CustomResourceDefinitions", // Matches YAML
@@ -741,12 +691,9 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
-			},
-			wantCount: 2,
+			testType:      "exact",
+			wantRulesIDs:  []int64{1045, 0},
+			wantCount:     2,
 		},
 		{
 			name: "Manage APIServices", // Matches YAML
@@ -758,12 +705,9 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
-			},
-			wantCount: 2,
+			testType:      "exact",
+			wantRulesIDs:  []int64{1046, 0},
+			wantCount:     2,
 		},
 		{
 			name: "Create ServiceAccount Tokens", // Matches YAML
@@ -775,12 +719,9 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
-			},
-			wantCount: 2,
+			testType:      "exact",
+			wantRulesIDs:  []int64{1047, 0},
+			wantCount:     2,
 		},
 		{
 			name: "Create ServiceAccount Tokens (ClusterRole for any SA in any namespace)", // Matches YAML
@@ -792,12 +733,9 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
-			},
-			wantCount: 3,
+			testType:      "exact",
+			wantRulesIDs:  []int64{1047, 1048, 0},
+			wantCount:     3,
 		},
 		{
 			name: "Create TokenReviews (validate arbitrary tokens)", // Matches YAML
@@ -848,12 +786,9 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
-			},
-			wantCount: 2,
+			testType:      "exact",
+			wantRulesIDs:  []int64{1052, 0},
+			wantCount:     2,
 		},
 		{
 			name: "Create CertificateSigningRequests", // Matches YAML
@@ -891,12 +826,9 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
-			},
-			wantCount: 2,
+			testType:      "exact",
+			wantRulesIDs:  []int64{1055, 0},
+			wantCount:     2,
 		},
 		{
 			name: "Manage StorageClasses", // Matches YAML
@@ -922,7 +854,7 @@ func TestMatchRiskRules(t *testing.T) {
 			wantErr:       false,
 			wantRiskLevel: RiskLevelMedium, // Matches YAML
 			testType:      "count",
-			wantCount:     2,
+			wantCount:     3,
 		},
 		{
 			name: "Evict Pods in a namespace", // Matches YAML
@@ -947,12 +879,9 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
-			},
-			wantCount: 2,
+			testType:      "exact",
+			wantRulesIDs:  []int64{1059, 0},
+			wantCount:     2,
 		},
 		{
 			name: "Wildcard permission on all resources cluster-wide (Cluster Admin)", // Matches YAML
@@ -964,10 +893,10 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
+			testType:      "exact",
+			wantRulesIDs: []int64{
+				1039,
+				1047, 1002, 1075, 1073, 1071, 1006, 1078, 1008, 1080, 1010, 1011, 1036, 1013, 1014, 1015, 1016, 1017, 1066, 1102, 1020, 1065, 1064, 1099, 1024, 1063, 1062, 1027, 1028, 1061, 1060, 1031, 1032, 1033, 1059, 1035, 1012, 1081, 1052, 1055, 1092, 1041, 1000, 1043, 1044, 1045, 1046, 1037, 1048, 1098, 1004, 1072, 1038, 1042, 1040, 1076, 1056, 1091, 1001, 1034, 1025, 1097, 1096, 1029, 1009, 1021, 1018, 1067, 1022, 1069, 1007, 1103, 1030, 1026, 1074, 1003, 1053, 1089, 1070, 1079, 1068, 1058, 1005, 1083, 1084, 1085, 1019, 1100, 1023, 1077, 1090, 1057, 1054, 1093, 1094, 1095, 1049, 1050, 1051, 1088, 1087, 1101, 1086, 1082, 0,
 			},
 			wantCount: 105,
 		},
@@ -981,10 +910,9 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
+			testType:      "exact",
+			wantRulesIDs: []int64{
+				1081, 1036, 1063, 1061, 1047, 1011, 1013, 1034, 1040, 1096, 1025, 1029, 1030, 1076, 1097, 1038, 1021, 1042, 1003, 1091, 1009, 1007, 1103, 1001, 1072, 1074, 1085, 1068, 1023, 1094, 1058, 1019, 1005, 1086, 1087, 1088, 1051, 1101, 0,
 			},
 			wantCount: 39,
 		},
@@ -998,12 +926,9 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
-			},
-			wantCount: 2,
+			testType:      "exact",
+			wantRulesIDs:  []int64{1062, 0},
+			wantCount:     2,
 		},
 		{
 			name: "Manage ArgoCD Applications (argoproj.io)", // Matches YAML
@@ -1015,12 +940,9 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
-			},
-			wantCount: 2,
+			testType:      "exact",
+			wantRulesIDs:  []int64{1063, 0},
+			wantCount:     2,
 		},
 		{
 			name: "Manage Cilium ClusterwideNetworkPolicies (cilium.io)", // Matches YAML
@@ -1032,12 +954,9 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
-			},
-			wantCount: 2,
+			testType:      "exact",
+			wantRulesIDs:  []int64{1064, 0},
+			wantCount:     2,
 		},
 		{
 			name: "Manage ETCDSnapshotFiles (k3s.cattle.io)", // Matches YAML
@@ -1049,12 +968,9 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
-			},
-			wantCount: 2,
+			testType:      "exact",
+			wantRulesIDs:  []int64{1065, 0},
+			wantCount:     2,
 		},
 		{
 			name: "Impersonate users, groups, or service accounts (cluster-wide) - users", // Adjusted name for clarity
@@ -1066,12 +982,9 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
-			},
-			wantCount: 2,
+			testType:      "exact",
+			wantRulesIDs:  []int64{1066, 0},
+			wantCount:     2,
 		},
 		{
 			name: "Impersonate users, groups, or service accounts (cluster-wide) - groups", // Adjusted name for clarity
@@ -1083,12 +996,9 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
-			},
-			wantCount: 2,
+			testType:      "exact",
+			wantRulesIDs:  []int64{1066, 0},
+			wantCount:     2,
 		},
 		{
 			name: "Impersonate users, groups, or service accounts (cluster-wide) - serviceaccounts", // Adjusted name for clarity
@@ -1100,12 +1010,9 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
-			},
-			wantCount: 2,
+			testType:      "exact",
+			wantRulesIDs:  []int64{1066, 0},
+			wantCount:     2,
 		},
 		{
 			name: "Impersonate users, groups, or service accounts (cluster-wide) - userextras", // Adjusted name for clarity
@@ -1117,12 +1024,9 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
-			},
-			wantCount: 2,
+			testType:      "exact",
+			wantRulesIDs:  []int64{1066, 0},
+			wantCount:     2,
 		},
 		{
 			name: "Impersonate users, groups, or service accounts (cluster-wide) - uids", // Adjusted name for clarity
@@ -1134,12 +1038,9 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
-			},
-			wantCount: 2,
+			testType:      "exact",
+			wantRulesIDs:  []int64{1066, 0},
+			wantCount:     2,
 		},
 		{
 			name: "Manage ServiceAccounts cluster-wide", // Matches YAML
@@ -1152,7 +1053,7 @@ func TestMatchRiskRules(t *testing.T) {
 			wantErr:       false,
 			wantRiskLevel: RiskLevelHigh, // Matches YAML
 			testType:      "count",
-			wantCount:     2,
+			wantCount:     3,
 		},
 		{
 			name: "Manage ServiceAccounts in a namespace", // Matches YAML
@@ -1216,12 +1117,9 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
-			},
-			wantCount: 3,
+			testType:      "exact",
+			wantRulesIDs:  []int64{1071, 1072, 0},
+			wantCount:     3,
 		},
 		{
 			name: "Manage NetworkPolicies in a namespace", // Matches YAML
@@ -1246,12 +1144,9 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
-			},
-			wantCount: 3,
+			testType:      "exact",
+			wantRulesIDs:  []int64{1073, 1074, 0},
+			wantCount:     3,
 		},
 		{
 			name: "Manage Endpoints or EndpointSlices cluster-wide (discovery.k8s.io API)", // Matches YAML (split test)
@@ -1263,12 +1158,9 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
-			},
-			wantCount: 3,
+			testType:      "exact",
+			wantRulesIDs:  []int64{1073, 1074, 0},
+			wantCount:     3,
 		},
 		{
 			name: "Manage Endpoints or EndpointSlices in a namespace (core API)", // Matches YAML (split test)
@@ -1306,12 +1198,9 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
-			},
-			wantCount: 3,
+			testType:      "exact",
+			wantRulesIDs:  []int64{1075, 1076, 0},
+			wantCount:     3,
 		},
 		{
 			name: "Manage Services in a namespace", // Matches YAML
@@ -1401,12 +1290,9 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
-			},
-			wantCount: 2,
+			testType:      "exact",
+			wantRulesIDs:  []int64{1078, 0},
+			wantCount:     2,
 		},
 		{
 			name: "Manage PodDisruptionBudgets cluster-wide", // Matches YAML
@@ -1431,12 +1317,9 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
-			},
-			wantCount: 3,
+			testType:      "exact",
+			wantRulesIDs:  []int64{1080, 1081, 0},
+			wantCount:     3,
 		},
 		{
 			// Note: The YAML rule "Manage Leases in kube-system or kube-node-lease namespace"
@@ -1561,7 +1444,7 @@ func TestMatchRiskRules(t *testing.T) {
 			wantErr:       false,
 			wantRiskLevel: RiskLevelMedium, // Matches YAML
 			testType:      "count",
-			wantCount:     2,
+			wantCount:     3,
 		},
 		{
 			name: "Update CertificateSigningRequest Status (Tampering/DoS)", // Matches YAML
@@ -1600,12 +1483,9 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
-			},
-			wantCount: 2,
+			testType:      "exact",
+			wantRulesIDs:  []int64{1092, 0},
+			wantCount:     2,
 		},
 		{
 			name: "Update NetworkPolicy Status (Cluster-wide Tampering)", // Matches YAML
@@ -1685,12 +1565,9 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
-			},
-			wantCount: 2,
+			testType:      "exact",
+			wantRulesIDs:  []int64{1098, 0},
+			wantCount:     2,
 		},
 		{
 			name: "Manage PriorityLevelConfigurations (API Server DoS/Manipulation)", // Matches YAML
@@ -1702,12 +1579,9 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
-			},
-			wantCount: 2,
+			testType:      "exact",
+			wantRulesIDs:  []int64{1099, 0},
+			wantCount:     2,
 		},
 		{
 			name: "Read CSINode Objects (Node & Storage Reconnaissance)", // Matches YAML
@@ -1746,12 +1620,9 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Matches YAML
-			testType:      "minimal",
-			wantMinRules: []string{
-				"Cluster Admin",
-				"Base Risk Level: 3",
-			},
-			wantCount: 2,
+			testType:      "exact",
+			wantRulesIDs:  []int64{1102, 0},
+			wantCount:     2,
 		},
 		{
 			name: "Watch All Resources in a Namespace (Broad Information Disclosure)", // Matches YAML
@@ -1765,22 +1636,7 @@ func TestMatchRiskRules(t *testing.T) {
 			wantErr:       false,
 			wantRiskLevel: RiskLevelHigh, // Matches YAML
 			testType:      "exact",
-			wantRules: []RiskRule{
-				{
-					Name:      "Watch All Resources in a Namespace (Broad Information Disclosure)",
-					RiskLevel: RiskLevelHigh,
-					Tags:      RiskTags{"InformationDisclosure", "Reconnaissance", "DataExposure", "WildcardPermission"}, // Corrected tags
-				},
-				// The original test had a second rule "Watch Resources in a Namespace (Namespace Information Disclosure)".
-				// This rule is not explicitly in your YAML. If it's an internal derived rule, keep it.
-				// Otherwise, it might be extraneous or needs to be added to YAML.
-				// For now, I'll comment it out as it's not in the provided YAML.
-				// {
-				// 	Name:      "Watch Resources in a Namespace (Namespace Information Disclosure)",
-				// 	RiskLevel: RiskLevelMedium,
-				// 	Tags:      []string{"namespace", "information-disclosure"},
-				// },
-			},
+			wantRulesIDs:  []int64{1103, 0},
 		},
 	}
 
@@ -1800,19 +1656,12 @@ func TestMatchRiskRules(t *testing.T) {
 			// Handle different test types
 			switch tt.testType {
 			case "exact":
-				if !compareRiskRules(got, tt.wantRules) {
-					t.Errorf("MatchRiskRules() got = %v, want %v", got, tt.wantRules)
-				}
-			case "minimal":
-				// Check minimum required rules are present
-				for _, ruleName := range tt.wantMinRules {
-					if !containsRule(got, ruleName) {
-						t.Errorf("MatchRiskRules() missing expected rule: %v", ruleName)
+				if !compareRiskRules(got, tt.wantRulesIDs) {
+					ruleIds := []int64{}
+					for _, rule := range got {
+						ruleIds = append(ruleIds, rule.ID)
 					}
-				}
-				// Check total count if specified
-				if tt.wantCount > 0 && len(got) != tt.wantCount {
-					t.Errorf("MatchRiskRules() got %v rules, want %v", len(got), tt.wantCount)
+					t.Errorf("MatchRiskRules() got = %v, want %v", ruleIds, tt.wantRulesIDs)
 				}
 			case "count":
 				if len(got) != tt.wantCount {

@@ -51,4 +51,6 @@ A curated database of RBAC policies used by popular Kubernetes Operators, with s
 ### 🧩 Policy Evaluator
 
 - [ ] **F600** Create additional risk rules in [risks.yaml](../internal/policyevaluation/risks.yaml). Analyze existing rules and use your best security judgement to create additional ones that may enhance the detection of potential abuse scenarios in Kubernetes, each rule would have a name, description, category, risk level, API groups, role type, resources, verbs, and tags. You must reuse existing tags unless you have a reason to create a new tag, if you need to create a new tag then you must create a new RiskTag in [types.go](../internal/policyevaluation/types.go). Finally every newly created rule must be added to the evaluator_test.go file in the MatchRiskRules function to have it tested.
+- [ ] **F602** Remove duplicate unit tests from `formatter_test.go`. After an analyze it seems that there are duplicate tests on `formatter_test.go` that are already present on `table_test.go`.
+- [ ] **F603** Add Tags for base risk rules that match RiskLevelLow, RiskLevelMedium, RiskLevelHigh, and RiskLevelCritical.
 - [ ] **F601** Add support for `nonResourceURLs` evaluation

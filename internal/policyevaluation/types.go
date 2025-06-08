@@ -105,6 +105,7 @@ const (
 	BindingToPrivilegedRole      RiskTag = "BindingToPrivilegedRole"
 	CertificateManagement        RiskTag = "CertificateManagement"
 	ClusterAdminAccess           RiskTag = "ClusterAdminAccess"
+	ClusterWideAccess            RiskTag = "ClusterWideAccess"
 	ClusterWideLogAccess         RiskTag = "ClusterWideLogAccess"
 	ClusterWidePodAttach         RiskTag = "ClusterWidePodAttach"
 	ClusterWidePodExec           RiskTag = "ClusterWidePodExec"
@@ -125,6 +126,7 @@ const (
 	LegacyWorkloadDisruption     RiskTag = "LegacyWorkloadDisruption"
 	LogAccess                    RiskTag = "LogAccess"
 	NamespaceAdmin               RiskTag = "NamespaceAdmin"
+	NamespaceWideAccess          RiskTag = "NamespaceWideAccess"
 	NamespaceLifecycle           RiskTag = "NamespaceLifecycle"
 	NetworkManipulation          RiskTag = "NetworkManipulation"
 	NetworkPolicyManagement      RiskTag = "NetworkPolicyManagement"
@@ -176,4 +178,67 @@ type Policy struct {
 	APIGroup  string   `json:"apiGroup" yaml:"apiGroup"`
 	Resource  string   `json:"resource" yaml:"resource"`
 	Verbs     []string `json:"verbs" yaml:"verbs"`
+}
+
+var BaseRiskRuleCritical = RiskRule{
+	ID:          9999,
+	Name:        "Base Risk Level - Critical",
+	Description: "cluster-wide + wildcards everywhere",
+	Category:    "Base Risk Level",
+	RoleType:    "ClusterRole",
+	APIGroups:   []string{"*"},
+	Resources:   []string{"*"},
+	Verbs:       []string{"*"},
+	RiskLevel:   RiskLevelCritical,
+	Tags: RiskTags{
+		ClusterAdminAccess,
+		ClusterWideAccess,
+		WildcardPermission,
+	},
+}
+
+var BaseRiskRuleHigh = RiskRule{
+	ID:          9998,
+	Name:        "Base Risk Level - High",
+	Description: "cluster-wide + some wildcards",
+	Category:    "Base Risk Level",
+	RoleType:    "ClusterRole",
+	APIGroups:   []string{""},
+	Resources:   []string{"*"},
+	Verbs:       []string{"*"},
+	RiskLevel:   RiskLevelHigh,
+	Tags: RiskTags{
+		ClusterWideAccess,
+		WildcardPermission,
+	},
+}
+
+var BaseRiskRuleMedium = RiskRule{
+	ID:          9997,
+	Name:        "Base Risk Level - Medium",
+	Description: "namespaced + some wildcards",
+	Category:    "Base Risk Level",
+	RoleType:    "Role",
+	APIGroups:   []string{""},
+	Resources:   []string{"*"},
+	Verbs:       []string{"*"},
+	RiskLevel:   RiskLevelMedium,
+	Tags: RiskTags{
+		NamespaceAdmin,
+		NamespaceWideAccess,
+		WildcardPermission,
+	},
+}
+
+var BaseRiskRuleLow = RiskRule{
+	ID:          9996,
+	Name:        "Base Risk Level - Low",
+	Description: "namespaced + no wildcards",
+	Category:    "Base Risk Level",
+	RoleType:    "Role",
+	APIGroups:   []string{""},
+	Resources:   []string{""},
+	Verbs:       []string{""},
+	RiskLevel:   RiskLevelLow,
+	Tags:        RiskTags{},
 }

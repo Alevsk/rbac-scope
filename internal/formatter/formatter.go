@@ -205,9 +205,12 @@ func PrepareData(data types.Result, opts *Options) (ParsedData, error) {
 								continue
 							}
 							if len(riskRules) > 0 {
-								riskRule := riskRules[0]
-								entry.RiskLevel = riskRule.RiskLevel.String()
-								entry.Tags = riskRule.Tags
+								entry.RiskLevel = riskRules[0].RiskLevel.String()
+								// Get unique tags
+								for _, rule := range riskRules {
+									entry.Tags = append(entry.Tags, rule.Tags...)
+								}
+								entry.Tags = policyevaluation.UniqueRiskTags(entry.Tags)
 							}
 							parsedData.RBACData = append(parsedData.RBACData, entry)
 						}

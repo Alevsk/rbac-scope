@@ -169,10 +169,13 @@ func buildTables(data types.Result) (table.Writer, table.Writer, table.Writer, t
 								continue
 							}
 							if len(riskRules) > 0 {
-								riskRule := riskRules[0]
-								tags := riskRule.Tags.StringSlice(3)
-								row = append(row, riskRule.RiskLevel, strings.Join(tags, ","))
-
+								tags := policyevaluation.RiskTags{}
+								// Get unique tags
+								for _, rule := range riskRules {
+									tags = append(tags, rule.Tags...)
+								}
+								tags = policyevaluation.UniqueRiskTags(tags)
+								row = append(row, riskRules[0].RiskLevel, strings.Join(tags.StringSlice(3), ","))
 							} else {
 								row = append(row, "", "")
 							}

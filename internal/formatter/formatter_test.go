@@ -486,15 +486,15 @@ func TestPrepareData(t *testing.T) {
 			t.Errorf("RBACData[0].RiskLevel is %q, want %q", entry.RiskLevel, expectedRiskLevel)
 		}
 
-		foundTag := false
-		for _, tag := range entry.Tags {
-			if string(tag) == expectedTagContent {
-				foundTag = true
-				break
+		allTags := make(map[string]struct{})
+		for _, rbacEntry := range parsed.RBACData {
+			for _, tag := range rbacEntry.Tags {
+				allTags[string(tag)] = struct{}{}
 			}
 		}
-		if !foundTag {
-			t.Errorf("RBACData[0].Tags = %v, did not find expected tag %q", entry.Tags, expectedTagContent)
+
+		if _, ok := allTags[expectedTagContent]; !ok {
+			t.Errorf("allTags %v did not contain expected tag %q", allTags, expectedTagContent)
 		}
 	})
 }

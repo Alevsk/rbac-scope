@@ -209,8 +209,8 @@ func TestBuildTables(t *testing.T) {
 		if !strings.Contains(rendered, "Critical") {
 			t.Errorf("Rendered RBAC table for high risk does not contain 'Critical':\n%s", rendered)
 		}
-		if !strings.Contains(rendered, "ClusterAdminAccess") {
-			t.Errorf("Rendered RBAC table for high risk does not contain tag 'ClusterAdminAccess':\n%s", rendered)
+		if !strings.Contains(rendered, "(69 more)") {
+			t.Errorf("Rendered RBAC table for high risk does not contain tag '(69 more)':\n%s", rendered)
 		}
 	})
 

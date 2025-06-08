@@ -28,14 +28,14 @@ func isClusterScoped(policy *Policy) bool {
 	return policy.RoleType == "ClusterRole" || policy.Namespace == ""
 }
 
-// determineBaseRiskLevel evaluates a policy against base risk rules
-func determineBaseRiskLevel(policy *Policy) RiskLevel {
+// determineBaseRiskRule evaluates a policy against base risk rules
+func determineBaseRiskRule(policy *Policy) RiskRule {
 	// Check for Critical first (cluster-wide + wildcards everywhere)
 	if isClusterScoped(policy) &&
 		containsWildcard(policy.APIGroup) &&
 		containsWildcard(policy.Resource) &&
 		containsWildcardInSlice(policy.Verbs) {
-		return RiskLevelCritical
+		return BaseRiskRuleCritical
 	}
 
 	// Check for High (cluster-wide + some wildcards)
@@ -43,7 +43,7 @@ func determineBaseRiskLevel(policy *Policy) RiskLevel {
 		(containsWildcard(policy.APIGroup) ||
 			containsWildcard(policy.Resource) ||
 			containsWildcardInSlice(policy.Verbs)) {
-		return RiskLevelHigh
+		return BaseRiskRuleHigh
 	}
 
 	// Check for Medium (namespaced + some wildcards)
@@ -51,11 +51,11 @@ func determineBaseRiskLevel(policy *Policy) RiskLevel {
 		(containsWildcard(policy.APIGroup) ||
 			containsWildcard(policy.Resource) ||
 			containsWildcardInSlice(policy.Verbs)) {
-		return RiskLevelMedium
+		return BaseRiskRuleMedium
 	}
 
 	// Default to Low (namespaced + no wildcards)
-	return RiskLevelLow
+	return BaseRiskRuleLow
 }
 
 // matchesAPIGroups checks if policy's APIGroup matches any of rule's APIGroups
@@ -211,12 +211,7 @@ func MatchRiskRules(policy Policy) ([]RiskRule, error) {
 	}
 
 	// Get base risk level
-	baseLevel := determineBaseRiskLevel(&policy)
-	baseRule := RiskRule{
-		Name:      fmt.Sprintf("Base Risk Level: %d", baseLevel),
-		RiskLevel: baseLevel,
-		Tags:      RiskTags{},
-	}
+	baseRule := determineBaseRiskRule(&policy)
 
 	// If we found custom rule matches, sort them by risk level
 	if len(matches) > 0 {

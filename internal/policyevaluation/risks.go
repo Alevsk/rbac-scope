@@ -65,3 +65,16 @@ func init() {
 		panic(fmt.Sprintf("failed to load risk rules: %v", err))
 	}
 }
+
+// UniqueRiskTags returns a slice of unique risk tags from the loaded risk rules.
+func UniqueRiskTags(tags []RiskTag) []RiskTag {
+	tagMap := make(map[RiskTag]struct{})
+	for _, tag := range tags {
+		tagMap[tag] = struct{}{}
+	}
+	uniqueTags := make([]RiskTag, 0, len(tagMap))
+	for tag := range tagMap {
+		uniqueTags = append(uniqueTags, tag)
+	}
+	return uniqueTags
+}

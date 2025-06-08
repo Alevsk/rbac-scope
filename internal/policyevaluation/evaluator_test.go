@@ -54,12 +54,12 @@ func TestMatchRiskRules(t *testing.T) {
 				Verbs:    []string{"*"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "count",
 			wantCount:     105,
 		},
 		{
-			name: "Cluster-wide pod exec", // Matches YAML
+			name: "Cluster-wide pod exec",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "",
@@ -67,34 +67,34 @@ func TestMatchRiskRules(t *testing.T) {
 				Verbs:    []string{"create"}, // Added verbs from YAML
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "count",
 			wantCount:     3, // Assuming this matches one specific rule
 		},
 		{
-			name: "Namespaced pod exec", // Matches YAML
+			name: "Namespaced pod exec",
 			policy: Policy{
 				RoleType:  "Role",
 				Namespace: "default",
 				APIGroup:  "",
 				Resource:  "pods/exec",
-				Verbs:     []string{"create"}, // Matches YAML
+				Verbs:     []string{"create"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelHigh, // Matches YAML
+			wantRiskLevel: RiskLevelHigh,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Cluster-wide pod attach", // Matches YAML
+			name: "Cluster-wide pod attach",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "",
 				Resource: "pods/attach",
-				Verbs:    []string{"create"}, // Matches YAML
+				Verbs:    []string{"create"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "count",
 			wantCount:     3,
 		},
@@ -108,7 +108,7 @@ func TestMatchRiskRules(t *testing.T) {
 				Verbs:     []string{"create"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelHigh, // Matches YAML
+			wantRiskLevel: RiskLevelHigh,
 			testType:      "count",
 			wantCount:     2,
 		},
@@ -134,31 +134,31 @@ func TestMatchRiskRules(t *testing.T) {
 				Verbs:    []string{"create"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelHigh, // Matches YAML
+			wantRiskLevel: RiskLevelHigh,
 			testType:      "count",
 			wantCount:     3,
 		},
 		{
-			name: "Namespaced pod port-forward", // Matches YAML
+			name: "Namespaced pod port-forward",
 			policy: Policy{
 				RoleType:  "Role",
 				Namespace: "default",
 				APIGroup:  "",
 				Resource:  "pods/portforward",
-				Verbs:     []string{"create"}, // Matches YAML
+				Verbs:     []string{"create"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelMedium, // Matches YAML
+			wantRiskLevel: RiskLevelMedium,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Create pods cluster-wide", // Matches YAML
+			name: "Create pods cluster-wide",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "",
 				Resource: "pods",
-				Verbs:    []string{"create"}, // Matches YAML
+				Verbs:    []string{"create"},
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Corrected from High to Critical (matches YAML)
@@ -166,13 +166,13 @@ func TestMatchRiskRules(t *testing.T) {
 			wantCount:     3,
 		},
 		{
-			name: "Create pods in a namespace", // Matches YAML
+			name: "Create pods in a namespace",
 			policy: Policy{
 				RoleType:  "Role",
 				Namespace: "default",
 				APIGroup:  "",
 				Resource:  "pods",
-				Verbs:     []string{"create"}, // Matches YAML
+				Verbs:     []string{"create"},
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelHigh, // Corrected from Medium to High (matches YAML)
@@ -180,12 +180,12 @@ func TestMatchRiskRules(t *testing.T) {
 			wantCount:     2,
 		},
 		{
-			name: "Update/Patch pods cluster-wide", // Matches YAML
+			name: "Update/Patch pods cluster-wide",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "",
 				Resource: "pods",
-				Verbs:    []string{"update", "patch"}, // Matches YAML
+				Verbs:    []string{"update", "patch"},
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Corrected from High to Critical (matches YAML)
@@ -193,13 +193,13 @@ func TestMatchRiskRules(t *testing.T) {
 			wantCount:     3,
 		},
 		{
-			name: "Update/Patch pods in a namespace", // Matches YAML
+			name: "Update/Patch pods in a namespace",
 			policy: Policy{
 				RoleType:  "Role",
 				Namespace: "default",
 				APIGroup:  "",
 				Resource:  "pods",
-				Verbs:     []string{"update", "patch"}, // Matches YAML
+				Verbs:     []string{"update", "patch"},
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelHigh, // Corrected from Medium to High (matches YAML)
@@ -207,12 +207,12 @@ func TestMatchRiskRules(t *testing.T) {
 			wantCount:     2,
 		},
 		{
-			name: "Read secrets cluster-wide", // Matches YAML
+			name: "Read secrets cluster-wide",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "",
 				Resource: "secrets",
-				Verbs:    []string{"get", "list", "watch"}, // Matches YAML
+				Verbs:    []string{"get", "list", "watch"},
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Corrected from High to Critical (matches YAML)
@@ -220,13 +220,13 @@ func TestMatchRiskRules(t *testing.T) {
 			wantCount:     3,
 		},
 		{
-			name: "Read secrets in a namespace", // Matches YAML
+			name: "Read secrets in a namespace",
 			policy: Policy{
 				RoleType:  "Role",
 				Namespace: "default",
 				APIGroup:  "",
 				Resource:  "secrets",
-				Verbs:     []string{"get", "list", "watch"}, // Matches YAML
+				Verbs:     []string{"get", "list", "watch"},
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Corrected from Medium to Critical (matches YAML)
@@ -234,12 +234,12 @@ func TestMatchRiskRules(t *testing.T) {
 			wantCount:     2,
 		},
 		{
-			name: "Modify secrets cluster-wide", // Matches YAML
+			name: "Modify secrets cluster-wide",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "",
 				Resource: "secrets",
-				Verbs:    []string{"create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Corrected from High to Critical (matches YAML)
@@ -247,13 +247,13 @@ func TestMatchRiskRules(t *testing.T) {
 			wantCount:     3,
 		},
 		{
-			name: "Modify secrets in a namespace", // Matches YAML
+			name: "Modify secrets in a namespace",
 			policy: Policy{
 				RoleType:  "Role",
 				Namespace: "default",
 				APIGroup:  "",
 				Resource:  "secrets",
-				Verbs:     []string{"create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:     []string{"create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Corrected from Medium to Critical (matches YAML)
@@ -261,12 +261,12 @@ func TestMatchRiskRules(t *testing.T) {
 			wantCount:     2,
 		},
 		{
-			name: "Node proxy access (Kubelet API)", // Matches YAML
+			name: "Node proxy access (Kubelet API)",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "",
 				Resource: "nodes/proxy",
-				Verbs:    []string{"get", "create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:    []string{"get", "create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Corrected from High to Critical (matches YAML)
@@ -274,12 +274,12 @@ func TestMatchRiskRules(t *testing.T) {
 			wantCount:     2,
 		},
 		{
-			name: "Modify node configuration (labels, taints)", // Matches YAML
+			name: "Modify node configuration (labels, taints)",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "",
 				Resource: "nodes",
-				Verbs:    []string{"patch", "update"}, // Matches YAML
+				Verbs:    []string{"patch", "update"},
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Corrected from High to Critical (matches YAML)
@@ -287,12 +287,12 @@ func TestMatchRiskRules(t *testing.T) {
 			wantCount:     2,
 		},
 		{
-			name: "Delete nodes", // Matches YAML
+			name: "Delete nodes",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "",
 				Resource: "nodes",
-				Verbs:    []string{"delete", "deletecollection"}, // Matches YAML
+				Verbs:    []string{"delete", "deletecollection"},
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Corrected from High to Critical (matches YAML)
@@ -300,12 +300,12 @@ func TestMatchRiskRules(t *testing.T) {
 			wantCount:     2,
 		},
 		{
-			name: "Manage PersistentVolumes (cluster-wide storage manipulation)", // Matches YAML
+			name: "Manage PersistentVolumes (cluster-wide storage manipulation)",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "",
 				Resource: "persistentvolumes",
-				Verbs:    []string{"create", "update", "patch", "delete", "deletecollection"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete", "deletecollection"},
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Corrected from High to Critical (matches YAML)
@@ -313,20 +313,20 @@ func TestMatchRiskRules(t *testing.T) {
 			wantCount:     2,
 		},
 		{
-			name: "Read pod logs cluster-wide", // Matches YAML
+			name: "Read pod logs cluster-wide",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "",
 				Resource: "pods/log",
-				Verbs:    []string{"get"}, // Matches YAML
+				Verbs:    []string{"get"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelHigh, // Matches YAML
+			wantRiskLevel: RiskLevelHigh,
 			testType:      "count",
 			wantCount:     3,
 		},
 		{
-			name: "Read pod logs in a namespace", // Matches YAML
+			name: "Read pod logs in a namespace",
 			policy: Policy{
 				RoleType:  "Role",
 				Namespace: "default",
@@ -335,17 +335,17 @@ func TestMatchRiskRules(t *testing.T) {
 				Verbs:     []string{"get"}, // Corrected verbs to match YAML exactly
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelMedium, // Matches YAML
+			wantRiskLevel: RiskLevelMedium,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Manage ephemeral containers cluster-wide", // Matches YAML
+			name: "Manage ephemeral containers cluster-wide",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "",
 				Resource: "pods/ephemeralcontainers",
-				Verbs:    []string{"update", "patch"}, // Matches YAML
+				Verbs:    []string{"update", "patch"},
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Corrected from High to Critical (matches YAML)
@@ -353,13 +353,13 @@ func TestMatchRiskRules(t *testing.T) {
 			wantCount:     3,
 		},
 		{
-			name: "Manage ephemeral containers in a namespace", // Matches YAML
+			name: "Manage ephemeral containers in a namespace",
 			policy: Policy{
 				RoleType:  "Role",
 				Namespace: "default",
 				APIGroup:  "",
 				Resource:  "pods/ephemeralcontainers",
-				Verbs:     []string{"update", "patch"}, // Matches YAML
+				Verbs:     []string{"update", "patch"},
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelHigh, // Corrected from Medium to High (matches YAML)
@@ -367,39 +367,39 @@ func TestMatchRiskRules(t *testing.T) {
 			wantCount:     2,
 		},
 		{
-			name: "Read ConfigMaps cluster-wide", // Matches YAML
+			name: "Read ConfigMaps cluster-wide",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "",
 				Resource: "configmaps",
-				Verbs:    []string{"get", "list", "watch"}, // Matches YAML
+				Verbs:    []string{"get", "list", "watch"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelHigh, // Matches YAML
+			wantRiskLevel: RiskLevelHigh,
 			testType:      "count",
 			wantCount:     3,
 		},
 		{
-			name: "Read ConfigMaps in a namespace", // Matches YAML
+			name: "Read ConfigMaps in a namespace",
 			policy: Policy{
 				RoleType:  "Role",
 				Namespace: "default",
 				APIGroup:  "",
 				Resource:  "configmaps",
-				Verbs:     []string{"get", "list", "watch"}, // Matches YAML
+				Verbs:     []string{"get", "list", "watch"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelMedium, // Matches YAML
+			wantRiskLevel: RiskLevelMedium,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Modify ConfigMaps cluster-wide", // Matches YAML
+			name: "Modify ConfigMaps cluster-wide",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "",
 				Resource: "configmaps",
-				Verbs:    []string{"create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelCritical, // Corrected from High to Critical (matches YAML)
@@ -407,13 +407,13 @@ func TestMatchRiskRules(t *testing.T) {
 			wantCount:     3,
 		},
 		{
-			name: "Modify ConfigMaps in a namespace", // Matches YAML
+			name: "Modify ConfigMaps in a namespace",
 			policy: Policy{
 				RoleType:  "Role",
 				Namespace: "default",
 				APIGroup:  "",
 				Resource:  "configmaps",
-				Verbs:     []string{"create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:     []string{"create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelHigh, // Corrected from Medium to High (matches YAML)
@@ -421,555 +421,554 @@ func TestMatchRiskRules(t *testing.T) {
 			wantCount:     2,
 		},
 		{
-			name: "Delete namespaces", // Matches YAML
+			name: "Delete namespaces",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "",
 				Resource: "namespaces",
-				Verbs:    []string{"delete"}, // Matches YAML
+				Verbs:    []string{"delete"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelHigh, // Matches YAML
+			wantRiskLevel: RiskLevelHigh,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Manage ClusterRoles (create, update, patch, delete)", // Matches YAML
+			name: "Manage ClusterRoles (create, update, patch, delete)",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "rbac.authorization.k8s.io",
 				Resource: "clusterroles",
-				Verbs:    []string{"create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1027, 0},
+			wantRulesIDs:  []int64{1027, 9996},
 			wantCount:     2,
 		},
 		{
-			name: "Manage ClusterRoleBindings (create, update, patch, delete)", // Matches YAML
+			name: "Manage ClusterRoleBindings (create, update, patch, delete)",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "rbac.authorization.k8s.io",
 				Resource: "clusterrolebindings",
-				Verbs:    []string{"create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1028, 0},
+			wantRulesIDs:  []int64{1028, 9996},
 			wantCount:     2,
 		},
 		{
-			name: "Manage Roles in a namespace (create, update, patch, delete)", // Matches YAML
+			name: "Manage Roles in a namespace (create, update, patch, delete)",
 			policy: Policy{
 				RoleType:  "Role",
 				Namespace: "default",
 				APIGroup:  "rbac.authorization.k8s.io",
 				Resource:  "roles",
-				Verbs:     []string{"create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:     []string{"create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelHigh, // Matches YAML
+			wantRiskLevel: RiskLevelHigh,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Manage RoleBindings in a namespace (create, update, patch, delete)", // Matches YAML
+			name: "Manage RoleBindings in a namespace (create, update, patch, delete)",
 			policy: Policy{
 				RoleType:  "Role",
 				Namespace: "default",
 				APIGroup:  "rbac.authorization.k8s.io",
 				Resource:  "rolebindings",
-				Verbs:     []string{"create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:     []string{"create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelHigh, // Matches YAML
+			wantRiskLevel: RiskLevelHigh,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Escalate privileges via ClusterRoles (escalate verb)", // Matches YAML
+			name: "Escalate privileges via ClusterRoles (escalate verb)",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "rbac.authorization.k8s.io",
 				Resource: "clusterroles",
-				Verbs:    []string{"escalate"}, // Matches YAML
+				Verbs:    []string{"escalate"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1031, 0},
+			wantRulesIDs:  []int64{1031, 9996},
 			wantCount:     2,
 		},
 		{
-			name: "Bind ClusterRoles to identities (bind verb)", // Matches YAML
+			name: "Bind ClusterRoles to identities (bind verb)",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "rbac.authorization.k8s.io",
 				Resource: "clusterroles",
-				Verbs:    []string{"bind"}, // Matches YAML
+				Verbs:    []string{"bind"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1032, 0},
+			wantRulesIDs:  []int64{1032, 9996},
 			wantCount:     2,
 		},
 		{
-			name: "Manage Deployments cluster-wide (potential for privileged pod execution)", // Matches YAML
+			name: "Manage Deployments cluster-wide (potential for privileged pod execution)",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "apps",
 				Resource: "deployments",
-				Verbs:    []string{"create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1033, 1034, 0},
+			wantRulesIDs:  []int64{1033, 1034, 9996},
 			wantCount:     3,
 		},
 		{
-			name: "Manage Deployments in a namespace (potential for privileged pod execution)", // Matches YAML
+			name: "Manage Deployments in a namespace (potential for privileged pod execution)",
 			policy: Policy{
 				RoleType: "Role",
 				APIGroup: "apps",
 				Resource: "deployments",
-				Verbs:    []string{"create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelHigh, // Matches YAML
+			wantRiskLevel: RiskLevelHigh,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Manage DaemonSets cluster-wide (runs on all nodes, high impact)", // Matches YAML
+			name: "Manage DaemonSets cluster-wide (runs on all nodes, high impact)",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "apps",
 				Resource: "daemonsets",
-				Verbs:    []string{"create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1035, 1036, 0},
+			wantRulesIDs:  []int64{1035, 1036, 9996},
 			wantCount:     3,
 		},
 		{
-			name: "Manage DaemonSets in a namespace (runs on nodes, high impact)", // Matches YAML
+			name: "Manage DaemonSets in a namespace (runs on nodes, high impact)",
 			policy: Policy{
 				RoleType: "Role",
 				APIGroup: "apps",
 				Resource: "daemonsets",
-				Verbs:    []string{"create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1036, 0},
+			wantRulesIDs:  []int64{1036, 9996},
 			wantCount:     2,
 		},
 		{
-			name: "Manage StatefulSets cluster-wide", // Matches YAML
+			name: "Manage StatefulSets cluster-wide",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "apps",
 				Resource: "statefulsets",
-				Verbs:    []string{"create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1037, 1038, 0},
+			wantRulesIDs:  []int64{1037, 1038, 9996},
 			wantCount:     3,
 		},
 		{
-			name: "Manage StatefulSets in a namespace", // Matches YAML
+			name: "Manage StatefulSets in a namespace",
 			policy: Policy{
 				RoleType: "Role",
 				APIGroup: "apps",
 				Resource: "statefulsets",
-				Verbs:    []string{"create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelHigh, // Matches YAML
+			wantRiskLevel: RiskLevelHigh,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Manage CronJobs cluster-wide (scheduled privileged execution, persistence)", // Matches YAML
+			name: "Manage CronJobs cluster-wide (scheduled privileged execution, persistence)",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "batch",
 				Resource: "cronjobs",
-				Verbs:    []string{"create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1039, 1040, 0},
+			wantRulesIDs:  []int64{1039, 1040, 9996},
 			wantCount:     3,
 		},
 		{
-			name: "Manage CronJobs in a namespace (scheduled privileged execution, persistence)", // Matches YAML
+			name: "Manage CronJobs in a namespace (scheduled privileged execution, persistence)",
 			policy: Policy{
 				RoleType: "Role",
 				APIGroup: "batch",
 				Resource: "cronjobs",
-				Verbs:    []string{"create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelHigh, // Matches YAML
+			wantRiskLevel: RiskLevelHigh,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Manage Jobs cluster-wide (one-off privileged execution)", // Matches YAML
+			name: "Manage Jobs cluster-wide (one-off privileged execution)",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "batch",
 				Resource: "jobs",
-				Verbs:    []string{"create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1041, 1042, 0},
+			wantRulesIDs:  []int64{1041, 1042, 9996},
 			wantCount:     3,
 		},
 		{
-			name: "Manage Jobs in a namespace (one-off privileged execution)", // Matches YAML
+			name: "Manage Jobs in a namespace (one-off privileged execution)",
 			policy: Policy{
 				RoleType: "Role",
 				APIGroup: "batch",
 				Resource: "jobs",
-				Verbs:    []string{"create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelHigh, // Matches YAML
+			wantRiskLevel: RiskLevelHigh,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Manage MutatingWebhookConfigurations", // Matches YAML
+			name: "Manage MutatingWebhookConfigurations",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "admissionregistration.k8s.io",
 				Resource: "mutatingwebhookconfigurations",
-				Verbs:    []string{"create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1043, 0},
+			wantRulesIDs:  []int64{1043, 9996},
 			wantCount:     2,
 		},
 		{
-			name: "Manage ValidatingWebhookConfigurations", // Matches YAML
+			name: "Manage ValidatingWebhookConfigurations",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "admissionregistration.k8s.io",
 				Resource: "validatingwebhookconfigurations",
-				Verbs:    []string{"create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1044, 0},
+			wantRulesIDs:  []int64{1044, 9996},
 			wantCount:     2,
 		},
 		{
-			name: "Manage CustomResourceDefinitions", // Matches YAML
+			name: "Manage CustomResourceDefinitions",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "apiextensions.k8s.io",
 				Resource: "customresourcedefinitions",
-				Verbs:    []string{"create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1045, 0},
+			wantRulesIDs:  []int64{1045, 9996},
 			wantCount:     2,
 		},
 		{
-			name: "Manage APIServices", // Matches YAML
+			name: "Manage APIServices",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "apiregistration.k8s.io",
 				Resource: "apiservices",
-				Verbs:    []string{"create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1046, 0},
+			wantRulesIDs:  []int64{1046, 9996},
 			wantCount:     2,
 		},
 		{
-			name: "Create ServiceAccount Tokens", // Matches YAML
+			name: "Create ServiceAccount Tokens",
 			policy: Policy{
 				RoleType: "Role",
 				APIGroup: "authentication.k8s.io",
 				Resource: "serviceaccounts/token",
-				Verbs:    []string{"create"}, // Matches YAML
+				Verbs:    []string{"create"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1047, 0},
+			wantRulesIDs:  []int64{1047, 9996},
 			wantCount:     2,
 		},
 		{
-			name: "Create ServiceAccount Tokens (ClusterRole for any SA in any namespace)", // Matches YAML
+			name: "Create ServiceAccount Tokens (ClusterRole for any SA in any namespace)",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "authentication.k8s.io",
 				Resource: "serviceaccounts/token",
-				Verbs:    []string{"create"}, // Matches YAML
+				Verbs:    []string{"create"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1047, 1048, 0},
+			wantRulesIDs:  []int64{1047, 1048, 9996},
 			wantCount:     3,
 		},
 		{
-			name: "Create TokenReviews (validate arbitrary tokens)", // Matches YAML
+			name: "Create TokenReviews (validate arbitrary tokens)",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "authentication.k8s.io",
 				Resource: "tokenreviews",
-				Verbs:    []string{"create"}, // Matches YAML
+				Verbs:    []string{"create"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelMedium, // Matches YAML
+			wantRiskLevel: RiskLevelMedium,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Create SubjectAccessReviews (check arbitrary permissions)", // Matches YAML
+			name: "Create SubjectAccessReviews (check arbitrary permissions)",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "authorization.k8s.io",
 				Resource: "subjectaccessreviews",
-				Verbs:    []string{"create"}, // Matches YAML
+				Verbs:    []string{"create"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelMedium, // Matches YAML
+			wantRiskLevel: RiskLevelMedium,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Create LocalSubjectAccessReviews (check permissions in a namespace)", // Matches YAML
+			name: "Create LocalSubjectAccessReviews (check permissions in a namespace)",
 			policy: Policy{
 				RoleType: "Role",
 				APIGroup: "authorization.k8s.io",
 				Resource: "localsubjectaccessreviews",
-				Verbs:    []string{"create"}, // Matches YAML
+				Verbs:    []string{"create"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelLow, // Matches YAML
+			wantRiskLevel: RiskLevelLow,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Approve CertificateSigningRequests", // Matches YAML
+			name: "Approve CertificateSigningRequests",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "certificates.k8s.io",
 				Resource: "certificatesigningrequests/approval",
-				Verbs:    []string{"update", "patch"}, // Matches YAML
+				Verbs:    []string{"update", "patch"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1052, 0},
+			wantRulesIDs:  []int64{1052, 9996},
 			wantCount:     2,
 		},
 		{
-			name: "Create CertificateSigningRequests", // Matches YAML
+			name: "Create CertificateSigningRequests",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "certificates.k8s.io",
 				Resource: "certificatesigningrequests",
-				Verbs:    []string{"create"}, // Matches YAML
+				Verbs:    []string{"create"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelMedium, // Matches YAML
+			wantRiskLevel: RiskLevelMedium,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Manage (get, list, watch, delete) CertificateSigningRequests", // Matches YAML
+			name: "Manage (get, list, watch, delete) CertificateSigningRequests",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "certificates.k8s.io",
 				Resource: "certificatesigningrequests",
-				Verbs:    []string{"get", "list", "watch", "delete"}, // Matches YAML
+				Verbs:    []string{"get", "list", "watch", "delete"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelMedium, // Matches YAML
+			wantRiskLevel: RiskLevelMedium,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Manage CSIDrivers (potential node compromise)", // Matches YAML
+			name: "Manage CSIDrivers (potential node compromise)",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "storage.k8s.io",
 				Resource: "csidrivers",
-				Verbs:    []string{"create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1055, 0},
+			wantRulesIDs:  []int64{1055, 9996},
 			wantCount:     2,
 		},
 		{
-			name: "Manage StorageClasses", // Matches YAML
+			name: "Manage StorageClasses",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "storage.k8s.io",
 				Resource: "storageclasses",
-				Verbs:    []string{"create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelHigh, // Matches YAML
+			wantRiskLevel: RiskLevelHigh,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Evict Pods cluster-wide", // Matches YAML
+			name: "Evict Pods cluster-wide",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "policy",
 				Resource: "pods/eviction",
-				Verbs:    []string{"create"}, // Matches YAML
+				Verbs:    []string{"create"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelMedium, // Matches YAML
+			wantRiskLevel: RiskLevelMedium,
 			testType:      "count",
 			wantCount:     3,
 		},
 		{
-			name: "Evict Pods in a namespace", // Matches YAML
+			name: "Evict Pods in a namespace",
 			policy: Policy{
 				RoleType: "Role",
 				APIGroup: "policy",
 				Resource: "pods/eviction",
-				Verbs:    []string{"create"}, // Matches YAML
+				Verbs:    []string{"create"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelMedium, // Matches YAML
+			wantRiskLevel: RiskLevelMedium,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Manage RuntimeClasses", // Matches YAML
+			name: "Manage RuntimeClasses",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "node.k8s.io",
 				Resource: "runtimeclasses",
-				Verbs:    []string{"create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1059, 0},
+			wantRulesIDs:  []int64{1059, 9996},
 			wantCount:     2,
 		},
 		{
-			name: "Wildcard permission on all resources cluster-wide (Cluster Admin)", // Matches YAML
+			name: "Wildcard permission on all resources cluster-wide (Cluster Admin)",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "*",
 				Resource: "*",
-				Verbs:    []string{"*"}, // Matches YAML
+				Verbs:    []string{"*"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
 			wantRulesIDs: []int64{
-				1039,
-				1047, 1002, 1075, 1073, 1071, 1006, 1078, 1008, 1080, 1010, 1011, 1036, 1013, 1014, 1015, 1016, 1017, 1066, 1102, 1020, 1065, 1064, 1099, 1024, 1063, 1062, 1027, 1028, 1061, 1060, 1031, 1032, 1033, 1059, 1035, 1012, 1081, 1052, 1055, 1092, 1041, 1000, 1043, 1044, 1045, 1046, 1037, 1048, 1098, 1004, 1072, 1038, 1042, 1040, 1076, 1056, 1091, 1001, 1034, 1025, 1097, 1096, 1029, 1009, 1021, 1018, 1067, 1022, 1069, 1007, 1103, 1030, 1026, 1074, 1003, 1053, 1089, 1070, 1079, 1068, 1058, 1005, 1083, 1084, 1085, 1019, 1100, 1023, 1077, 1090, 1057, 1054, 1093, 1094, 1095, 1049, 1050, 1051, 1088, 1087, 1101, 1086, 1082, 0,
+				1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010, 1011, 1012, 1013, 1014, 1015, 1016, 1017, 1018, 1019, 1020, 1021, 1022, 1023, 1024, 1025, 1026, 1027, 1028, 1029, 1030, 1031, 1032, 1033, 1034, 1035, 1036, 1037, 1038, 1039, 1040, 1041, 1042, 1043, 1044, 1045, 1046, 1047, 1048, 1049, 1050, 1051, 1052, 1053, 1054, 1055, 1056, 1057, 1058, 1059, 1060, 1061, 1062, 1063, 1064, 1065, 1066, 1067, 1068, 1069, 1070, 1071, 1072, 1073, 1074, 1075, 1076, 1077, 1078, 1079, 1080, 1081, 1082, 1083, 1084, 1085, 1086, 1087, 1088, 1089, 1090, 1091, 1092, 1093, 1094, 1095, 1096, 1097, 1098, 1099, 1100, 1101, 1102, 1103, 9999,
 			},
 			wantCount: 105,
 		},
 		{
-			name: "Wildcard permission on all resources in a namespace (Namespace Admin)", // Matches YAML
+			name: "Wildcard permission on all resources in a namespace (Namespace Admin)",
 			policy: Policy{
 				RoleType: "Role",
 				APIGroup: "*",
 				Resource: "*",
-				Verbs:    []string{"*"}, // Matches YAML
+				Verbs:    []string{"*"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
 			wantRulesIDs: []int64{
-				1081, 1036, 1063, 1061, 1047, 1011, 1013, 1034, 1040, 1096, 1025, 1029, 1030, 1076, 1097, 1038, 1021, 1042, 1003, 1091, 1009, 1007, 1103, 1001, 1072, 1074, 1085, 1068, 1023, 1094, 1058, 1019, 1005, 1086, 1087, 1088, 1051, 1101, 0,
+				1081, 1036, 1063, 1061, 1047, 1011, 1013, 1034, 1040, 1096, 1025, 1029, 1030, 1076, 1097, 1038, 1021, 1042, 1003, 1091, 1009, 1007, 1103, 1001, 1072, 1074, 1085, 1068, 1023, 1094, 1058, 1019, 1005, 1086, 1087, 1088, 1051, 1101, 9999,
 			},
 			wantCount: 39,
 		},
 		{
-			name: "Manage ClusterIssuers (cert-manager.io)", // Matches YAML
+			name: "Manage ClusterIssuers (cert-manager.io)",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "cert-manager.io",
 				Resource: "clusterissuers",
-				Verbs:    []string{"create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1062, 0},
+			wantRulesIDs:  []int64{1062, 9996},
 			wantCount:     2,
 		},
 		{
-			name: "Manage ArgoCD Applications (argoproj.io)", // Matches YAML
+			name: "Manage ArgoCD Applications (argoproj.io)",
 			policy: Policy{
 				RoleType: "Role",
 				APIGroup: "argoproj.io",
 				Resource: "applications",
-				Verbs:    []string{"create", "update", "patch", "delete", "sync"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete", "sync"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1063, 0},
+			wantRulesIDs:  []int64{1063, 9996},
 			wantCount:     2,
 		},
 		{
-			name: "Manage Cilium ClusterwideNetworkPolicies (cilium.io)", // Matches YAML
+			name: "Manage Cilium ClusterwideNetworkPolicies (cilium.io)",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "cilium.io",
 				Resource: "ciliumclusterwidenetworkpolicies",
-				Verbs:    []string{"create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1064, 0},
+			wantRulesIDs:  []int64{1064, 9996},
 			wantCount:     2,
 		},
 		{
-			name: "Manage ETCDSnapshotFiles (k3s.cattle.io)", // Matches YAML
+			name: "Manage ETCDSnapshotFiles (k3s.cattle.io)",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "k3s.cattle.io",
 				Resource: "etcdsnapshotfiles",
-				Verbs:    []string{"get", "list", "create", "update", "delete"}, // Matches YAML
+				Verbs:    []string{"get", "list", "create", "update", "delete"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1065, 0},
+			wantRulesIDs:  []int64{1065, 9996},
 			wantCount:     2,
 		},
 		{
@@ -978,12 +977,12 @@ func TestMatchRiskRules(t *testing.T) {
 				RoleType: "ClusterRole",
 				APIGroup: "",
 				Resource: "users",
-				Verbs:    []string{"impersonate"}, // Matches YAML
+				Verbs:    []string{"impersonate"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1066, 0},
+			wantRulesIDs:  []int64{1066, 9996},
 			wantCount:     2,
 		},
 		{
@@ -992,12 +991,12 @@ func TestMatchRiskRules(t *testing.T) {
 				RoleType: "ClusterRole",
 				APIGroup: "",
 				Resource: "groups",
-				Verbs:    []string{"impersonate"}, // Matches YAML
+				Verbs:    []string{"impersonate"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1066, 0},
+			wantRulesIDs:  []int64{1066, 9996},
 			wantCount:     2,
 		},
 		{
@@ -1006,12 +1005,12 @@ func TestMatchRiskRules(t *testing.T) {
 				RoleType: "ClusterRole",
 				APIGroup: "",
 				Resource: "serviceaccounts",
-				Verbs:    []string{"impersonate"}, // Matches YAML
+				Verbs:    []string{"impersonate"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1066, 0},
+			wantRulesIDs:  []int64{1066, 9996},
 			wantCount:     2,
 		},
 		{
@@ -1020,12 +1019,12 @@ func TestMatchRiskRules(t *testing.T) {
 				RoleType: "ClusterRole",
 				APIGroup: "",
 				Resource: "userextras",
-				Verbs:    []string{"impersonate"}, // Matches YAML
+				Verbs:    []string{"impersonate"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1066, 0},
+			wantRulesIDs:  []int64{1066, 9996},
 			wantCount:     2,
 		},
 		{
@@ -1034,291 +1033,291 @@ func TestMatchRiskRules(t *testing.T) {
 				RoleType: "ClusterRole",
 				APIGroup: "",
 				Resource: "uids",
-				Verbs:    []string{"impersonate"}, // Matches YAML
+				Verbs:    []string{"impersonate"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1066, 0},
+			wantRulesIDs:  []int64{1066, 9996},
 			wantCount:     2,
 		},
 		{
-			name: "Manage ServiceAccounts cluster-wide", // Matches YAML
+			name: "Manage ServiceAccounts cluster-wide",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "",
 				Resource: "serviceaccounts",
-				Verbs:    []string{"create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelHigh, // Matches YAML
+			wantRiskLevel: RiskLevelHigh,
 			testType:      "count",
 			wantCount:     3,
 		},
 		{
-			name: "Manage ServiceAccounts in a namespace", // Matches YAML
+			name: "Manage ServiceAccounts in a namespace",
 			policy: Policy{
 				RoleType: "Role",
 				APIGroup: "",
 				Resource: "serviceaccounts",
-				Verbs:    []string{"create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelMedium, // Matches YAML
+			wantRiskLevel: RiskLevelMedium,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Patch node status cluster-wide", // Matches YAML
+			name: "Patch node status cluster-wide",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "",
 				Resource: "nodes/status",
-				Verbs:    []string{"patch", "update"}, // Matches YAML
+				Verbs:    []string{"patch", "update"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelHigh, // Matches YAML
+			wantRiskLevel: RiskLevelHigh,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Read events cluster-wide (core API group)", // Matches YAML (split test)
+			name: "Read events cluster-wide (core API group)",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "", // Core API group for events
 				Resource: "events",
-				Verbs:    []string{"get", "list", "watch"}, // Matches YAML
+				Verbs:    []string{"get", "list", "watch"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelMedium, // Matches YAML
+			wantRiskLevel: RiskLevelMedium,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Read events cluster-wide (events.k8s.io API group)", // Matches YAML (split test)
+			name: "Read events cluster-wide (events.k8s.io API group)",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "events.k8s.io", // events.k8s.io API group
 				Resource: "events",
-				Verbs:    []string{"get", "list", "watch"}, // Matches YAML
+				Verbs:    []string{"get", "list", "watch"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelMedium, // Matches YAML
+			wantRiskLevel: RiskLevelMedium,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Manage NetworkPolicies cluster-wide", // Matches YAML
+			name: "Manage NetworkPolicies cluster-wide",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "networking.k8s.io",
 				Resource: "networkpolicies",
-				Verbs:    []string{"create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1071, 1072, 0},
+			wantRulesIDs:  []int64{1071, 1072, 9996},
 			wantCount:     3,
 		},
 		{
-			name: "Manage NetworkPolicies in a namespace", // Matches YAML
+			name: "Manage NetworkPolicies in a namespace",
 			policy: Policy{
 				RoleType: "Role",
 				APIGroup: "networking.k8s.io",
 				Resource: "networkpolicies",
-				Verbs:    []string{"create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelHigh, // Matches YAML
+			wantRiskLevel: RiskLevelHigh,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Manage Endpoints or EndpointSlices cluster-wide (core API)", // Matches YAML (split test)
+			name: "Manage Endpoints or EndpointSlices cluster-wide (core API)",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "", // Core API group for Endpoints
 				Resource: "endpoints",
-				Verbs:    []string{"create", "update", "patch", "delete", "get", "list"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete", "get", "list"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1073, 1074, 0},
+			wantRulesIDs:  []int64{1073, 1074, 9996},
 			wantCount:     3,
 		},
 		{
-			name: "Manage Endpoints or EndpointSlices cluster-wide (discovery.k8s.io API)", // Matches YAML (split test)
+			name: "Manage Endpoints or EndpointSlices cluster-wide (discovery.k8s.io API)",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "discovery.k8s.io", // discovery.k8s.io for EndpointSlices
 				Resource: "endpointslices",
-				Verbs:    []string{"create", "update", "patch", "delete", "get", "list"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete", "get", "list"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1073, 1074, 0},
+			wantRulesIDs:  []int64{1073, 1074, 9996},
 			wantCount:     3,
 		},
 		{
-			name: "Manage Endpoints or EndpointSlices in a namespace (core API)", // Matches YAML (split test)
+			name: "Manage Endpoints or EndpointSlices in a namespace (core API)",
 			policy: Policy{
 				RoleType: "Role",
 				APIGroup: "", // Core API group for Endpoints
 				Resource: "endpoints",
-				Verbs:    []string{"create", "update", "patch", "delete", "get", "list"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete", "get", "list"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelHigh, // Matches YAML
+			wantRiskLevel: RiskLevelHigh,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Manage Endpoints or EndpointSlices in a namespace (discovery.k8s.io API)", // Matches YAML (split test)
+			name: "Manage Endpoints or EndpointSlices in a namespace (discovery.k8s.io API)",
 			policy: Policy{
 				RoleType: "Role",
 				APIGroup: "discovery.k8s.io", // discovery.k8s.io for EndpointSlices
 				Resource: "endpointslices",
-				Verbs:    []string{"create", "update", "patch", "delete", "get", "list"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete", "get", "list"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelHigh, // Matches YAML
+			wantRiskLevel: RiskLevelHigh,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Manage Services cluster-wide", // Matches YAML
+			name: "Manage Services cluster-wide",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "",
 				Resource: "services",
-				Verbs:    []string{"create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1075, 1076, 0},
+			wantRulesIDs:  []int64{1075, 1076, 9996},
 			wantCount:     3,
 		},
 		{
-			name: "Manage Services in a namespace", // Matches YAML
+			name: "Manage Services in a namespace",
 			policy: Policy{
 				RoleType: "Role",
 				APIGroup: "",
 				Resource: "services",
-				Verbs:    []string{"create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelHigh, // Matches YAML
+			wantRiskLevel: RiskLevelHigh,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Read RBAC configuration cluster-wide - ClusterRoles", // Matches YAML (split test)
+			name: "Read RBAC configuration cluster-wide - ClusterRoles",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "rbac.authorization.k8s.io",
 				Resource: "clusterroles",
-				Verbs:    []string{"get", "list", "watch"}, // Matches YAML
+				Verbs:    []string{"get", "list", "watch"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelMedium, // Matches YAML
+			wantRiskLevel: RiskLevelMedium,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Read RBAC configuration cluster-wide - Roles", // Matches YAML (split test)
+			name: "Read RBAC configuration cluster-wide - Roles",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "rbac.authorization.k8s.io",
 				Resource: "roles",
-				Verbs:    []string{"get", "list", "watch"}, // Matches YAML
+				Verbs:    []string{"get", "list", "watch"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelMedium, // Matches YAML
+			wantRiskLevel: RiskLevelMedium,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Read RBAC configuration cluster-wide - ClusterRoleBindings", // Matches YAML (split test)
+			name: "Read RBAC configuration cluster-wide - ClusterRoleBindings",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "rbac.authorization.k8s.io",
 				Resource: "clusterrolebindings",
-				Verbs:    []string{"get", "list", "watch"}, // Matches YAML
+				Verbs:    []string{"get", "list", "watch"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelMedium, // Matches YAML
+			wantRiskLevel: RiskLevelMedium,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Read RBAC configuration cluster-wide - RoleBindings", // Matches YAML (split test)
+			name: "Read RBAC configuration cluster-wide - RoleBindings",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "rbac.authorization.k8s.io",
 				Resource: "rolebindings",
-				Verbs:    []string{"get", "list", "watch"}, // Matches YAML
+				Verbs:    []string{"get", "list", "watch"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelMedium, // Matches YAML
+			wantRiskLevel: RiskLevelMedium,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Use privileged PodSecurityPolicy (deprecated) - policy API group", // Matches YAML (split test)
+			name: "Use privileged PodSecurityPolicy (deprecated) - policy API group",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "policy",
 				Resource: "podsecuritypolicies",
-				Verbs:    []string{"use"}, // Matches YAML
+				Verbs:    []string{"use"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Use privileged PodSecurityPolicy (deprecated) - extensions API group", // Matches YAML (split test)
+			name: "Use privileged PodSecurityPolicy (deprecated) - extensions API group",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "extensions", // Older API group for PSPs
 				Resource: "podsecuritypolicies",
-				Verbs:    []string{"use"}, // Matches YAML
+				Verbs:    []string{"use"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1078, 0},
+			wantRulesIDs:  []int64{1078, 9996},
 			wantCount:     2,
 		},
 		{
-			name: "Manage PodDisruptionBudgets cluster-wide", // Matches YAML
+			name: "Manage PodDisruptionBudgets cluster-wide",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "policy",
 				Resource: "poddisruptionbudgets",
-				Verbs:    []string{"create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelMedium, // Matches YAML
+			wantRiskLevel: RiskLevelMedium,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Manage Leases cluster-wide", // Matches YAML
+			name: "Manage Leases cluster-wide",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "coordination.k8s.io",
 				Resource: "leases",
-				Verbs:    []string{"create", "update", "patch", "delete", "get", "list"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete", "get", "list"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1080, 1081, 0},
+			wantRulesIDs:  []int64{1080, 1081, 9996},
 			wantCount:     3,
 		},
 		{
@@ -1326,317 +1325,317 @@ func TestMatchRiskRules(t *testing.T) {
 			// implies a Critical risk specifically when bound in those namespaces.
 			// This test case uses Namespace: "default". The risk level is correct
 			// if your scanner logic elevates risk based on the *binding* namespace.
-			name: "Manage Leases in kube-system or kube-node-lease namespace", // Matches YAML
+			name: "Manage Leases in kube-system or kube-node-lease namespace",
 			policy: Policy{
 				RoleType: "Role",
 				APIGroup: "coordination.k8s.io",
 				Resource: "leases",
-				Verbs:    []string{"create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "List Namespaces (Cluster Reconnaissance)", // Matches YAML
+			name: "List Namespaces (Cluster Reconnaissance)",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "",
 				Resource: "namespaces",
-				Verbs:    []string{"list", "watch"}, // Matches YAML
+				Verbs:    []string{"list", "watch"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelLow, // Matches YAML
+			wantRiskLevel: RiskLevelLow,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "List ValidatingWebhookConfigurations (Reconnaissance)", // Matches YAML
+			name: "List ValidatingWebhookConfigurations (Reconnaissance)",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "admissionregistration.k8s.io",
 				Resource: "validatingwebhookconfigurations",
-				Verbs:    []string{"list", "watch"}, // Matches YAML
+				Verbs:    []string{"list", "watch"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelMedium, // Matches YAML
+			wantRiskLevel: RiskLevelMedium,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "List MutatingWebhookConfigurations (Reconnaissance)", // Matches YAML
+			name: "List MutatingWebhookConfigurations (Reconnaissance)",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "admissionregistration.k8s.io",
 				Resource: "mutatingwebhookconfigurations",
-				Verbs:    []string{"list", "watch"}, // Matches YAML
+				Verbs:    []string{"list", "watch"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelMedium, // Matches YAML
+			wantRiskLevel: RiskLevelMedium,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Create/Update ControllerRevisions (Potential Tampering)", // Matches YAML
+			name: "Create/Update ControllerRevisions (Potential Tampering)",
 			policy: Policy{
 				Namespace: "default",
 				RoleType:  "Role",
 				APIGroup:  "apps",
 				Resource:  "controllerrevisions",
-				Verbs:     []string{"create", "update", "patch"}, // Matches YAML
+				Verbs:     []string{"create", "update", "patch"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelMedium, // Matches YAML
+			wantRiskLevel: RiskLevelMedium,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Create SelfSubjectRulesReviews (Discover Own Permissions)", // Matches YAML
+			name: "Create SelfSubjectRulesReviews (Discover Own Permissions)",
 			policy: Policy{
 				Namespace: "default",
 				RoleType:  "Role",
 				APIGroup:  "authorization.k8s.io",
 				Resource:  "selfsubjectrulesreviews",
-				Verbs:     []string{"create"}, // Matches YAML
+				Verbs:     []string{"create"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelLow, // Matches YAML
+			wantRiskLevel: RiskLevelLow,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Read LimitRanges (Namespace Information Disclosure)", // Matches YAML
+			name: "Read LimitRanges (Namespace Information Disclosure)",
 			policy: Policy{
 				Namespace: "default",
 				RoleType:  "Role",
 				APIGroup:  "",
 				Resource:  "limitranges",
-				Verbs:     []string{"get", "list", "watch"}, // Matches YAML
+				Verbs:     []string{"get", "list", "watch"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelLow, // Matches YAML
+			wantRiskLevel: RiskLevelLow,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Read ResourceQuotas (Namespace Information Disclosure)", // Matches YAML
+			name: "Read ResourceQuotas (Namespace Information Disclosure)",
 			policy: Policy{
 				Namespace: "default",
 				RoleType:  "Role",
 				APIGroup:  "",
 				Resource:  "resourcequotas",
-				Verbs:     []string{"get", "list", "watch"}, // Matches YAML
+				Verbs:     []string{"get", "list", "watch"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelLow, // Matches YAML
+			wantRiskLevel: RiskLevelLow,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Read All ResourceQuotas (Cluster-wide Information Disclosure)", // Matches YAML
+			name: "Read All ResourceQuotas (Cluster-wide Information Disclosure)",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "",
 				Resource: "resourcequotas",
-				Verbs:    []string{"get", "list", "watch"}, // Matches YAML
+				Verbs:    []string{"get", "list", "watch"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelMedium, // Matches YAML
+			wantRiskLevel: RiskLevelMedium,
 			testType:      "count",
 			wantCount:     3,
 		},
 		{
-			name: "Update CertificateSigningRequest Status (Tampering/DoS)", // Matches YAML
+			name: "Update CertificateSigningRequest Status (Tampering/DoS)",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "certificates.k8s.io",
 				Resource: "certificatesigningrequests/status",
-				Verbs:    []string{"update", "patch"}, // Matches YAML
+				Verbs:    []string{"update", "patch"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelMedium, // Matches YAML
+			wantRiskLevel: RiskLevelMedium,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Manage Ingresses (Namespace Service Exposure/Traffic Redirection)", // Matches YAML
+			name: "Manage Ingresses (Namespace Service Exposure/Traffic Redirection)",
 			policy: Policy{
 				Namespace: "default",
 				RoleType:  "Role",
 				APIGroup:  "networking.k8s.io",
 				Resource:  "ingresses",
-				Verbs:     []string{"create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:     []string{"create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelHigh, // Matches YAML
+			wantRiskLevel: RiskLevelHigh,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Manage IngressClasses (Cluster-wide Traffic Control Tampering)", // Matches YAML
+			name: "Manage IngressClasses (Cluster-wide Traffic Control Tampering)",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "networking.k8s.io",
 				Resource: "ingressclasses",
-				Verbs:    []string{"create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1092, 0},
+			wantRulesIDs:  []int64{1092, 9996},
 			wantCount:     2,
 		},
 		{
-			name: "Update NetworkPolicy Status (Cluster-wide Tampering)", // Matches YAML
+			name: "Update NetworkPolicy Status (Cluster-wide Tampering)",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "networking.k8s.io",
 				Resource: "networkpolicies/status",
-				Verbs:    []string{"update", "patch"}, // Matches YAML
+				Verbs:    []string{"update", "patch"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelMedium, // Matches YAML
+			wantRiskLevel: RiskLevelMedium,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Update PodDisruptionBudget Status (Namespace Tampering/DoS)", // Matches YAML
+			name: "Update PodDisruptionBudget Status (Namespace Tampering/DoS)",
 			policy: Policy{
 				Namespace: "default",
 				RoleType:  "Role",
 				APIGroup:  "policy",
 				Resource:  "poddisruptionbudgets/status",
-				Verbs:     []string{"create", "update", "patch"}, // Matches YAML
+				Verbs:     []string{"create", "update", "patch"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelMedium, // Matches YAML
+			wantRiskLevel: RiskLevelMedium,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Read ComponentStatuses (Control Plane Reconnaissance)", // Matches YAML
+			name: "Read ComponentStatuses (Control Plane Reconnaissance)",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "",
 				Resource: "componentstatuses",
-				Verbs:    []string{"get", "list"}, // Matches YAML
+				Verbs:    []string{"get", "list"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelMedium, // Matches YAML
+			wantRiskLevel: RiskLevelMedium,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Update Deployment Scale (Resource Abuse/DoS)", // Matches YAML
+			name: "Update Deployment Scale (Resource Abuse/DoS)",
 			policy: Policy{
 				Namespace: "default",
 				RoleType:  "Role",
 				APIGroup:  "apps",
 				Resource:  "deployments/scale",
-				Verbs:     []string{"update", "patch"}, // Matches YAML
+				Verbs:     []string{"update", "patch"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelHigh, // Matches YAML
+			wantRiskLevel: RiskLevelHigh,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Update StatefulSet Scale (Resource Abuse/DoS)", // Matches YAML
+			name: "Update StatefulSet Scale (Resource Abuse/DoS)",
 			policy: Policy{
 				Namespace: "default",
 				RoleType:  "Role",
 				APIGroup:  "apps",
 				Resource:  "statefulsets/scale",
-				Verbs:     []string{"update", "patch"}, // Matches YAML
+				Verbs:     []string{"update", "patch"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelHigh, // Matches YAML
+			wantRiskLevel: RiskLevelHigh,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Manage FlowSchemas (API Server DoS/Manipulation)", // Matches YAML
+			name: "Manage FlowSchemas (API Server DoS/Manipulation)",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "flowcontrol.apiserver.k8s.io",
 				Resource: "flowschemas",
-				Verbs:    []string{"create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1098, 0},
+			wantRulesIDs:  []int64{1098, 9996},
 			wantCount:     2,
 		},
 		{
-			name: "Manage PriorityLevelConfigurations (API Server DoS/Manipulation)", // Matches YAML
+			name: "Manage PriorityLevelConfigurations (API Server DoS/Manipulation)",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "flowcontrol.apiserver.k8s.io",
 				Resource: "prioritylevelconfigurations",
-				Verbs:    []string{"create", "update", "patch", "delete"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1099, 0},
+			wantRulesIDs:  []int64{1099, 9996},
 			wantCount:     2,
 		},
 		{
-			name: "Read CSINode Objects (Node & Storage Reconnaissance)", // Matches YAML
+			name: "Read CSINode Objects (Node & Storage Reconnaissance)",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "storage.k8s.io",
 				Resource: "csinodes",
-				Verbs:    []string{"get", "list", "watch"}, // Matches YAML
+				Verbs:    []string{"get", "list", "watch"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelMedium, // Matches YAML
+			wantRiskLevel: RiskLevelMedium,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Read CSIStorageCapacities (Namespace Storage Reconnaissance)", // Matches YAML
+			name: "Read CSIStorageCapacities (Namespace Storage Reconnaissance)",
 			policy: Policy{
 				Namespace: "default",
 				RoleType:  "Role",
 				APIGroup:  "storage.k8s.io",
 				Resource:  "csistoragecapacities",
-				Verbs:     []string{"get", "list", "watch"}, // Matches YAML
+				Verbs:     []string{"get", "list", "watch"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelLow, // Matches YAML
+			wantRiskLevel: RiskLevelLow,
 			testType:      "count",
 			wantCount:     2,
 		},
 		{
-			name: "Manage VolumeAttachments (Cluster-wide Storage/Node Manipulation)", // Matches YAML
+			name: "Manage VolumeAttachments (Cluster-wide Storage/Node Manipulation)",
 			policy: Policy{
 				RoleType: "ClusterRole",
 				APIGroup: "storage.k8s.io",
 				Resource: "volumeattachments",
-				Verbs:    []string{"create", "update", "patch", "delete", "get", "list", "watch"}, // Matches YAML
+				Verbs:    []string{"create", "update", "patch", "delete", "get", "list", "watch"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelCritical, // Matches YAML
+			wantRiskLevel: RiskLevelCritical,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1102, 0},
+			wantRulesIDs:  []int64{1102, 9996},
 			wantCount:     2,
 		},
 		{
-			name: "Watch All Resources in a Namespace (Broad Information Disclosure)", // Matches YAML
+			name: "Watch All Resources in a Namespace (Broad Information Disclosure)",
 			policy: Policy{
 				RoleType:  "Role",
 				Namespace: "default",
 				APIGroup:  "*",
 				Resource:  "*",
-				Verbs:     []string{"watch"}, // Matches YAML
+				Verbs:     []string{"watch"},
 			},
 			wantErr:       false,
-			wantRiskLevel: RiskLevelHigh, // Matches YAML
+			wantRiskLevel: RiskLevelHigh,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1103, 0},
+			wantRulesIDs:  []int64{1103, 9997},
 		},
 	}
 
@@ -1759,8 +1758,8 @@ func TestDetermineBaseRiskLevel(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := determineBaseRiskLevel(&tt.policy); got != tt.want {
-				t.Errorf("determineBaseRiskLevel() = %v, want %v", got, tt.want)
+			if got := determineBaseRiskRule(&tt.policy); got.RiskLevel != tt.want {
+				t.Errorf("determineBaseRiskLevel() = %v, want %v", got.RiskLevel, tt.want)
 			}
 		})
 	}

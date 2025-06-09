@@ -481,6 +481,7 @@ func TestPrepareData(t *testing.T) {
 		entry := parsed.RBACData[0]
 		expectedRiskLevel := "Critical"
 		expectedTagContent := "ClusterAdminAccess"
+		expectedRiskRuleID := []int64{1039, 1047, 1002, 1075, 1073, 1071, 1006, 1078, 1008, 1080, 1010, 1011, 1036, 1013, 1014, 1015, 1016, 1017, 1066, 1102, 1020, 1065, 1064, 1099, 1024, 1063, 1062, 1027, 1028, 1061, 1060, 1031, 1032, 1033, 1059, 1035, 1012, 1081, 1052, 1055, 1092, 1041, 1000, 1043, 1044, 1045, 1046, 1037, 1048, 1098, 1004, 1072, 1038, 1042, 1040, 1076, 1056, 1091, 1001, 1034, 1025, 1097, 1096, 1029, 1009, 1021, 1018, 1067, 1022, 1069, 1007, 1103, 1030, 1026, 1074, 1003, 1053, 1089, 1070, 1079, 1068, 1058, 1005, 1083, 1084, 1085, 1019, 1100, 1023, 1077, 1090, 1057, 1054, 1093, 1094, 1095, 1049, 1050, 1051, 1088, 1087, 1101, 1086, 1082, 9999}
 
 		if entry.RiskLevel != expectedRiskLevel {
 			t.Errorf("RBACData[0].RiskLevel is %q, want %q", entry.RiskLevel, expectedRiskLevel)
@@ -495,6 +496,12 @@ func TestPrepareData(t *testing.T) {
 
 		if _, ok := allTags[expectedTagContent]; !ok {
 			t.Errorf("allTags %v did not contain expected tag %q", allTags, expectedTagContent)
+		}
+		if len(entry.RiskRules) != len(expectedRiskRuleID) {
+			t.Errorf("RBACData[0].RiskRules len got %d, want %d", len(entry.RiskRules), len(expectedRiskRuleID))
+		}
+		if !reflect.DeepEqual(entry.RiskRules, expectedRiskRuleID) {
+			t.Errorf("RBACData[0].RiskRules got %v, want %v", entry.RiskRules, expectedRiskRuleID)
 		}
 	})
 }

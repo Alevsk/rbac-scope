@@ -192,6 +192,7 @@ func PrepareData(data types.Result, opts *Options) (ParsedData, error) {
 								verbs,
 								"",
 								policyevaluation.RiskTags{},
+								[]int64{},
 							}
 							riskRules, err := policyevaluation.MatchRiskRules(policyevaluation.Policy{
 								Namespace: namespace,
@@ -203,6 +204,9 @@ func PrepareData(data types.Result, opts *Options) (ParsedData, error) {
 							})
 							if err != nil {
 								continue
+							}
+							for _, rule := range riskRules {
+								entry.RiskRules = append(entry.RiskRules, rule.ID)
 							}
 							if len(riskRules) > 0 {
 								entry.RiskLevel = riskRules[0].RiskLevel.String()

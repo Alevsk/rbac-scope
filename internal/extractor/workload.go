@@ -138,10 +138,16 @@ func (e *WorkloadExtractor) Extract(ctx context.Context, manifests []*renderer.M
 }
 
 func (e *WorkloadExtractor) extractPodWorkload(metadata, spec map[string]interface{}) *Workload {
+
+	namespace := "default" // Default namespace for cluster scoped resources
+	if ns, ok := metadata["namespace"]; ok {
+		namespace = ns.(string)
+	}
+
 	workload := &Workload{
 		Type:            WorkloadTypePod,
 		Name:            metadata["name"].(string),
-		Namespace:       metadata["namespace"].(string),
+		Namespace:       namespace,
 		ServiceAccount:  getStringValue(spec, "serviceAccountName"),
 		Labels:          toStringMap(metadata["labels"]),
 		Annotations:     toStringMap(metadata["annotations"]),
@@ -215,10 +221,15 @@ func (e *WorkloadExtractor) extractStatefulSetWorkload(metadata, spec map[string
 		return nil
 	}
 
+	namespace := "default" // Default namespace for cluster scoped resources
+	if ns, ok := metadata["namespace"]; ok {
+		namespace = ns.(string)
+	}
+
 	workload := &Workload{
 		Type:            WorkloadTypeStatefulSet,
 		Name:            metadata["name"].(string),
-		Namespace:       metadata["namespace"].(string),
+		Namespace:       namespace,
 		ServiceAccount:  getStringValue(templateSpec, "serviceAccountName"),
 		Labels:          toStringMap(metadata["labels"]),
 		Annotations:     toStringMap(metadata["annotations"]),
@@ -251,10 +262,15 @@ func (e *WorkloadExtractor) extractDaemonSetWorkload(metadata, spec map[string]i
 		return nil
 	}
 
+	namespace := "default" // Default namespace for cluster scoped resources
+	if ns, ok := metadata["namespace"]; ok {
+		namespace = ns.(string)
+	}
+
 	workload := &Workload{
 		Type:            WorkloadTypeDaemonSet,
 		Name:            metadata["name"].(string),
-		Namespace:       metadata["namespace"].(string),
+		Namespace:       namespace,
 		ServiceAccount:  getStringValue(templateSpec, "serviceAccountName"),
 		Labels:          toStringMap(metadata["labels"]),
 		Annotations:     toStringMap(metadata["annotations"]),
@@ -287,10 +303,15 @@ func (e *WorkloadExtractor) extractJobWorkload(metadata, spec map[string]interfa
 		return nil
 	}
 
+	namespace := "default" // Default namespace for cluster scoped resources
+	if ns, ok := metadata["namespace"]; ok {
+		namespace = ns.(string)
+	}
+
 	workload := &Workload{
 		Type:            WorkloadTypeJob,
 		Name:            metadata["name"].(string),
-		Namespace:       metadata["namespace"].(string),
+		Namespace:       namespace,
 		ServiceAccount:  getStringValue(templateSpec, "serviceAccountName"),
 		Labels:          toStringMap(metadata["labels"]),
 		Annotations:     toStringMap(metadata["annotations"]),
@@ -333,10 +354,15 @@ func (e *WorkloadExtractor) extractCronJobWorkload(metadata, spec map[string]int
 		return nil
 	}
 
+	namespace := "default" // Default namespace for cluster scoped resources
+	if ns, ok := metadata["namespace"]; ok {
+		namespace = ns.(string)
+	}
+
 	workload := &Workload{
 		Type:            WorkloadTypeCronJob,
 		Name:            metadata["name"].(string),
-		Namespace:       metadata["namespace"].(string),
+		Namespace:       namespace,
 		ServiceAccount:  getStringValue(templateSpec, "serviceAccountName"),
 		Labels:          toStringMap(metadata["labels"]),
 		Annotations:     toStringMap(metadata["annotations"]),

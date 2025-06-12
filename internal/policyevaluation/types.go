@@ -169,6 +169,12 @@ type RiskRule struct {
 	Resources   []string  `yaml:"resources"`
 	Verbs       []string  `yaml:"verbs"`
 	Tags        RiskTags  `yaml:"tags"`
+	Commands    []Command `yaml:"commands"`
+}
+
+type Command struct {
+	Description string `yaml:"description"`
+	Command     string `yaml:"command"`
 }
 
 type Policy struct {

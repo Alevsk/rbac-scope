@@ -62,12 +62,17 @@ func DetectRendererType(dirPath string) (RendererType, error) {
 }
 
 // GetRendererForType returns the appropriate renderer for the given type
-func GetRendererForType(typ RendererType) (renderer.Renderer, error) {
+func GetRendererForType(typ RendererType, opts *Options) (renderer.Renderer, error) {
+
 	switch typ {
 	case RendererTypeYAML:
 		return renderer.NewYAMLRenderer(), nil
 	case RendererTypeHelm:
-		return renderer.NewHelmRenderer(nil), nil
+		rOpts := renderer.DefaultOptions()
+		if opts != nil {
+			rOpts.Values = opts.Values
+		}
+		return renderer.NewHelmRenderer(rOpts), nil
 	case RendererTypeKustomize:
 		return renderer.NewKustomizeRenderer(nil), nil
 	default:

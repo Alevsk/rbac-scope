@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"sync"
 
 	yaml "gopkg.in/yaml.v3"
@@ -103,10 +104,20 @@ func (r *HelmRenderer) Render(ctx context.Context, folder []byte) (*Result, erro
 		return nil, fmt.Errorf("failed to load chart: %w", err)
 	}
 
-	// Load values from values.yaml if it exists
-	values := chart.Values
-	if chart.Values == nil {
-		values = make(map[string]interface{})
+	values := make(map[string]interface{})
+	if r.opts.Values != "" {
+		// Parse values from the specified values file path
+		valueBytes, err := os.ReadFile(r.opts.Values)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read values file %s: %w", r.opts.Values, err)
+		}
+
+		if err := yaml.Unmarshal(valueBytes, &values); err != nil {
+			return nil, fmt.Errorf("failed to parse values file %s: %w", r.opts.Values, err)
+		}
+	} else if chart.Values != nil {
+		// Load values from values.yaml if it exists
+		values = chart.Values
 	}
 
 	// Create chart config

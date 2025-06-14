@@ -26,7 +26,10 @@ Examples:
   rbac-ops ingest https://raw.githubusercontent.com/org/repo/main/deploy/rbac.yaml
 
   # Ingest from a directory
-  rbac-ops ingest ./deploy/operators/`,
+  rbac-ops ingest ./deploy/operators/
+
+  # Ingest from a helm chart
+  rbac-ops ingest ./deploy/operators/ -f values.yaml`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		source = args[0]
@@ -59,4 +62,5 @@ func init() {
 	flags.StringVarP(&ingestOpts.OutputFormat, "output", "o", "table", "output format (table, json, yaml, markdown)")
 	flags.BoolVar(&ingestOpts.IncludeMetadata, "include-metadata", true,
 		"include metadata in the output")
+	flags.StringVarP(&ingestOpts.Values, "values", "f", "", "path to a values.yaml file used for rendering a helm chart")
 }

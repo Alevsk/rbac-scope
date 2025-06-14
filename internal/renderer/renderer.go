@@ -17,6 +17,8 @@ type Options struct {
 	IncludeMetadata bool
 	// OutputFormat specifies the desired output format (e.g., yaml, json)
 	OutputFormat string
+	// Values is a path to a values.yaml file used for rendering a helm chart
+	Values string
 }
 
 // DefaultOptions returns a new Options with default values
@@ -25,6 +27,7 @@ func DefaultOptions() *Options {
 		ValidateOutput:  true,
 		IncludeMetadata: true,
 		OutputFormat:    "yaml",
+		Values:          "",
 	}
 }
 

@@ -61,7 +61,7 @@ func (r *FolderResolver) Resolve(ctx context.Context) (*renderer.Result, *Resolv
 	}
 
 	// Get the appropriate renderer and metadata
-	renderer, err := GetRendererForType(rendererType)
+	renderer, err := GetRendererForType(rendererType, r.opts)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get renderer: %w", err)
 	}
@@ -225,7 +225,7 @@ func (r *FolderResolver) Resolve(ctx context.Context) (*renderer.Result, *Resolv
 	}
 
 	// Use renderer to validate and process the content
-	yamlRenderer, err := GetRendererForType(RendererTypeYAML)
+	yamlRenderer, err := GetRendererForType(RendererTypeYAML, r.opts)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get renderer: %w", err)
 	}

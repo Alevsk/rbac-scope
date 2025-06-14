@@ -16,6 +16,8 @@ type Options struct {
 	FollowSymlinks bool
 	// ValidateYAML enables strict YAML validation during ingestion
 	ValidateYAML bool
+	// Values is a file path to a values.yaml file used for rendering a helm chart
+	Values string
 }
 
 // DefaultOptions returns the default resolver options
@@ -23,6 +25,7 @@ func DefaultOptions() *Options {
 	return &Options{
 		FollowSymlinks: false,
 		ValidateYAML:   true,
+		Values:         "",
 	}
 }
 

@@ -24,6 +24,8 @@ type Options struct {
 	OutputFormat string
 	// IncludeMetadata determines if metadata should be included in the output
 	IncludeMetadata bool
+	// Values is a file path to a values.yaml file used for rendering a helm chart
+	Values string
 }
 
 // DefaultOptions returns the default ingestor options
@@ -34,6 +36,7 @@ func DefaultOptions() *Options {
 		ValidateYAML:    true,
 		OutputFormat:    "table",
 		IncludeMetadata: true,
+		Values:          "",
 	}
 }
 
@@ -71,6 +74,7 @@ func (i *Ingestor) Ingest(ctx context.Context, source string) (*Result, error) {
 	opts := &resolver.Options{
 		ValidateYAML:   i.opts.ValidateYAML,
 		FollowSymlinks: i.opts.FollowSymlinks,
+		Values:         i.opts.Values,
 	}
 	// Get the appropriate resolver for this source
 	r, err := resolver.ResolverFactory(source, opts)

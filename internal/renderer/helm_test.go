@@ -2,7 +2,9 @@ package renderer
 
 import (
 	"context"
+	"os"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -26,6 +28,102 @@ func TestHelmRenderer_GetOptions(t *testing.T) {
 	}
 	if !reflect.DeepEqual(r.GetOptions(), setOpts) {
 		t.Errorf("GetOptions() after SetOptions = %v, want %v", r.GetOptions(), setOpts)
+	}
+}
+
+func TestHelmRenderer_RenderWithValues(t *testing.T) {
+	tests := []struct {
+		name           string
+		valuesPath     string
+		wantName       string
+		wantManifests  int
+		wantErr        bool
+		wantErrMessage string
+	}{
+		{
+			name:          "valid chart with values file",
+			valuesPath:    "testdata/fixtures/chart/values.yaml",
+			wantName:      "custom-name",
+			wantManifests: 1,
+		},
+		{
+			name:          "valid chart with external values file",
+			valuesPath:    "testdata/fixtures/values/values.yaml",
+			wantName:      "external-name",
+			wantManifests: 1,
+		},
+		{
+			name:           "invalid values file path",
+			valuesPath:     "/nonexistent/values.yaml",
+			wantErr:        true,
+			wantErrMessage: "failed to read values file",
+		},
+		{
+			name:          "no values file specified",
+			valuesPath:    "",
+			wantName:      "test", // Should use chart name as default
+			wantManifests: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create renderer with values path
+			r := NewHelmRenderer(&Options{Values: tt.valuesPath})
+
+			// Add chart files
+			files := map[string]string{
+				"Chart.yaml":          "testdata/fixtures/chart/Chart.yaml",
+				"templates/role.yaml": "testdata/fixtures/chart/templates/role.yaml",
+			}
+
+			// Only add values.yaml for test cases that should use it
+			if tt.name == "valid chart with values file" {
+				files["values.yaml"] = "testdata/fixtures/chart/values.yaml"
+			}
+
+			for name, path := range files {
+				content, err := os.ReadFile(path)
+				if err != nil {
+					t.Fatalf("Failed to read file %s: %v", path, err)
+				}
+				if err := r.AddFile(name, content); err != nil {
+					t.Fatalf("Failed to add file %s: %v", name, err)
+				}
+			}
+
+			// Render chart
+			result, err := r.Render(context.Background(), nil)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Error("Expected error but got none")
+				} else if !strings.Contains(err.Error(), tt.wantErrMessage) {
+					t.Errorf("Expected error containing %q but got %q", tt.wantErrMessage, err.Error())
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			// Verify result
+			if len(result.Manifests) != tt.wantManifests {
+				t.Errorf("Expected %d manifests but got %d", tt.wantManifests, len(result.Manifests))
+			}
+
+			// Check if the role name was properly templated
+			if len(result.Manifests) > 0 {
+				manifest := result.Manifests[0]
+				metadata, ok := manifest.Content["metadata"].(map[string]interface{})
+				if !ok {
+					t.Fatal("Expected metadata in manifest")
+				}
+				if name, ok := metadata["name"].(string); !ok || name != tt.wantName {
+					t.Errorf("Expected role name %q but got %q", tt.wantName, name)
+				}
+			}
+		})
 	}
 }
 
@@ -179,7 +277,7 @@ rules:
 	}
 }
 
-func TestHelmRendererWithValues(t *testing.T) {
+func TestHelmRenderer_DefaultValues(t *testing.T) {
 	// Create test files
 	files := map[string][]byte{
 		"Chart.yaml": []byte(`apiVersion: v2

@@ -69,24 +69,29 @@ func TestGetRendererForType(t *testing.T) {
 	tests := []struct {
 		name         string
 		rendererType RendererType
+		opts         *Options
 		wantErr      bool
 		errContains  string
 	}{
 		{
 			name:         "yaml renderer",
 			rendererType: RendererTypeYAML,
+			opts:         DefaultOptions(),
 		},
 		{
 			name:         "helm renderer",
 			rendererType: RendererTypeHelm,
+			opts:         DefaultOptions(),
 		},
 		{
 			name:         "kustomize renderer",
 			rendererType: RendererTypeKustomize,
+			opts:         nil,
 		},
 		{
 			name:         "unknown renderer",
 			rendererType: RendererType(999),
+			opts:         nil,
 			wantErr:      true,
 			errContains:  "unknown renderer type",
 		},
@@ -94,7 +99,7 @@ func TestGetRendererForType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			renderer, err := GetRendererForType(tt.rendererType)
+			renderer, err := GetRendererForType(tt.rendererType, tt.opts)
 
 			if tt.wantErr {
 				assert.Error(t, err)

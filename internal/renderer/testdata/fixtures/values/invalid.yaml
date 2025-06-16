@@ -1,0 +1,4 @@
+this: is: not: valid: yaml
+  - missing indentation
+    broken structure
+  unclosed quote: "test

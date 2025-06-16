@@ -53,6 +53,12 @@ func TestHelmRenderer_RenderWithValues(t *testing.T) {
 			wantManifests: 1,
 		},
 		{
+			name:           "valid chart with invalid values file",
+			valuesPath:     "testdata/fixtures/values/invalid.yaml",
+			wantErr:        true,
+			wantErrMessage: "failed to parse values file",
+		},
+		{
 			name:           "invalid values file path",
 			valuesPath:     "/nonexistent/values.yaml",
 			wantErr:        true,

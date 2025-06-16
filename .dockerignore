@@ -43,6 +43,9 @@ docs/
 Dockerfile
 .docker/
 
+# Cache directories
+.cache/
+
 # Misc
 .DS_Store
 Thumbs.db

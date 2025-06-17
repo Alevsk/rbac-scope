@@ -314,7 +314,7 @@ rules:
 			// a server with a closed listener is safe.
 			defer server.Close()
 
-			targetURL := server.URL // This will be empty for unstarted server
+			var targetURL string
 			if tt.name == "http client.Do error (connection refused)" {
 				// For unstarted server, Listener.Addr() gives the address.
 				// We need to manually construct a URL.

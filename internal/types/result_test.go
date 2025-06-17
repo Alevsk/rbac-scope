@@ -9,9 +9,9 @@ import (
 
 func TestManifest(t *testing.T) {
 	m := Manifest{
-		Name:    "test-manifest",
-		Content: map[string]interface{}{"key": "value"},
-		Raw:     []byte("raw data"),
+		Name:     "test-manifest",
+		Content:  map[string]interface{}{"key": "value"},
+		Raw:      []byte("raw data"),
 		Metadata: map[string]interface{}{"meta_key": "meta_value"},
 	}
 
@@ -75,10 +75,10 @@ func TestResult(t *testing.T) {
 		Manifests: []*Manifest{
 			{Name: "m1"},
 		},
-		Warnings: []string{"warning1"},
-		IdentityData: &ExtractedData{Data: map[string]interface{}{"id_key": "id_value"}},
-		WorkloadData: &ExtractedData{Data: map[string]interface{}{"wl_key": "wl_value"}},
-		RBACData:     &ExtractedData{Data: map[string]interface{}{"rbac_key": "rbac_value"}},
+		Warnings:        []string{"warning1"},
+		IdentityData:    &ExtractedData{Data: map[string]interface{}{"id_key": "id_value"}},
+		WorkloadData:    &ExtractedData{Data: map[string]interface{}{"wl_key": "wl_value"}},
+		RBACData:        &ExtractedData{Data: map[string]interface{}{"rbac_key": "rbac_value"}},
 		OutputFormatted: "formatted output",
 		Extra:           map[string]interface{}{"extra_key": "extra_value"},
 	}

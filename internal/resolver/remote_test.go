@@ -72,10 +72,27 @@ func TestNewRemoteYAMLResolver(t *testing.T) {
 			wantErr:  false, // NewRemoteYAMLResolver does not check extension, CanResolve does.
 			wantOpts: DefaultOptions(),
 		},
+		{
+			name:     "valid url, nil options, force internal client creation",
+			source:   "http://example.com/test.yaml",
+			opts:     nil,
+			client:   nil, // Will be overridden by setting defaultHTTPClient to nil
+			wantErr:  false,
+			wantOpts: DefaultOptions(),
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			var originalDefaultClient *http.Client
+			if tt.name == "valid url, nil options, force internal client creation" {
+				originalDefaultClient = defaultHTTPClient
+				defaultHTTPClient = nil
+				defer func() {
+					defaultHTTPClient = originalDefaultClient
+				}()
+			}
+
 			r, err := NewRemoteYAMLResolver(tt.source, tt.opts, tt.client)
 
 			if (err != nil) != tt.wantErr {
@@ -109,6 +126,14 @@ func TestNewRemoteYAMLResolver(t *testing.T) {
 					// This check might be flaky if the default client instance is somehow the same as mockClient
 					// For now, this is a basic check.
 					t.Logf("Note: Client instance check is basic. r.client: %p, tt.client: %p", r.client, tt.client)
+				}
+
+				if tt.name == "valid url, nil options, force internal client creation" {
+					if r.client == nil {
+						t.Error("Expected client to be initialized internally, but it's nil")
+					} else if r.client.Timeout != defaultHTTPTimeout {
+						t.Errorf("Expected client timeout to be %v, got %v", defaultHTTPTimeout, r.client.Timeout)
+					}
 				}
 			}
 		})
@@ -157,6 +182,18 @@ func TestRemoteYAMLResolver_CanResolve(t *testing.T) {
 			source:  "http://example.com/file.txt",
 			wantErr: false,
 			wantCan: false,
+		},
+		{
+			name:    "url parse error in CanResolve",
+			source:  "http://[::1]:namedport", // Invalid port, url.Parse will fail
+			wantErr: true,                     // NewRemoteYAMLResolver should catch this
+			wantCan: false,
+		},
+		{
+			name:    "valid https url with uppercase extension",
+			source:  "https://example.com/file.YAML",
+			wantErr: false,
+			wantCan: true,
 		},
 	}
 
@@ -247,17 +284,54 @@ rules:
 			},
 			wantErr: true,
 		},
+		{
+			name:     "http client.Do error (connection refused)",
+			validate: true, // Validate option doesn't matter much here as the error is pre-validation
+			setupServer: func() *httptest.Server {
+				// Create a server but don't start it, and close its listener.
+				// This will cause a connection refused error.
+				server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusOK) // Should not be reached
+				}))
+				// Close the listener immediately to simulate connection refused
+				if err := server.Listener.Close(); err != nil {
+					t.Fatalf("Failed to close listener for unstarted server: %v", err)
+				}
+				return server
+			},
+			wantErr: true,
+			// We expect an error, but not a specific 'errType' like ErrInvalidFormat,
+			// as it will be a network error from the client.Do call.
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			server := tt.setupServer()
+			// server.Close() is deferred in all cases.
+			// For the "connection refused" test, the server is already effectively "closed"
+			// by its listener being shut. server.Close() on an unstarted server or
+			// a server with a closed listener is safe.
 			defer server.Close()
 
+			targetURL := server.URL // This will be empty for unstarted server
+			if tt.name == "http client.Do error (connection refused)" {
+				// For unstarted server, Listener.Addr() gives the address.
+				// We need to manually construct a URL.
+				// The server.URL is only populated after Start/StartTLS.
+				targetURL = "http://" + server.Listener.Addr().String() + "/test.yaml"
+			} else {
+				targetURL = server.URL + "/test.yaml"
+			}
+
 			opts := &Options{ValidateYAML: tt.validate}
-			r, err := NewRemoteYAMLResolver(server.URL+"/test.yaml", opts, defaultHTTPClient)
+			r, err := NewRemoteYAMLResolver(targetURL, opts, defaultHTTPClient)
 			if err != nil {
-				t.Fatalf("NewRemoteYAMLResolver() error = %v", err)
+				// If the error is specifically for the "connection refused" test and it's an invalid URL error,
+				// that means our manual URL construction might still be off.
+				// However, the primary goal is to test client.Do failure.
+				// For now, let's assume NewRemoteYAMLResolver should pass if targetURL is well-formed.
+				t.Fatalf("NewRemoteYAMLResolver() error = %v for URL %s", err, targetURL)
 			}
 
 			ctx := context.Background()
@@ -274,8 +348,15 @@ rules:
 			}
 
 			if tt.wantErr {
-				if tt.errType != nil && !strings.Contains(err.Error(), tt.errType.Error()) {
-					t.Errorf("RemoteYAMLResolver.Resolve() error = %v, want %v", err, tt.errType)
+				if tt.errType != nil {
+					if !strings.Contains(err.Error(), tt.errType.Error()) {
+						t.Errorf("RemoteYAMLResolver.Resolve() error = %v, want error containing %v", err, tt.errType)
+					}
+				} else if tt.name == "http client.Do error (connection refused)" {
+					// Check for a generic fetch error or connection refused message
+					if !strings.Contains(err.Error(), "failed to fetch URL") && !strings.Contains(err.Error(), "connection refused") {
+						t.Errorf("RemoteYAMLResolver.Resolve() error = %v, want error containing 'failed to fetch URL' or 'connection refused'", err)
+					}
 				}
 				return
 			}

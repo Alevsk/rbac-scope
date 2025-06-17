@@ -146,19 +146,89 @@ func TestFolderResolver_Resolve(t *testing.T) {
 				}
 			},
 		},
+		{
+			name: "directory with unreadable yaml file",
+			// Source will be a dynamically created temp dir
+			wantErr: true, // Expect error from os.ReadFile
+		},
+		{
+			name: "directory with invalid yaml content in yml file",
+			// Source will be a dynamically created temp dir
+			wantErr:        false,
+			wantFiles:      1, // valid.yaml
+			wantType:       SourceTypeFolder,
+			wantRenderType: RendererTypeYAML,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			source := tt.source
+			var cleanupFunc func()
+
+			if tt.name == "directory with unreadable yaml file" {
+				tmpDir, err := os.MkdirTemp("", "unreadable-test")
+				if err != nil {
+					t.Fatalf("Failed to create temp dir for unreadable test: %v", err)
+				}
+				source = tmpDir
+				cleanupFunc = func() { os.RemoveAll(tmpDir) }
+				defer cleanupFunc()
+
+				unreadableFile := filepath.Join(tmpDir, "unreadable.yaml")
+				if err := os.WriteFile(unreadableFile, []byte("content"), 0644); err != nil {
+					t.Fatalf("Failed to write unreadable.yaml: %v", err)
+				}
+				if err := os.Chmod(unreadableFile, 0000); err != nil {
+					t.Fatalf("Failed to chmod unreadable.yaml to 0000: %v", err)
+				}
+				defer func() { // Ensure cleanup can happen
+					if err := os.Chmod(unreadableFile, 0644); err != nil {
+						t.Logf("Failed to change permissions back for unreadable.yaml: %v", err)
+					}
+				}()
+			}
+
+			if tt.name == "directory with invalid yaml content in yml file" {
+				tmpDir, err := os.MkdirTemp("", "invalid-yml-test")
+				if err != nil {
+					t.Fatalf("Failed to create temp dir for invalid yml test: %v", err)
+				}
+				source = tmpDir
+				cleanupFunc = func() { os.RemoveAll(tmpDir) }
+				defer cleanupFunc()
+
+				validFile := filepath.Join(tmpDir, "valid.yaml")
+				if err := os.WriteFile(validFile, []byte("kind: Role\napiVersion: rbac.authorization.k8s.io/v1"), 0644); err != nil {
+					t.Fatalf("Failed to write valid.yaml: %v", err)
+				}
+				invalidFile := filepath.Join(tmpDir, "invalid.yml")
+				// This content is syntactically invalid YAML (duplicate key at the same level without sequence/map structure)
+				// or simply something that `yaml.Unmarshal` would reject.
+				// A truly syntactically invalid file:
+				// if err := os.WriteFile(invalidFile, []byte("key: value\nkey: value"), 0644); err != nil {
+				// Forcing a non-map/non-array at top level, which our strict renderer will reject,
+				// but more importantly, making sure isValidYAML (if it's strict) might catch it,
+				// or that buildWalkFunc handles the error from renderer.AddFile if ValidateYAML is on.
+				// To ensure isValidYAML (from local.go, likely a simple unmarshal check) fails,
+				// we need truly broken YAML syntax.
+				// "foo: 'bar" was still not reliably failing the basic yaml.Unmarshal.
+				// Using an unclosed sequence.
+				if err := os.WriteFile(invalidFile, []byte("["), 0644); err != nil {
+					t.Fatalf("Failed to write invalid.yml: %v", err)
+				}
+			}
+
 			opts := &Options{
-				ValidateYAML:   true,
+				ValidateYAML:   true, // Assuming true for most folder tests, can be part of struct if needed
 				FollowSymlinks: tt.followSymlinks,
 			}
 
-			r := NewFolderResolver(tt.source, opts)
+			// Use the dynamically set source for specific tests
+			r := NewFolderResolver(source, opts)
 			result, metadata, err := r.Resolve(context.Background())
 			if (err != nil) != tt.wantErr {
-				t.Errorf("FolderResolver.Resolve() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("FolderResolver.Resolve() error = %v, wantErr %v for source %s", err, tt.wantErr, source)
 				return
 			}
 			if tt.wantErr {

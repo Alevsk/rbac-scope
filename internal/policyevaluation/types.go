@@ -156,6 +156,7 @@ const (
 	WorkloadDeployment           RiskTag = "WorkloadDeployment"
 	WorkloadExecution            RiskTag = "WorkloadExecution"
 	WorkloadLifecycle            RiskTag = "WorkloadLifecycle"
+	ResourceNameRestricted       RiskTag = "ResourceNameRestricted"
 )
 
 type RiskRule struct {
@@ -165,10 +166,11 @@ type RiskRule struct {
 	Category    string    `yaml:"category"`
 	RiskLevel   RiskLevel `yaml:"risk_level"`
 	APIGroups   []string  `yaml:"api_groups"`
-	RoleType    string    `yaml:"role_type"`
-	Resources   []string  `yaml:"resources"`
-	Verbs       []string  `yaml:"verbs"`
-	Tags        RiskTags  `yaml:"tags"`
+	RoleType      string   `yaml:"role_type"`
+	Resources     []string `yaml:"resources"`
+	ResourceNames []string `yaml:"resource_names"`
+	Verbs         []string `yaml:"verbs"`
+	Tags          RiskTags `yaml:"tags"`
 	Commands    []Command `yaml:"commands"`
 }
 
@@ -182,8 +184,9 @@ type Policy struct {
 	RoleType  string   `json:"roleType" yaml:"roleType"`
 	RoleName  string   `json:"roleName" yaml:"roleName"`
 	APIGroup  string   `json:"apiGroup" yaml:"apiGroup"`
-	Resource  string   `json:"resource" yaml:"resource"`
-	Verbs     []string `json:"verbs" yaml:"verbs"`
+	Resource      string   `json:"resource" yaml:"resource"`
+	ResourceNames []string `json:"resourceNames" yaml:"resourceNames"`
+	Verbs         []string `json:"verbs" yaml:"verbs"`
 }
 
 var BaseRiskRuleCritical = RiskRule{

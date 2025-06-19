@@ -3,12 +3,23 @@ package policyevaluation
 import (
 	"os"
 	"sort"
+	"reflect"
 	"testing"
 
 	"github.com/alevsk/rbac-ops/internal/config"
 	"github.com/alevsk/rbac-ops/internal/logger"
 	"gopkg.in/yaml.v3"
 )
+
+// Helper function to check if a slice of RiskTags contains a specific tag
+func containsTag(tags RiskTags, tag RiskTag) bool {
+	for _, T := range tags {
+		if T == tag {
+			return true
+		}
+	}
+	return false
+}
 
 func TestMatchRiskRules(t *testing.T) {
 	// suppress debug logging
@@ -39,10 +50,39 @@ func TestMatchRiskRules(t *testing.T) {
 		policy        Policy
 		wantErr       bool
 		wantRiskLevel RiskLevel
-		testType      string  // "exact", "count"
-		wantRulesIDs  []int64 // for exact match validation
-		wantCount     int     // for count validation or minimal validation
+		testType      string    // "exact", "count", "resourceNameCheck"
+		wantRulesIDs  []int64   // for exact match validation
+		wantCount     int       // for count validation or minimal validation
+		wantResourceNames []string // for resourceNameCheck
+		wantTag       RiskTag   // for resourceNameCheck
 	}
+
+	// Preload rules to use in tests, especially for specific ID matching
+	allRules := GetRiskRules()
+	var sampleCustomRuleForResourceNameTest RiskRule
+	// Find a suitable rule, e.g., one for reading secrets in a namespace
+	for _, r := range allRules {
+		// Let's use a rule that's namespaced and deals with secrets
+		// This is just an example, you might need to adjust based on actual rule IDs and definitions
+		if r.ID == 1011 { // Example ID for "Read secrets in a namespace"
+			sampleCustomRuleForResourceNameTest = r
+			break
+		}
+	}
+	if sampleCustomRuleForResourceNameTest.ID == 0 {
+		// Fallback or create a dummy rule if not found, to ensure test stability
+		// This part might need adjustment based on actual available rules from GetRiskRules()
+		// For now, let's assume rule 1011 is "Read secrets in a namespace" (Critical)
+		// and its base counterpart is Low (9996) or Medium (9997)
+		// If we use a rule that is already Low, the RiskLevelLow override won't be as obvious.
+		// Let's use a rule that is typically Critical or High to see the effect.
+		// Rule 1011: Read secrets in a namespace, RiskLevelCritical
+		// Base Rule for this policy would be Medium (9997)
+		sampleCustomRuleForResourceNameTest = RiskRule{
+			ID: 1011, Name: "Read secrets in a namespace", RiskLevel: RiskLevelCritical, APIGroups: []string{""}, Resources: []string{"secrets"}, Verbs: []string{"get", "list", "watch"}, RoleType: "Role",
+		}
+	}
+
 
 	tests := []matchRiskRulesTest{
 		{
@@ -1635,7 +1675,106 @@ func TestMatchRiskRules(t *testing.T) {
 			wantErr:       false,
 			wantRiskLevel: RiskLevelHigh,
 			testType:      "exact",
-			wantRulesIDs:  []int64{1103, 9997},
+			wantRulesIDs:  []int64{1103, 9997}, // Base rule for namespaced, wildcard resource/verb is Medium (9997)
+		},
+		// New tests for resourceNames evaluation
+		{
+			name: "Policy with specific resourceNames matching custom rule (secrets)",
+			policy: Policy{
+				RoleType:      "Role",
+				Namespace:     "default",
+				APIGroup:      sampleCustomRuleForResourceNameTest.APIGroups[0], // ""
+				Resource:      sampleCustomRuleForResourceNameTest.Resources[0], // "secrets"
+				Verbs:         sampleCustomRuleForResourceNameTest.Verbs,      // {"get", "list", "watch"}
+				ResourceNames: []string{"my-secret"},
+			},
+			wantErr:       false,
+			wantRiskLevel: RiskLevelLow, // Risk should be overridden to Low
+			testType:      "resourceNameCheck",
+			// Expecting the custom rule (e.g., 1011) and its corresponding base rule (e.g. 9997 for medium, or 9996 for low if all specific)
+			// Since ResourceNames are present, the custom rule 1011 will be RiskLevelLow.
+			// The base rule determined by determineBaseRiskRule for this policy (specific, namespaced) would be BaseRiskRuleLow (9996).
+			wantRulesIDs:      []int64{sampleCustomRuleForResourceNameTest.ID, BaseRiskRuleLow.ID},
+			wantResourceNames: []string{"my-secret"},
+			wantTag:           ResourceNameRestricted,
+			wantCount:     2, // Custom rule + Base rule
+		},
+		{
+			name: "Policy with specific resourceNames, no custom rule match, base rule modified",
+			policy: Policy{
+				RoleType:      "Role",
+				Namespace:     "default",
+				APIGroup:      "nonexistent.group.io", // Should not match any custom rule
+				Resource:      "nonexistentresource",
+				Verbs:         []string{"get"},
+				ResourceNames: []string{"my-specific-resource"},
+			},
+			wantErr:       false,
+			wantRiskLevel: RiskLevelLow, // Base rule risk should be overridden to Low
+			testType:      "resourceNameCheck",
+			// Only the base rule should be returned, modified.
+			// The base rule for a namespaced, specific resource/verb policy is BaseRiskRuleLow (ID 9996).
+			wantRulesIDs:      []int64{BaseRiskRuleLow.ID},
+			wantResourceNames: []string{"my-specific-resource"},
+			wantTag:           ResourceNameRestricted,
+			wantCount:     1,
+		},
+		{
+			name: "Policy with empty resourceNames [] - existing behavior (secrets example)",
+			policy: Policy{
+				RoleType:      "Role",
+				Namespace:     "default",
+				APIGroup:      sampleCustomRuleForResourceNameTest.APIGroups[0],
+				Resource:      sampleCustomRuleForResourceNameTest.Resources[0],
+				Verbs:         sampleCustomRuleForResourceNameTest.Verbs,
+				ResourceNames: []string{}, // Empty slice
+			},
+			wantErr:       false,
+			wantRiskLevel: sampleCustomRuleForResourceNameTest.RiskLevel, // Should be original risk of custom rule
+			testType:      "exact", // Or "count" if IDs are not stable/known for this test setup
+			// Expecting custom rule + original base rule.
+			// Original rule 1011 is Critical. Base rule for this (namespaced, specific) is Low (9996)
+			// This seems off, "Read secrets in a namespace" (1011) is Critical, but base rule for specific namespaced is Low.
+			// Let's use the values from existing tests for "Read secrets in a namespace" (ID 1011)
+			// It expects RiskLevelCritical and count 2.
+			// Existing test: "Read secrets in a namespace" -> wantRiskLevel: RiskLevelCritical, wantCount: 2
+			// This implies the base rule is also critical or the custom rule is the only one determining the highest.
+			// The base rule for (Role, default, "", secrets, [get,list,watch]) is BaseRiskRuleLow (9996).
+			// So, if 1011 (Critical) matches, results are [1011, 9996]. Highest is Critical.
+			wantRulesIDs:  []int64{sampleCustomRuleForResourceNameTest.ID, BaseRiskRuleLow.ID},
+			wantCount:     2,
+		},
+		{
+			name: "Policy with resourceNames [\"\"] - existing behavior (secrets example)",
+			policy: Policy{
+				RoleType:      "Role",
+				Namespace:     "default",
+				APIGroup:      sampleCustomRuleForResourceNameTest.APIGroups[0],
+				Resource:      sampleCustomRuleForResourceNameTest.Resources[0],
+				Verbs:         sampleCustomRuleForResourceNameTest.Verbs,
+				ResourceNames: []string{""}, // Slice with one empty string
+			},
+			wantErr:       false,
+			wantRiskLevel: sampleCustomRuleForResourceNameTest.RiskLevel,
+			testType:      "exact",
+			wantRulesIDs:  []int64{sampleCustomRuleForResourceNameTest.ID, BaseRiskRuleLow.ID},
+			wantCount:     2,
+		},
+		{
+			name: "Policy with nil resourceNames - existing behavior (secrets example)",
+			policy: Policy{
+				RoleType:      "Role",
+				Namespace:     "default",
+				APIGroup:      sampleCustomRuleForResourceNameTest.APIGroups[0],
+				Resource:      sampleCustomRuleForResourceNameTest.Resources[0],
+				Verbs:         sampleCustomRuleForResourceNameTest.Verbs,
+				ResourceNames: nil, // Nil slice
+			},
+			wantErr:       false,
+			wantRiskLevel: sampleCustomRuleForResourceNameTest.RiskLevel,
+			testType:      "exact",
+			wantRulesIDs:  []int64{sampleCustomRuleForResourceNameTest.ID, BaseRiskRuleLow.ID},
+			wantCount:     2,
 		},
 	}
 
@@ -1647,10 +1786,77 @@ func TestMatchRiskRules(t *testing.T) {
 				return
 			}
 
-			// Check the highest risk level matches expected
-			if len(got) > 0 && got[0].RiskLevel != tt.wantRiskLevel {
-				t.Errorf("MatchRiskRules() highest risk level = %v, want %v", got[0].RiskLevel, tt.wantRiskLevel)
+			if len(got) == 0 && (tt.testType == "exact" || tt.testType == "resourceNameCheck" || tt.wantCount > 0) {
+				t.Errorf("MatchRiskRules() returned no rules, but expected some.")
+				return
 			}
+
+			if len(got) > 0 && got[0].RiskLevel != tt.wantRiskLevel {
+				// For resourceNameCheck, the primary matched rule (custom or base) should have its risk level checked.
+				// The overall highest risk (got[0]) might be from an unmodified base rule if a resource-restricted custom rule is matched.
+				// Let's refine this check for resourceNameCheck.
+				if tt.testType == "resourceNameCheck" {
+					// Find the rule that should have been modified (either a custom match or the base rule)
+					var modifiedRule RiskRule
+					isCustomMatch := false
+					if len(tt.wantRulesIDs) == 1 && tt.wantRulesIDs[0] == BaseRiskRuleLow.ID { // Only base rule expected and modified
+						modifiedRule = got[0] // Assuming base rule is the only one, or the first one if sorted.
+					} else {
+						for _, r := range got {
+							// Check if this rule is one of the expected custom rules that should be modified
+							for _, expectedID := range tt.wantRulesIDs {
+								if r.ID == expectedID && r.ID != BaseRiskRuleLow.ID && r.ID != BaseRiskRuleMedium.ID && r.ID != BaseRiskRuleHigh.ID && r.ID != BaseRiskRuleCritical.ID {
+									modifiedRule = r
+									isCustomMatch = true
+									break
+								}
+							}
+							if isCustomMatch {break}
+						}
+						if !isCustomMatch && len(got) > 0 { // If no custom rule matched and modified, check the base rule from the results
+							for _, r := range got {
+								if r.ID == BaseRiskRuleLow.ID || r.ID == BaseRiskRuleMedium.ID || r.ID == BaseRiskRuleHigh.ID || r.ID == BaseRiskRuleCritical.ID {
+									// This logic might need to be more specific if multiple base rules could be involved or if sorting changes
+									// For now, assume the relevant base rule is identifiable
+									 isBaseOnlyScenario := true
+									 for _, id := range tt.wantRulesIDs {
+										 if id != BaseRiskRuleLow.ID && id != BaseRiskRuleMedium.ID && id != BaseRiskRuleHigh.ID && id != BaseRiskRuleCritical.ID {
+											isBaseOnlyScenario = false
+											break
+										 }
+									 }
+									 if isBaseOnlyScenario {
+										 modifiedRule = r // Check the base rule that was modified
+										 break
+									 }
+								}
+							}
+						}
+					}
+
+					if modifiedRule.ID != 0 && modifiedRule.RiskLevel != tt.wantRiskLevel {
+						t.Errorf("MatchRiskRules() specific rule ID %d RiskLevel = %v, want %v for test '%s'", modifiedRule.ID, modifiedRule.RiskLevel, tt.wantRiskLevel, tt.name)
+					} else if modifiedRule.ID == 0 && len(got) > 0 {
+                         // If we couldn't identify a specific modified rule, but expected one, this is an issue.
+                         // However, if the highest level already matches, it might be okay for some scenarios.
+                         // This part of the check is complex due to multiple rules being returned.
+                         // Fallback to checking got[0] if specific rule not found, but log it.
+                        // For now, let's rely on the got[0].RiskLevel check if specific modified rule logic is not perfect.
+                        if got[0].RiskLevel != tt.wantRiskLevel {
+						    t.Logf("Could not identify the specifically modified rule for detailed RiskLevel check in test '%s'. Checking got[0].RiskLevel.", tt.name)
+						    t.Errorf("MatchRiskRules() highest risk level = %v, want %v for test '%s'", got[0].RiskLevel, tt.wantRiskLevel, tt.name)
+                        }
+					} else if modifiedRule.ID == 0 && len(got) == 0 && tt.wantCount > 0 {
+                        t.Errorf("MatchRiskRules() returned no rules, but expected specific rule with RiskLevel %v for test '%s'", tt.wantRiskLevel, tt.name)
+                    }
+
+				} else if got[0].RiskLevel != tt.wantRiskLevel {
+					t.Errorf("MatchRiskRules() highest risk level = %v, want %v for test '%s'", got[0].RiskLevel, tt.wantRiskLevel, tt.name)
+				}
+			} else if len(got) == 0 && tt.wantCount > 0 {
+				t.Errorf("MatchRiskRules() returned no rules, but wantCount was %d for test '%s'", tt.wantCount, tt.name)
+			}
+
 
 			// Handle different test types
 			switch tt.testType {
@@ -1660,14 +1866,121 @@ func TestMatchRiskRules(t *testing.T) {
 					for _, rule := range got {
 						ruleIds = append(ruleIds, rule.ID)
 					}
-					t.Errorf("MatchRiskRules() got = %v, want %v", ruleIds, tt.wantRulesIDs)
+					// Sort ruleIds before comparing for consistent error messages
+					sort.Slice(ruleIds, func(i, j int) bool { return ruleIds[i] < ruleIds[j] })
+					// tt.wantRulesIDs should also be sorted if not already
+					sort.Slice(tt.wantRulesIDs, func(i, j int) bool { return tt.wantRulesIDs[i] < tt.wantRulesIDs[j] })
+					t.Errorf("MatchRiskRules() got IDs = %v, want IDs = %v for test '%s'", ruleIds, tt.wantRulesIDs, tt.name)
 				}
 			case "count":
 				if len(got) != tt.wantCount {
-					t.Errorf("MatchRiskRules() got %v rules, want %v", len(got), tt.wantCount)
+					ruleIds := []int64{}
+					for _, rule := range got {
+						ruleIds = append(ruleIds, rule.ID)
+					}
+					t.Errorf("MatchRiskRules() got %v rules (IDs: %v), want %v for test '%s'", len(got), ruleIds, tt.wantCount, tt.name)
 				}
+			case "resourceNameCheck":
+				if len(got) != tt.wantCount {
+					t.Errorf("MatchRiskRules() got %v rules, want %v for resourceNameCheck test '%s'", len(got), tt.wantCount, tt.name)
+				}
+				// Check specific properties of the matched rule(s)
+				// This part assumes that if a custom rule matches, it's the one we care about for these properties.
+				// If only a base rule matches, that's the one.
+				var ruleToCheck RiskRule
+				foundRule := false
+				if len(tt.wantRulesIDs) == 1 && tt.wantRulesIDs[0] == BaseRiskRuleLow.ID { // Only base rule expected
+					for _, r := range got {
+						if r.ID == BaseRiskRuleLow.ID {
+							ruleToCheck = r
+							foundRule = true
+							break
+						}
+					}
+				} else { // Expecting a custom rule (potentially among others)
+					expectedCustomRuleID := int64(-1)
+					for _, id := range tt.wantRulesIDs {
+						isBase := false
+						for _, baseID := range []int64{BaseRiskRuleCritical.ID, BaseRiskRuleHigh.ID, BaseRiskRuleMedium.ID, BaseRiskRuleLow.ID} {
+							if id == baseID {
+								isBase = true
+								break
+							}
+						}
+						if !isBase {
+							expectedCustomRuleID = id
+							break
+						}
+					}
+
+					if expectedCustomRuleID != -1 {
+						for _, r := range got {
+							if r.ID == expectedCustomRuleID {
+								ruleToCheck = r
+								foundRule = true
+								break
+							}
+						}
+					} else if len(got) > 0 { // Fallback if no specific custom ID, check the first non-base if possible, or just first
+						 isNonBaseFound := false
+						 for _, r := range got {
+							 isBase := false
+							 for _, baseID := range []int64{BaseRiskRuleCritical.ID, BaseRiskRuleHigh.ID, BaseRiskRuleMedium.ID, BaseRiskRuleLow.ID} {
+								 if r.ID == baseID {
+									 isBase = true
+									 break
+								 }
+							 }
+							 if !isBase {
+								 ruleToCheck = r
+								 foundRule = true
+								 isNonBaseFound = true
+								 break
+							 }
+						 }
+						 if !isNonBaseFound && len(got) > 0 { // if all are base rules (e.g. only base rule scenario)
+							 ruleToCheck = got[0] // Pick the first one (highest risk, which should be the modified base)
+							 foundRule = true
+						 }
+					}
+				}
+
+				if !foundRule && len(got) > 0 {
+					// If no specific rule was identified based on IDs, but we have results,
+					// and we expect resource names to be present, pick the first rule that has them.
+					// This is a fallback, ideally ID matching is better.
+					for _, r := range got {
+						if len(r.ResourceNames) > 0 {
+							ruleToCheck = r
+							foundRule = true
+							break;
+						}
+					}
+					if !foundRule { // If still not found, and we expected one, use the highest risk rule.
+                        ruleToCheck = got[0]
+                        foundRule = true
+                    }
+				} else if !foundRule && len(got) == 0 && tt.wantCount > 0 {
+                     t.Errorf("MatchRiskRules() returned no rules, but expected one for resourceNameCheck in test '%s'", tt.name)
+                }
+
+
+				if foundRule {
+					if ruleToCheck.RiskLevel != tt.wantRiskLevel {
+						t.Errorf("MatchRiskRules() rule ID %d (name: %s) RiskLevel = %s, want %s for test '%s'", ruleToCheck.ID, ruleToCheck.Name, ruleToCheck.RiskLevel, tt.wantRiskLevel, tt.name)
+					}
+					if !containsTag(ruleToCheck.Tags, tt.wantTag) {
+						t.Errorf("MatchRiskRules() rule ID %d (name: %s) Tags = %v, want to contain %s for test '%s'", ruleToCheck.ID, ruleToCheck.Name, ruleToCheck.Tags, tt.wantTag, tt.name)
+					}
+					if !reflect.DeepEqual(ruleToCheck.ResourceNames, tt.wantResourceNames) {
+						t.Errorf("MatchRiskRules() rule ID %d (name: %s) ResourceNames = %v, want %v for test '%s'", ruleToCheck.ID, ruleToCheck.Name, ruleToCheck.ResourceNames, tt.wantResourceNames, tt.name)
+					}
+				} else if tt.wantCount > 0 { // If no rule was found to check, but we expected rules
+					t.Errorf("MatchRiskRules() did not find a suitable rule to check for resourceNameCheck assertions in test '%s'", tt.name)
+				}
+
 			default:
-				t.Errorf("Invalid test type: %v", tt.testType)
+				t.Errorf("Invalid test type: %v for test '%s'", tt.testType, tt.name)
 			}
 		})
 	}

@@ -8,6 +8,11 @@ import (
 	"github.com/alevsk/rbac-ops/internal/logger"
 )
 
+// isResourceNamesPresent checks if policy.ResourceNames is present and not empty
+func isResourceNamesPresent(policy *Policy) bool {
+	return len(policy.ResourceNames) > 0 && (len(policy.ResourceNames) > 1 || policy.ResourceNames[0] != "")
+}
+
 // containsWildcard checks if a string equals "*" or contains "*"
 func containsWildcard(s string) bool {
 	return s == "*" || strings.Contains(s, "*")
@@ -205,22 +210,54 @@ func MatchRiskRules(policy Policy) ([]RiskRule, error) {
 	// Try to match against custom rules
 	var matches []RiskRule
 	for _, rule := range GetRiskRules() {
-		if matchesCustomRule(&policy, &rule) {
-			matches = append(matches, rule)
+		// Create a copy of the rule to avoid modifying the global rule set
+		ruleCopy := rule
+		if matchesCustomRule(&policy, &ruleCopy) {
+			matches = append(matches, ruleCopy)
 		}
 	}
 
 	// Get base risk level
 	baseRule := determineBaseRiskRule(&policy)
 
+	resourceNamesRestricted := isResourceNamesPresent(&policy)
+
+	if resourceNamesRestricted {
+		addResourceNameRestrictedTag := func(tags RiskTags) RiskTags {
+			for _, tag := range tags {
+				if tag == ResourceNameRestricted {
+					return tags // Tag already exists
+				}
+			}
+			return append(tags, ResourceNameRestricted)
+		}
+
+		if len(matches) > 0 {
+			for i := range matches {
+				matches[i].RiskLevel = RiskLevelLow
+				matches[i].Tags = addResourceNameRestrictedTag(matches[i].Tags)
+				matches[i].ResourceNames = policy.ResourceNames
+			}
+		} else {
+			baseRule.RiskLevel = RiskLevelLow
+			baseRule.Tags = addResourceNameRestrictedTag(baseRule.Tags)
+			baseRule.ResourceNames = policy.ResourceNames
+		}
+	}
+
 	// If we found custom rule matches, sort them by risk level
 	if len(matches) > 0 {
 		// Sort matches by risk level (highest to lowest)
+		// This might be less critical if all are RiskLevelLow due to ResourceNames
 		sort.Slice(matches, func(i, j int) bool {
 			return matches[i].RiskLevel > matches[j].RiskLevel
 		})
 
 		// Return matches and base risk level
+		// Ensure baseRule is added only if it's not effectively superseded by a resourceName-restricted custom match
+		// or if no custom matches occurred.
+		// If resourceNamesRestricted is true and matches exist, baseRule might be redundant if it's also low.
+		// However, the original logic always adds baseRule, so we maintain that for now.
 		return append(matches, baseRule), nil
 	}
 

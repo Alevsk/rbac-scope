@@ -3,6 +3,7 @@ package policyevaluation
 import (
 	_ "embed"
 	"reflect"
+	"sort"
 	"testing"
 )
 
@@ -67,7 +68,12 @@ func TestUniqueRiskTags(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := UniqueRiskTags(tt.args.tags); !reflect.DeepEqual(got, tt.want) {
+			got := UniqueRiskTags(tt.args.tags)
+			// Sort both slices before comparison to make the test order-agnostic
+			sort.Slice(got, func(i, j int) bool { return got[i] < got[j] })
+			sort.Slice(tt.want, func(i, j int) bool { return tt.want[i] < tt.want[j] })
+
+			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("UniqueRiskTags() = %v, want %v", got, tt.want)
 			}
 		})

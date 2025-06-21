@@ -220,33 +220,19 @@ func MatchRiskRules(policy Policy) ([]RiskRule, error) {
 	// Get base risk level
 	baseRule := determineBaseRiskRule(&policy)
 
-	resourceNamesRestricted := isResourceNamesPresent(&policy)
-
-	if resourceNamesRestricted {
-		addResourceNameRestrictedTag := func(tags RiskTags) RiskTags {
-			for _, tag := range tags {
-				if tag == ResourceNameRestricted {
-					return tags // Tag already exists
-				}
-			}
-			return append(tags, ResourceNameRestricted)
-		}
-
-		if len(matches) > 0 {
-			for i := range matches {
-				matches[i].RiskLevel = RiskLevelLow
-				matches[i].Tags = addResourceNameRestrictedTag(matches[i].Tags)
-				matches[i].ResourceNames = policy.ResourceNames
-			}
-		} else {
-			baseRule.RiskLevel = RiskLevelLow
-			baseRule.Tags = addResourceNameRestrictedTag(baseRule.Tags)
-			baseRule.ResourceNames = policy.ResourceNames
-		}
-	}
-
 	// If we found custom rule matches, sort them by risk level
 	if len(matches) > 0 {
+
+		// If resource names are present, set risk level to low and add resource name restricted tag to all matches
+		if isResourceNamesPresent(&policy) {
+			for i := range matches {
+				tags := matches[i].Tags
+				matches[i].RiskLevel = RiskLevelLow // Risk level is considered low if resource names are present because blast radius is reduced to a single resource
+				matches[i].Tags = append(tags, ResourceNameRestricted)
+				matches[i].ResourceNames = policy.ResourceNames
+			}
+		}
+
 		// Sort matches by risk level (highest to lowest)
 		// This might be less critical if all are RiskLevelLow due to ResourceNames
 		sort.Slice(matches, func(i, j int) bool {

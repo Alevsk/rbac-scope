@@ -160,18 +160,18 @@ const (
 )
 
 type RiskRule struct {
-	ID          int64     `yaml:"id"`
-	Name        string    `yaml:"name"`
-	Description string    `yaml:"description"`
-	Category    string    `yaml:"category"`
-	RiskLevel   RiskLevel `yaml:"risk_level"`
-	APIGroups   []string  `yaml:"api_groups"`
-	RoleType      string   `yaml:"role_type"`
-	Resources     []string `yaml:"resources"`
-	ResourceNames []string `yaml:"resource_names"`
-	Verbs         []string `yaml:"verbs"`
-	Tags          RiskTags `yaml:"tags"`
-	Commands    []Command `yaml:"commands"`
+	ID            int64     `yaml:"id"`
+	Name          string    `yaml:"name"`
+	Description   string    `yaml:"description"`
+	Category      string    `yaml:"category"`
+	RiskLevel     RiskLevel `yaml:"risk_level"`
+	APIGroups     []string  `yaml:"api_groups"`
+	RoleType      string    `yaml:"role_type"`
+	Resources     []string  `yaml:"resources"`
+	ResourceNames []string  `yaml:"resource_names"`
+	Verbs         []string  `yaml:"verbs"`
+	Tags          RiskTags  `yaml:"tags"`
+	Commands      []Command `yaml:"commands"`
 }
 
 type Command struct {
@@ -180,10 +180,10 @@ type Command struct {
 }
 
 type Policy struct {
-	Namespace string   `json:"namespace" yaml:"namespace"`
-	RoleType  string   `json:"roleType" yaml:"roleType"`
-	RoleName  string   `json:"roleName" yaml:"roleName"`
-	APIGroup  string   `json:"apiGroup" yaml:"apiGroup"`
+	Namespace     string   `json:"namespace" yaml:"namespace"`
+	RoleType      string   `json:"roleType" yaml:"roleType"`
+	RoleName      string   `json:"roleName" yaml:"roleName"`
+	APIGroup      string   `json:"apiGroup" yaml:"apiGroup"`
 	Resource      string   `json:"resource" yaml:"resource"`
 	ResourceNames []string `json:"resourceNames" yaml:"resourceNames"`
 	Verbs         []string `json:"verbs" yaml:"verbs"`

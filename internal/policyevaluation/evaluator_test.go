@@ -2,8 +2,8 @@ package policyevaluation
 
 import (
 	"os"
-	"sort"
 	"reflect"
+	"sort"
 	"testing"
 
 	"github.com/alevsk/rbac-ops/internal/config"
@@ -46,43 +46,20 @@ func TestMatchRiskRules(t *testing.T) {
 	}
 
 	type matchRiskRulesTest struct {
-		name          string
-		policy        Policy
-		wantErr       bool
-		wantRiskLevel RiskLevel
-		testType      string    // "exact", "count", "resourceNameCheck"
-		wantRulesIDs  []int64   // for exact match validation
-		wantCount     int       // for count validation or minimal validation
+		name              string
+		policy            Policy
+		wantErr           bool
+		wantRiskLevel     RiskLevel
+		testType          string   // "exact", "count", "resourceNameCheck"
+		wantRulesIDs      []int64  // for exact match validation
+		wantCount         int      // for count validation or minimal validation
 		wantResourceNames []string // for resourceNameCheck
-		wantTag       RiskTag   // for resourceNameCheck
+		wantTag           RiskTag  // for resourceNameCheck
 	}
 
 	// Preload rules to use in tests, especially for specific ID matching
 	allRules := GetRiskRules()
-	var sampleCustomRuleForResourceNameTest RiskRule
-	// Find a suitable rule, e.g., one for reading secrets in a namespace
-	for _, r := range allRules {
-		// Let's use a rule that's namespaced and deals with secrets
-		// This is just an example, you might need to adjust based on actual rule IDs and definitions
-		if r.ID == 1011 { // Example ID for "Read secrets in a namespace"
-			sampleCustomRuleForResourceNameTest = r
-			break
-		}
-	}
-	if sampleCustomRuleForResourceNameTest.ID == 0 {
-		// Fallback or create a dummy rule if not found, to ensure test stability
-		// This part might need adjustment based on actual available rules from GetRiskRules()
-		// For now, let's assume rule 1011 is "Read secrets in a namespace" (Critical)
-		// and its base counterpart is Low (9996) or Medium (9997)
-		// If we use a rule that is already Low, the RiskLevelLow override won't be as obvious.
-		// Let's use a rule that is typically Critical or High to see the effect.
-		// Rule 1011: Read secrets in a namespace, RiskLevelCritical
-		// Base Rule for this policy would be Medium (9997)
-		sampleCustomRuleForResourceNameTest = RiskRule{
-			ID: 1011, Name: "Read secrets in a namespace", RiskLevel: RiskLevelCritical, APIGroups: []string{""}, Resources: []string{"secrets"}, Verbs: []string{"get", "list", "watch"}, RoleType: "Role",
-		}
-	}
-
+	sampleCustomRuleForResourceNameTest := allRules[11] // Read secrets in a namespace
 
 	tests := []matchRiskRulesTest{
 		{
@@ -1677,7 +1654,6 @@ func TestMatchRiskRules(t *testing.T) {
 			testType:      "exact",
 			wantRulesIDs:  []int64{1103, 9997}, // Base rule for namespaced, wildcard resource/verb is Medium (9997)
 		},
-		// New tests for resourceNames evaluation
 		{
 			name: "Policy with specific resourceNames matching custom rule (secrets)",
 			policy: Policy{
@@ -1685,7 +1661,7 @@ func TestMatchRiskRules(t *testing.T) {
 				Namespace:     "default",
 				APIGroup:      sampleCustomRuleForResourceNameTest.APIGroups[0], // ""
 				Resource:      sampleCustomRuleForResourceNameTest.Resources[0], // "secrets"
-				Verbs:         sampleCustomRuleForResourceNameTest.Verbs,      // {"get", "list", "watch"}
+				Verbs:         sampleCustomRuleForResourceNameTest.Verbs,        // {"get", "list", "watch"}
 				ResourceNames: []string{"my-secret"},
 			},
 			wantErr:       false,
@@ -1697,27 +1673,7 @@ func TestMatchRiskRules(t *testing.T) {
 			wantRulesIDs:      []int64{sampleCustomRuleForResourceNameTest.ID, BaseRiskRuleLow.ID},
 			wantResourceNames: []string{"my-secret"},
 			wantTag:           ResourceNameRestricted,
-			wantCount:     2, // Custom rule + Base rule
-		},
-		{
-			name: "Policy with specific resourceNames, no custom rule match, base rule modified",
-			policy: Policy{
-				RoleType:      "Role",
-				Namespace:     "default",
-				APIGroup:      "nonexistent.group.io", // Should not match any custom rule
-				Resource:      "nonexistentresource",
-				Verbs:         []string{"get"},
-				ResourceNames: []string{"my-specific-resource"},
-			},
-			wantErr:       false,
-			wantRiskLevel: RiskLevelLow, // Base rule risk should be overridden to Low
-			testType:      "resourceNameCheck",
-			// Only the base rule should be returned, modified.
-			// The base rule for a namespaced, specific resource/verb policy is BaseRiskRuleLow (ID 9996).
-			wantRulesIDs:      []int64{BaseRiskRuleLow.ID},
-			wantResourceNames: []string{"my-specific-resource"},
-			wantTag:           ResourceNameRestricted,
-			wantCount:     1,
+			wantCount:         2, // Custom rule + Base rule
 		},
 		{
 			name: "Policy with empty resourceNames [] - existing behavior (secrets example)",
@@ -1731,7 +1687,7 @@ func TestMatchRiskRules(t *testing.T) {
 			},
 			wantErr:       false,
 			wantRiskLevel: sampleCustomRuleForResourceNameTest.RiskLevel, // Should be original risk of custom rule
-			testType:      "exact", // Or "count" if IDs are not stable/known for this test setup
+			testType:      "exact",                                       // Or "count" if IDs are not stable/known for this test setup
 			// Expecting custom rule + original base rule.
 			// Original rule 1011 is Critical. Base rule for this (namespaced, specific) is Low (9996)
 			// This seems off, "Read secrets in a namespace" (1011) is Critical, but base rule for specific namespaced is Low.
@@ -1741,8 +1697,8 @@ func TestMatchRiskRules(t *testing.T) {
 			// This implies the base rule is also critical or the custom rule is the only one determining the highest.
 			// The base rule for (Role, default, "", secrets, [get,list,watch]) is BaseRiskRuleLow (9996).
 			// So, if 1011 (Critical) matches, results are [1011, 9996]. Highest is Critical.
-			wantRulesIDs:  []int64{sampleCustomRuleForResourceNameTest.ID, BaseRiskRuleLow.ID},
-			wantCount:     2,
+			wantRulesIDs: []int64{sampleCustomRuleForResourceNameTest.ID, BaseRiskRuleLow.ID},
+			wantCount:    2,
 		},
 		{
 			name: "Policy with resourceNames [\"\"] - existing behavior (secrets example)",
@@ -1775,6 +1731,31 @@ func TestMatchRiskRules(t *testing.T) {
 			testType:      "exact",
 			wantRulesIDs:  []int64{sampleCustomRuleForResourceNameTest.ID, BaseRiskRuleLow.ID},
 			wantCount:     2,
+		},
+		{
+			name: "policy with no matches returns base rule",
+			policy: Policy{
+				RoleType: "Role",
+				APIGroup: "",
+				Resource: "nonexistentresource",
+				Verbs:    []string{"get"},
+			},
+			wantErr:       false,
+			wantRiskLevel: RiskLevelLow,
+			testType:      "exact",
+			wantRulesIDs:  []int64{BaseRiskRuleLow.ID},
+			wantCount:     1,
+		},
+		{
+			name: "policy with invalid role type returns error",
+			policy: Policy{
+				RoleType: "InvalidRoleType",
+				APIGroup: "",
+				Resource: "nonexistentresource",
+				Verbs:    []string{"get"},
+			},
+			wantErr:  true,
+			testType: "count",
 		},
 	}
 
@@ -1811,24 +1792,26 @@ func TestMatchRiskRules(t *testing.T) {
 									break
 								}
 							}
-							if isCustomMatch {break}
+							if isCustomMatch {
+								break
+							}
 						}
 						if !isCustomMatch && len(got) > 0 { // If no custom rule matched and modified, check the base rule from the results
 							for _, r := range got {
 								if r.ID == BaseRiskRuleLow.ID || r.ID == BaseRiskRuleMedium.ID || r.ID == BaseRiskRuleHigh.ID || r.ID == BaseRiskRuleCritical.ID {
 									// This logic might need to be more specific if multiple base rules could be involved or if sorting changes
 									// For now, assume the relevant base rule is identifiable
-									 isBaseOnlyScenario := true
-									 for _, id := range tt.wantRulesIDs {
-										 if id != BaseRiskRuleLow.ID && id != BaseRiskRuleMedium.ID && id != BaseRiskRuleHigh.ID && id != BaseRiskRuleCritical.ID {
+									isBaseOnlyScenario := true
+									for _, id := range tt.wantRulesIDs {
+										if id != BaseRiskRuleLow.ID && id != BaseRiskRuleMedium.ID && id != BaseRiskRuleHigh.ID && id != BaseRiskRuleCritical.ID {
 											isBaseOnlyScenario = false
 											break
-										 }
-									 }
-									 if isBaseOnlyScenario {
-										 modifiedRule = r // Check the base rule that was modified
-										 break
-									 }
+										}
+									}
+									if isBaseOnlyScenario {
+										modifiedRule = r // Check the base rule that was modified
+										break
+									}
 								}
 							}
 						}
@@ -1837,18 +1820,18 @@ func TestMatchRiskRules(t *testing.T) {
 					if modifiedRule.ID != 0 && modifiedRule.RiskLevel != tt.wantRiskLevel {
 						t.Errorf("MatchRiskRules() specific rule ID %d RiskLevel = %v, want %v for test '%s'", modifiedRule.ID, modifiedRule.RiskLevel, tt.wantRiskLevel, tt.name)
 					} else if modifiedRule.ID == 0 && len(got) > 0 {
-                         // If we couldn't identify a specific modified rule, but expected one, this is an issue.
-                         // However, if the highest level already matches, it might be okay for some scenarios.
-                         // This part of the check is complex due to multiple rules being returned.
-                         // Fallback to checking got[0] if specific rule not found, but log it.
-                        // For now, let's rely on the got[0].RiskLevel check if specific modified rule logic is not perfect.
-                        if got[0].RiskLevel != tt.wantRiskLevel {
-						    t.Logf("Could not identify the specifically modified rule for detailed RiskLevel check in test '%s'. Checking got[0].RiskLevel.", tt.name)
-						    t.Errorf("MatchRiskRules() highest risk level = %v, want %v for test '%s'", got[0].RiskLevel, tt.wantRiskLevel, tt.name)
-                        }
+						// If we couldn't identify a specific modified rule, but expected one, this is an issue.
+						// However, if the highest level already matches, it might be okay for some scenarios.
+						// This part of the check is complex due to multiple rules being returned.
+						// Fallback to checking got[0] if specific rule not found, but log it.
+						// For now, let's rely on the got[0].RiskLevel check if specific modified rule logic is not perfect.
+						if got[0].RiskLevel != tt.wantRiskLevel {
+							t.Logf("Could not identify the specifically modified rule for detailed RiskLevel check in test '%s'. Checking got[0].RiskLevel.", tt.name)
+							t.Errorf("MatchRiskRules() highest risk level = %v, want %v for test '%s'", got[0].RiskLevel, tt.wantRiskLevel, tt.name)
+						}
 					} else if modifiedRule.ID == 0 && len(got) == 0 && tt.wantCount > 0 {
-                        t.Errorf("MatchRiskRules() returned no rules, but expected specific rule with RiskLevel %v for test '%s'", tt.wantRiskLevel, tt.name)
-                    }
+						t.Errorf("MatchRiskRules() returned no rules, but expected specific rule with RiskLevel %v for test '%s'", tt.wantRiskLevel, tt.name)
+					}
 
 				} else if got[0].RiskLevel != tt.wantRiskLevel {
 					t.Errorf("MatchRiskRules() highest risk level = %v, want %v for test '%s'", got[0].RiskLevel, tt.wantRiskLevel, tt.name)
@@ -1856,7 +1839,6 @@ func TestMatchRiskRules(t *testing.T) {
 			} else if len(got) == 0 && tt.wantCount > 0 {
 				t.Errorf("MatchRiskRules() returned no rules, but wantCount was %d for test '%s'", tt.wantCount, tt.name)
 			}
-
 
 			// Handle different test types
 			switch tt.testType {
@@ -1922,26 +1904,26 @@ func TestMatchRiskRules(t *testing.T) {
 							}
 						}
 					} else if len(got) > 0 { // Fallback if no specific custom ID, check the first non-base if possible, or just first
-						 isNonBaseFound := false
-						 for _, r := range got {
-							 isBase := false
-							 for _, baseID := range []int64{BaseRiskRuleCritical.ID, BaseRiskRuleHigh.ID, BaseRiskRuleMedium.ID, BaseRiskRuleLow.ID} {
-								 if r.ID == baseID {
-									 isBase = true
-									 break
-								 }
-							 }
-							 if !isBase {
-								 ruleToCheck = r
-								 foundRule = true
-								 isNonBaseFound = true
-								 break
-							 }
-						 }
-						 if !isNonBaseFound && len(got) > 0 { // if all are base rules (e.g. only base rule scenario)
-							 ruleToCheck = got[0] // Pick the first one (highest risk, which should be the modified base)
-							 foundRule = true
-						 }
+						isNonBaseFound := false
+						for _, r := range got {
+							isBase := false
+							for _, baseID := range []int64{BaseRiskRuleCritical.ID, BaseRiskRuleHigh.ID, BaseRiskRuleMedium.ID, BaseRiskRuleLow.ID} {
+								if r.ID == baseID {
+									isBase = true
+									break
+								}
+							}
+							if !isBase {
+								ruleToCheck = r
+								foundRule = true
+								isNonBaseFound = true
+								break
+							}
+						}
+						if !isNonBaseFound && len(got) > 0 { // if all are base rules (e.g. only base rule scenario)
+							ruleToCheck = got[0] // Pick the first one (highest risk, which should be the modified base)
+							foundRule = true
+						}
 					}
 				}
 
@@ -1953,17 +1935,16 @@ func TestMatchRiskRules(t *testing.T) {
 						if len(r.ResourceNames) > 0 {
 							ruleToCheck = r
 							foundRule = true
-							break;
+							break
 						}
 					}
 					if !foundRule { // If still not found, and we expected one, use the highest risk rule.
-                        ruleToCheck = got[0]
-                        foundRule = true
-                    }
+						ruleToCheck = got[0]
+						foundRule = true
+					}
 				} else if !foundRule && len(got) == 0 && tt.wantCount > 0 {
-                     t.Errorf("MatchRiskRules() returned no rules, but expected one for resourceNameCheck in test '%s'", tt.name)
-                }
-
+					t.Errorf("MatchRiskRules() returned no rules, but expected one for resourceNameCheck in test '%s'", tt.name)
+				}
 
 				if foundRule {
 					if ruleToCheck.RiskLevel != tt.wantRiskLevel {

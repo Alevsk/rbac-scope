@@ -51,6 +51,7 @@ type SARoleBindingEntry struct {
 	RoleName           string                    `json:"roleName" yaml:"roleName"`
 	APIGroup           string                    `json:"apiGroup" yaml:"apiGroup"`
 	Resource           string                    `json:"resource" yaml:"resource"`
+	ResourceName       string                    `json:"resourceName" yaml:"resourceName"`
 	Verbs              []string                  `json:"verbs" yaml:"verbs"`
 	RiskLevel          string                    `json:"riskLevel" yaml:"riskLevel"`
 	Tags               policyevaluation.RiskTags `json:"tags" yaml:"tags"`

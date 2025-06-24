@@ -23,12 +23,24 @@ type RBACBinding struct {
 	RoleRef   string           `json:"roleRef"`  // Name of the Role/ClusterRole being referenced
 }
 
+// RuleVerb represents a permission verb (get, list, etc.)
+type RuleVerb map[string]struct{}
+
+// RuleResourceName maps resource names to verbs
+type RuleResourceName map[string]RuleVerb
+
+// RuleResource maps resources to their resource names
+type RuleResource map[string]RuleResourceName
+
+// RuleApiGroup maps API groups to resources
+type RuleApiGroup map[string]RuleResource
+
 // RBACRole represents a Role or ClusterRole
 type RBACRole struct {
-	Type        string                                    `json:"type"` // Role or ClusterRole
-	Name        string                                    `json:"name"`
-	Namespace   string                                    `json:"namespace,omitempty"`
-	Permissions map[string]map[string]map[string]struct{} `json:"permissions"` // Permissions represented as map[apiGroup][resource][verb]
+	Type        string       `json:"type"` // Role or ClusterRole
+	Name        string       `json:"name"`
+	Namespace   string       `json:"namespace,omitempty"`
+	Permissions RuleApiGroup `json:"permissions,omitempty"` // Permissions by API group, resource, resource name and verb
 }
 
 // ServiceAccountRBAC represents all RBAC information for a service account
@@ -97,7 +109,7 @@ func (e *RBACExtractor) Extract(ctx context.Context, manifests []*renderer.Manif
 				Type:        kind,
 				Name:        name,
 				Namespace:   namespace,
-				Permissions: make(map[string]map[string]map[string]struct{}),
+				Permissions: RuleApiGroup{},
 			}
 
 			// Extract rules
@@ -110,7 +122,12 @@ func (e *RBACExtractor) Extract(ctx context.Context, manifests []*renderer.Manif
 
 					apiGroups := toStringSlice(rule["apiGroups"])
 					resources := toStringSlice(rule["resources"])
+					resourceNames := toStringSlice(rule["resourceNames"])
 					verbs := toStringSlice(rule["verbs"])
+
+					if resourceNames == nil {
+						resourceNames = []string{""}
+					}
 
 					// Optimization: If any list is empty, this rule grants no permissions.
 					if len(resources) == 0 || len(verbs) == 0 {
@@ -120,23 +137,28 @@ func (e *RBACExtractor) Extract(ctx context.Context, manifests []*renderer.Manif
 					for _, apiGroup := range apiGroups {
 						// Get or create the map for the current apiGroup
 						// This reduces lookups for `rbacRole.Permissions[apiGroup]`
-						apiGroupPermissions, agExists := rbacRole.Permissions[apiGroup]
+						_, agExists := rbacRole.Permissions[apiGroup]
 						if !agExists {
-							apiGroupPermissions = make(map[string]map[string]struct{})
-							rbacRole.Permissions[apiGroup] = apiGroupPermissions
+							rbacRole.Permissions[apiGroup] = RuleResource{}
 						}
 
 						for _, resource := range resources {
 							// Get or create the map for the current resource within the apiGroup
-							// This reduces lookups for `apiGroupPermissions[resource]`
-							resourcePermissions, resExists := apiGroupPermissions[resource]
+							// This reduces lookups for `rbacRole.Permissions[apiGroup][resource]`
+							_, resExists := rbacRole.Permissions[apiGroup][resource]
 							if !resExists {
-								resourcePermissions = make(map[string]struct{})
-								apiGroupPermissions[resource] = resourcePermissions
+								rbacRole.Permissions[apiGroup][resource] = RuleResourceName{}
 							}
 
-							for _, verb := range verbs {
-								resourcePermissions[verb] = struct{}{}
+							for _, resourceName := range resourceNames {
+								_, verbExists := rbacRole.Permissions[apiGroup][resource][resourceName]
+								if !verbExists {
+									rbacRole.Permissions[apiGroup][resource][resourceName] = RuleVerb{}
+								}
+
+								for _, verb := range verbs {
+									rbacRole.Permissions[apiGroup][resource][resourceName][verb] = struct{}{}
+								}
 							}
 						}
 					}

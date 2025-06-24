@@ -60,12 +60,14 @@ rules:
 				Type:      "Role",
 				Name:      "pod-reader",
 				Namespace: "default",
-				Permissions: map[string]map[string]map[string]struct{}{
-					"": {
-						"pods": {
-							"get":   struct{}{},
-							"list":  struct{}{},
-							"watch": struct{}{},
+				Permissions: RuleApiGroup{
+					"": RuleResource{
+						"pods": RuleResourceName{
+							"": RuleVerb{
+								"get":   struct{}{},
+								"list":  struct{}{},
+								"watch": struct{}{},
+							},
 						},
 					},
 				},
@@ -87,12 +89,14 @@ rules:
 				Type:      "ClusterRole",
 				Name:      "pod-reader",
 				Namespace: "*",
-				Permissions: map[string]map[string]map[string]struct{}{
-					"": {
-						"pods": {
-							"get":   struct{}{},
-							"list":  struct{}{},
-							"watch": struct{}{},
+				Permissions: RuleApiGroup{
+					"": RuleResource{
+						"pods": RuleResourceName{
+							"": RuleVerb{
+								"get":   struct{}{},
+								"list":  struct{}{},
+								"watch": struct{}{},
+							},
 						},
 					},
 				},
@@ -109,6 +113,7 @@ rules:
 - apiGroups: [""]
   resources: ["pods"]
   verbs: ["get", "list", "watch"]
+  resourceNames: ["pod1", "pod2"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -129,12 +134,19 @@ roleRef:
 				Type:      "Role",
 				Name:      "pod-reader",
 				Namespace: "default",
-				Permissions: map[string]map[string]map[string]struct{}{
-					"": {
-						"pods": {
-							"get":   struct{}{},
-							"list":  struct{}{},
-							"watch": struct{}{},
+				Permissions: RuleApiGroup{
+					"": RuleResource{
+						"pods": RuleResourceName{
+							"pod1": RuleVerb{
+								"get":   struct{}{},
+								"list":  struct{}{},
+								"watch": struct{}{},
+							},
+							"pod2": RuleVerb{
+								"get":   struct{}{},
+								"list":  struct{}{},
+								"watch": struct{}{},
+							},
 						},
 					},
 				},
@@ -157,6 +169,7 @@ rules:
 - apiGroups: [""]
   resources: ["pods"]
   verbs: ["get", "list", "watch"]
+  resourceNames: ["pod1"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -172,6 +185,22 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io`,
 			want:    1, // ClusterRole with binding
 			wantErr: false,
+			wantRole: &RBACRole{
+				Type:      "ClusterRole",
+				Name:      "pod-reader",
+				Namespace: "*",
+				Permissions: RuleApiGroup{
+					"": RuleResource{
+						"pods": RuleResourceName{
+							"pod1": RuleVerb{
+								"get":   struct{}{},
+								"list":  struct{}{},
+								"watch": struct{}{},
+							},
+						},
+					},
+				},
+			},
 		},
 		{
 			name: "multiple rbac resources",
@@ -184,6 +213,7 @@ rules:
 - apiGroups: [""]
   resources: ["pods"]
   verbs: ["get", "list", "watch"]
+  resourceNames: ["pod1", "pod2"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -318,6 +348,7 @@ rules:
 - apiGroups: [""]
   resources: ["pods"]
   verbs: ["get", "list", "watch"]
+  resourceNames: ["pod1", "pod2"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -327,6 +358,7 @@ rules:
 - apiGroups: [""]
   resources: ["secrets"]
   verbs: ["get"]
+  resourceNames: ["secret1"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding

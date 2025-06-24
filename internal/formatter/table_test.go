@@ -114,8 +114,12 @@ func TestBuildTables(t *testing.T) {
 		addRawIdentityDataForTable(&res, "sa-1", "ns-a", extractor.Identity{Name: "sa-1", Namespace: "ns-a", AutomountToken: true})
 		saRBAC := extractor.ServiceAccountRBAC{
 			Roles: []extractor.RBACRole{
-				{Type: "Role", Name: "pod-reader", Namespace: "ns-a", Permissions: map[string]map[string]map[string]struct{}{
-					"": {"pods": {"get": {}, "list": {}}},
+				{Type: "Role", Name: "pod-reader", Namespace: "ns-a", Permissions: extractor.RuleApiGroup{
+					"": extractor.RuleResource{
+						"pods": extractor.RuleResourceName{
+							"": extractor.RuleVerb{"get": struct{}{}, "list": struct{}{}},
+						},
+					},
 				}},
 			},
 		}
@@ -190,8 +194,12 @@ func TestBuildTables(t *testing.T) {
 		res := newTableTestResult("risk-app", "v1", "risk-src", timestamp)
 		saRBAC := extractor.ServiceAccountRBAC{
 			Roles: []extractor.RBACRole{
-				{Type: "ClusterRole", Name: "mega-admin", Namespace: "*", Permissions: map[string]map[string]map[string]struct{}{
-					"*": {"*": {"*": {}}},
+				{Type: "ClusterRole", Name: "mega-admin", Namespace: "*", Permissions: extractor.RuleApiGroup{
+					"*": extractor.RuleResource{
+						"*": extractor.RuleResourceName{
+							"*": extractor.RuleVerb{"*": struct{}{}},
+						},
+					},
 				}},
 			},
 		}

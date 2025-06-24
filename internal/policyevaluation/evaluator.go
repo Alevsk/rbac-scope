@@ -8,9 +8,9 @@ import (
 	"github.com/alevsk/rbac-ops/internal/logger"
 )
 
-// isResourceNamesPresent checks if policy.ResourceNames is present and not empty
+// isResourceNamesPresent checks if policy.ResourceNames is present and not empty or "*"
 func isResourceNamesPresent(policy *Policy) bool {
-	return len(policy.ResourceNames) > 0 && (len(policy.ResourceNames) > 1 || policy.ResourceNames[0] != "")
+	return policy.ResourceName != "" && policy.ResourceName != "*"
 }
 
 // containsWildcard checks if a string equals "*" or contains "*"
@@ -219,6 +219,12 @@ func MatchRiskRules(policy Policy) ([]RiskRule, error) {
 
 	// Get base risk level
 	baseRule := determineBaseRiskRule(&policy)
+	// If resource names are present, set risk level to low and add resource name restricted tag to base rule
+	if isResourceNamesPresent(&policy) {
+		baseRule.RiskLevel = RiskLevelLow
+		baseRule.Tags = append(baseRule.Tags, ResourceNameRestricted)
+		baseRule.ResourceName = policy.ResourceName
+	}
 
 	// If we found custom rule matches, sort them by risk level
 	if len(matches) > 0 {
@@ -229,7 +235,7 @@ func MatchRiskRules(policy Policy) ([]RiskRule, error) {
 				tags := matches[i].Tags
 				matches[i].RiskLevel = RiskLevelLow // Risk level is considered low if resource names are present because blast radius is reduced to a single resource
 				matches[i].Tags = append(tags, ResourceNameRestricted)
-				matches[i].ResourceNames = policy.ResourceNames
+				matches[i].ResourceName = policy.ResourceName
 			}
 		}
 

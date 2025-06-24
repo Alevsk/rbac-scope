@@ -298,16 +298,28 @@ func TestPrepareData(t *testing.T) {
 		saRBACEntryData := extractor.ServiceAccountRBAC{
 			Roles: []extractor.RBACRole{
 				{
-					Type:        "Role",
-					Name:        "role1",
-					Namespace:   "ns1",
-					Permissions: map[string]map[string]map[string]struct{}{"": {"pods": {"get": {}, "list": {}}}},
+					Type:      "Role",
+					Name:      "role1",
+					Namespace: "ns1",
+					Permissions: extractor.RuleApiGroup{
+						"": extractor.RuleResource{
+							"pods": extractor.RuleResourceName{
+								"": extractor.RuleVerb{"get": struct{}{}, "list": struct{}{}},
+							},
+						},
+					},
 				},
 				{
-					Type:        "ClusterRole",
-					Name:        "clusterrole1",
-					Namespace:   "*",
-					Permissions: map[string]map[string]map[string]struct{}{"apps": {"deployments": {"watch": {}}}},
+					Type:      "ClusterRole",
+					Name:      "clusterrole1",
+					Namespace: "*",
+					Permissions: extractor.RuleApiGroup{
+						"apps": extractor.RuleResource{
+							"deployments": extractor.RuleResourceName{
+								"": extractor.RuleVerb{"watch": struct{}{}},
+							},
+						},
+					},
 				},
 			},
 		}
@@ -461,8 +473,14 @@ func TestPrepareData(t *testing.T) {
 					Type:      "ClusterRole",
 					Name:      "super-admin-role",
 					Namespace: "*",
-					Permissions: map[string]map[string]map[string]struct{}{
-						"*": {"*": {"*": {}}},
+					Permissions: extractor.RuleApiGroup{
+						"*": extractor.RuleResource{
+							"*": extractor.RuleResourceName{
+								"*": extractor.RuleVerb{
+									"*": struct{}{},
+								},
+							},
+						},
 					},
 				},
 			},

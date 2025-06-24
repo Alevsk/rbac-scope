@@ -46,15 +46,15 @@ func TestMatchRiskRules(t *testing.T) {
 	}
 
 	type matchRiskRulesTest struct {
-		name              string
-		policy            Policy
-		wantErr           bool
-		wantRiskLevel     RiskLevel
-		testType          string   // "exact", "count", "resourceNameCheck"
-		wantRulesIDs      []int64  // for exact match validation
-		wantCount         int      // for count validation or minimal validation
-		wantResourceNames []string // for resourceNameCheck
-		wantTag           RiskTag  // for resourceNameCheck
+		name             string
+		policy           Policy
+		wantErr          bool
+		wantRiskLevel    RiskLevel
+		testType         string  // "exact", "count", "resourceNameCheck"
+		wantRulesIDs     []int64 // for exact match validation
+		wantCount        int     // for count validation or minimal validation
+		wantResourceName string  // for resourceNameCheck
+		wantTag          RiskTag // for resourceNameCheck
 	}
 
 	// Preload rules to use in tests, especially for specific ID matching
@@ -62,6 +62,23 @@ func TestMatchRiskRules(t *testing.T) {
 	sampleCustomRuleForResourceNameTest := allRules[11] // Read secrets in a namespace
 
 	tests := []matchRiskRulesTest{
+		{
+			name: "Resource with specific resourceName restriction",
+			policy: Policy{
+				RoleType:     "Role",
+				Namespace:    "argocd",
+				APIGroup:     "",
+				Resource:     "configmaps",
+				ResourceName: "argocd-notifications-cm",
+				Verbs:        []string{"get"},
+			},
+			wantErr:          false,
+			wantRiskLevel:    RiskLevelLow,
+			testType:         "resourceNameCheck",
+			wantCount:        1,
+			wantTag:          ResourceNameRestricted,
+			wantResourceName: "argocd-notifications-cm",
+		},
 		{
 			name: "Critical: Wildcard permission on all resources cluster-wide (Cluster Admin)", // Corrected name to match YAML
 			policy: Policy{
@@ -1657,12 +1674,12 @@ func TestMatchRiskRules(t *testing.T) {
 		{
 			name: "Policy with specific resourceNames matching custom rule (secrets)",
 			policy: Policy{
-				RoleType:      "Role",
-				Namespace:     "default",
-				APIGroup:      sampleCustomRuleForResourceNameTest.APIGroups[0], // ""
-				Resource:      sampleCustomRuleForResourceNameTest.Resources[0], // "secrets"
-				Verbs:         sampleCustomRuleForResourceNameTest.Verbs,        // {"get", "list", "watch"}
-				ResourceNames: []string{"my-secret"},
+				RoleType:     "Role",
+				Namespace:    "default",
+				APIGroup:     sampleCustomRuleForResourceNameTest.APIGroups[0], // ""
+				Resource:     sampleCustomRuleForResourceNameTest.Resources[0], // "secrets"
+				Verbs:        sampleCustomRuleForResourceNameTest.Verbs,        // {"get", "list", "watch"}
+				ResourceName: "my-secret",
 			},
 			wantErr:       false,
 			wantRiskLevel: RiskLevelLow, // Risk should be overridden to Low
@@ -1670,20 +1687,20 @@ func TestMatchRiskRules(t *testing.T) {
 			// Expecting the custom rule (e.g., 1011) and its corresponding base rule (e.g. 9997 for medium, or 9996 for low if all specific)
 			// Since ResourceNames are present, the custom rule 1011 will be RiskLevelLow.
 			// The base rule determined by determineBaseRiskRule for this policy (specific, namespaced) would be BaseRiskRuleLow (9996).
-			wantRulesIDs:      []int64{sampleCustomRuleForResourceNameTest.ID, BaseRiskRuleLow.ID},
-			wantResourceNames: []string{"my-secret"},
-			wantTag:           ResourceNameRestricted,
-			wantCount:         2, // Custom rule + Base rule
+			wantRulesIDs:     []int64{sampleCustomRuleForResourceNameTest.ID, BaseRiskRuleLow.ID},
+			wantResourceName: "my-secret",
+			wantTag:          ResourceNameRestricted,
+			wantCount:        2, // Custom rule + Base rule
 		},
 		{
 			name: "Policy with empty resourceNames [] - existing behavior (secrets example)",
 			policy: Policy{
-				RoleType:      "Role",
-				Namespace:     "default",
-				APIGroup:      sampleCustomRuleForResourceNameTest.APIGroups[0],
-				Resource:      sampleCustomRuleForResourceNameTest.Resources[0],
-				Verbs:         sampleCustomRuleForResourceNameTest.Verbs,
-				ResourceNames: []string{}, // Empty slice
+				RoleType:     "Role",
+				Namespace:    "default",
+				APIGroup:     sampleCustomRuleForResourceNameTest.APIGroups[0],
+				Resource:     sampleCustomRuleForResourceNameTest.Resources[0],
+				Verbs:        sampleCustomRuleForResourceNameTest.Verbs,
+				ResourceName: "", // Empty slice
 			},
 			wantErr:       false,
 			wantRiskLevel: sampleCustomRuleForResourceNameTest.RiskLevel, // Should be original risk of custom rule
@@ -1703,12 +1720,12 @@ func TestMatchRiskRules(t *testing.T) {
 		{
 			name: "Policy with resourceNames [\"\"] - existing behavior (secrets example)",
 			policy: Policy{
-				RoleType:      "Role",
-				Namespace:     "default",
-				APIGroup:      sampleCustomRuleForResourceNameTest.APIGroups[0],
-				Resource:      sampleCustomRuleForResourceNameTest.Resources[0],
-				Verbs:         sampleCustomRuleForResourceNameTest.Verbs,
-				ResourceNames: []string{""}, // Slice with one empty string
+				RoleType:     "Role",
+				Namespace:    "default",
+				APIGroup:     sampleCustomRuleForResourceNameTest.APIGroups[0],
+				Resource:     sampleCustomRuleForResourceNameTest.Resources[0],
+				Verbs:        sampleCustomRuleForResourceNameTest.Verbs,
+				ResourceName: "", // Slice with one empty string
 			},
 			wantErr:       false,
 			wantRiskLevel: sampleCustomRuleForResourceNameTest.RiskLevel,
@@ -1719,12 +1736,12 @@ func TestMatchRiskRules(t *testing.T) {
 		{
 			name: "Policy with nil resourceNames - existing behavior (secrets example)",
 			policy: Policy{
-				RoleType:      "Role",
-				Namespace:     "default",
-				APIGroup:      sampleCustomRuleForResourceNameTest.APIGroups[0],
-				Resource:      sampleCustomRuleForResourceNameTest.Resources[0],
-				Verbs:         sampleCustomRuleForResourceNameTest.Verbs,
-				ResourceNames: nil, // Nil slice
+				RoleType:     "Role",
+				Namespace:    "default",
+				APIGroup:     sampleCustomRuleForResourceNameTest.APIGroups[0],
+				Resource:     sampleCustomRuleForResourceNameTest.Resources[0],
+				Verbs:        sampleCustomRuleForResourceNameTest.Verbs,
+				ResourceName: "", // Nil slice
 			},
 			wantErr:       false,
 			wantRiskLevel: sampleCustomRuleForResourceNameTest.RiskLevel,
@@ -1932,7 +1949,7 @@ func TestMatchRiskRules(t *testing.T) {
 					// and we expect resource names to be present, pick the first rule that has them.
 					// This is a fallback, ideally ID matching is better.
 					for _, r := range got {
-						if len(r.ResourceNames) > 0 {
+						if len(r.ResourceName) > 0 {
 							ruleToCheck = r
 							foundRule = true
 							break
@@ -1953,8 +1970,8 @@ func TestMatchRiskRules(t *testing.T) {
 					if !containsTag(ruleToCheck.Tags, tt.wantTag) {
 						t.Errorf("MatchRiskRules() rule ID %d (name: %s) Tags = %v, want to contain %s for test '%s'", ruleToCheck.ID, ruleToCheck.Name, ruleToCheck.Tags, tt.wantTag, tt.name)
 					}
-					if !reflect.DeepEqual(ruleToCheck.ResourceNames, tt.wantResourceNames) {
-						t.Errorf("MatchRiskRules() rule ID %d (name: %s) ResourceNames = %v, want %v for test '%s'", ruleToCheck.ID, ruleToCheck.Name, ruleToCheck.ResourceNames, tt.wantResourceNames, tt.name)
+					if !reflect.DeepEqual(ruleToCheck.ResourceName, tt.wantResourceName) {
+						t.Errorf("MatchRiskRules() rule ID %d (name: %s) ResourceNames = %v, want %v for test '%s'", ruleToCheck.ID, ruleToCheck.Name, ruleToCheck.ResourceName, tt.wantResourceName, tt.name)
 					}
 				} else if tt.wantCount > 0 { // If no rule was found to check, but we expected rules
 					t.Errorf("MatchRiskRules() did not find a suitable rule to check for resourceNameCheck assertions in test '%s'", tt.name)

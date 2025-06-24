@@ -137,50 +137,55 @@ func buildTables(data types.Result) (table.Writer, table.Writer, table.Writer, t
 				for _, role := range saRBAC.Roles {
 					// Iterate through permissions
 					for apiGroup, resourceMap := range role.Permissions {
-						for resource, verbSet := range resourceMap {
-							// Convert verbs set to slice
-							verbs := make([]string, 0, len(verbSet))
-							for verb := range verbSet {
-								verbs = append(verbs, verb)
-							}
-
-							// Sort verbs for consistent output
-							sort.Strings(verbs)
-
-							row := table.Row{
-								saName,
-								namespace,
-								role.Type,
-								role.Name,
-								apiGroup,
-								resource,
-								strings.Join(verbs, ","),
-							}
-
-							riskRules, err := policyevaluation.MatchRiskRules(policyevaluation.Policy{
-								Namespace: namespace,
-								RoleType:  role.Type,
-								RoleName:  role.Name,
-								APIGroup:  apiGroup,
-								Resource:  resource,
-								Verbs:     verbs,
-							})
-							if err != nil {
-								continue
-							}
-							if len(riskRules) > 0 {
-								tags := policyevaluation.RiskTags{}
-								// Get unique tags
-								for _, rule := range riskRules {
-									tags = append(tags, rule.Tags...)
+						for resource, resourceNameMap := range resourceMap {
+							for resourceName, verbSet := range resourceNameMap {
+								// Convert verbs set to slice
+								verbs := make([]string, 0, len(verbSet))
+								for verb := range verbSet {
+									verbs = append(verbs, verb)
 								}
-								tags = policyevaluation.UniqueRiskTags(tags)
-								row = append(row, riskRules[0].RiskLevel, strings.Join(tags.StringSlice(3), ","))
-							} else {
-								row = append(row, "", "")
+
+								// Sort verbs for consistent output
+								sort.Strings(verbs)
+
+								row := table.Row{
+									saName,
+									namespace,
+									role.Type,
+									role.Name,
+									apiGroup,
+									resource,
+									strings.Join(verbs, ","),
+								}
+
+								riskRules, err := policyevaluation.MatchRiskRules(policyevaluation.Policy{
+									Namespace:    namespace,
+									RoleType:     role.Type,
+									RoleName:     role.Name,
+									APIGroup:     apiGroup,
+									Resource:     resource,
+									ResourceName: resourceName,
+									Verbs:        verbs,
+								})
+								if err != nil {
+									continue
+								}
+
+								if len(riskRules) > 0 {
+									tags := policyevaluation.RiskTags{}
+									// Get unique tags
+									for _, rule := range riskRules {
+										tags = append(tags, rule.Tags...)
+									}
+									tags = policyevaluation.UniqueRiskTags(tags)
+									row = append(row, riskRules[0].RiskLevel, strings.Join(tags.StringSlice(3), ","))
+								} else {
+									row = append(row, "", "")
+								}
+
+								// Add row to array
+								rows = append(rows, row)
 							}
-							// Add row to array
-							rows = append(rows, row)
 						}
 					}
 				}

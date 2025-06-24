@@ -172,83 +172,90 @@ func PrepareData(data types.Result, opts *Options) (ParsedData, error) {
 				for _, role := range saRBAC.Roles {
 					// Iterate through permissions
 					for apiGroup, resourceMap := range role.Permissions {
-						for resource, verbSet := range resourceMap {
-							// Convert verbs set to slice
-							verbs := make([]string, 0, len(verbSet))
-							for verb := range verbSet {
-								verbs = append(verbs, verb)
-							}
-
-							// Sort verbs for consistent output
-							sort.Strings(verbs)
-
-							entry := SARoleBindingEntry{
-								saName,
-								namespace,
-								role.Type,
-								role.Name,
-								apiGroup,
-								resource,
-								verbs,
-								"",
-								policyevaluation.RiskTags{},
-								[]int64{},
-							}
-							riskRules, err := policyevaluation.MatchRiskRules(policyevaluation.Policy{
-								Namespace: namespace,
-								RoleType:  role.Type,
-								RoleName:  role.Name,
-								APIGroup:  apiGroup,
-								Resource:  resource,
-								Verbs:     verbs,
-							})
-							if err != nil {
-								continue
-							}
-							for _, rule := range riskRules {
-								entry.RiskRules = append(entry.RiskRules, rule.ID)
-							}
-							if len(riskRules) > 0 {
-								entry.RiskLevel = riskRules[0].RiskLevel.String()
-								// Get unique tags
-								for _, rule := range riskRules {
-									entry.Tags = append(entry.Tags, rule.Tags...)
+						for resource, resourceNameMap := range resourceMap {
+							for resourceName, verbSet := range resourceNameMap {
+								// Convert verbs set to slice
+								verbs := make([]string, 0, len(verbSet))
+								for verb := range verbSet {
+									verbs = append(verbs, verb)
 								}
-								entry.Tags = policyevaluation.UniqueRiskTags(entry.Tags)
+
+								// Sort verbs for consistent output
+								sort.Strings(verbs)
+
+								entry := SARoleBindingEntry{
+									ServiceAccountName: saName,
+									Namespace:          namespace,
+									RoleType:           role.Type,
+									RoleName:           role.Name,
+									APIGroup:           apiGroup,
+									Resource:           resource,
+									ResourceName:       resourceName,
+									Verbs:              verbs,
+									RiskLevel:          "",
+									Tags:               policyevaluation.RiskTags{},
+									RiskRules:          []int64{},
+								}
+
+								riskRules, err := policyevaluation.MatchRiskRules(policyevaluation.Policy{
+									Namespace:    namespace,
+									RoleType:     role.Type,
+									RoleName:     role.Name,
+									APIGroup:     apiGroup,
+									Resource:     resource,
+									ResourceName: resourceName,
+									Verbs:        verbs,
+								})
+								if err != nil {
+									continue
+								}
+
+								for _, rule := range riskRules {
+									entry.RiskRules = append(entry.RiskRules, rule.ID)
+								}
+								if len(riskRules) > 0 {
+									entry.RiskLevel = riskRules[0].RiskLevel.String()
+									// Get unique tags
+									for _, rule := range riskRules {
+										entry.Tags = append(entry.Tags, rule.Tags...)
+									}
+									entry.Tags = policyevaluation.UniqueRiskTags(entry.Tags)
+								}
+
+								parsedData.RBACData = append(parsedData.RBACData, entry)
 							}
-							parsedData.RBACData = append(parsedData.RBACData, entry)
 						}
 					}
 				}
 			}
 		}
-	}
 
-	// Extract Workload data and create table entries
-	if data.WorkloadData != nil {
-		// Get the Workload map that contains service account workloads
-		workloadMap, ok := data.WorkloadData.Data["workloads"].(map[string]map[string][]extractor.Workload)
-		if !ok {
-			return parsedData, fmt.Errorf("invalid Workload data format")
-		}
+		// Extract Workload data and create table entries
+		if data.WorkloadData != nil {
+			// Get the Workload map that contains service account workloads
+			workloadMap, ok := data.WorkloadData.Data["workloads"].(map[string]map[string][]extractor.Workload)
+			if !ok {
+				return parsedData, fmt.Errorf("invalid Workload data format")
+			}
 
-		// Iterate through each service account
-		for saName, namespaceMap := range workloadMap {
-			// Iterate through each namespace
-			for namespace, workloads := range namespaceMap {
-				// Iterate through each workload
-				for _, workload := range workloads {
-					// Iterate through containers
-					for _, container := range workload.Containers {
-						// Add row to table
-						parsedData.WorkloadData = append(parsedData.WorkloadData, SAWorkloadEntry{
-							saName,
-							namespace,
-							string(workload.Type),
-							workload.Name,
-							container.Name,
-							container.Image,
-						})
+			// Iterate through each service account
+			for saName, namespaceMap := range workloadMap {
+				// Iterate through each namespace
+				for namespace, workloads := range namespaceMap {
+					// Iterate through each workload
+					for _, workload := range workloads {
+						// Iterate through containers
+						for _, container := range workload.Containers {
+							// Add row to table
+							parsedData.WorkloadData = append(parsedData.WorkloadData, SAWorkloadEntry{
+								saName,
+								namespace,
+								string(workload.Type),
+								workload.Name,
+								container.Name,
+								container.Image,
+							})
+						}
 					}
 				}
 			}

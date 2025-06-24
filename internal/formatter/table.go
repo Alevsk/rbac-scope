@@ -148,13 +148,18 @@ func buildTables(data types.Result) (table.Writer, table.Writer, table.Writer, t
 								// Sort verbs for consistent output
 								sort.Strings(verbs)
 
+								formattedResource := resource
+								if resourceName != "" && resourceName != "*" {
+									formattedResource = fmt.Sprintf("%s (restricted to: %s)", resource, resourceName)
+								}
+
 								row := table.Row{
 									saName,
 									namespace,
 									role.Type,
 									role.Name,
 									apiGroup,
-									resource,
+									formattedResource,
 									strings.Join(verbs, ","),
 								}
 

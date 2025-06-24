@@ -1,0 +1,10 @@
+github.com/alevsk/rbac-ops/internal/formatter/formatter.go:21:	DefaultOptions	100.0%
+github.com/alevsk/rbac-ops/internal/formatter/formatter.go:33:	Format		85.7%
+github.com/alevsk/rbac-ops/internal/formatter/formatter.go:46:	Format		85.7%
+github.com/alevsk/rbac-ops/internal/formatter/formatter.go:59:	Format		100.0%
+github.com/alevsk/rbac-ops/internal/formatter/formatter.go:69:	Format		100.0%
+github.com/alevsk/rbac-ops/internal/formatter/formatter.go:79:	ParseType	100.0%
+github.com/alevsk/rbac-ops/internal/formatter/formatter.go:89:	NewFormatter	100.0%
+github.com/alevsk/rbac-ops/internal/formatter/formatter.go:118:	PrepareData	98.0%
+github.com/alevsk/rbac-ops/internal/formatter/table.go:15:	buildTables	93.9%
+total:								(statements)	95.2%

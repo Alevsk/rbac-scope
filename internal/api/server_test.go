@@ -92,3 +92,17 @@ func TestHealthCheckHandler_EncodingError(t *testing.T) {
 	}
 	// We don't check the body because the write was supposed to fail.
 }
+
+func TestStartServer_InvalidAddress(t *testing.T) {
+	s := NewServer()
+	// Provide an invalid address format.
+	// This should cause http.ListenAndServe to return an error immediately.
+	invalidAddr := "invalid-address-is-not-valid:8080:abc"
+	err := s.Start(invalidAddr)
+
+	if err == nil {
+		t.Errorf("Expected an error when starting server with invalid address '%s', but got nil", invalidAddr)
+	}
+	// We could also check for a specific error type if http.ListenAndServe guarantees one,
+	// but for coverage, checking for any error is sufficient.
+}

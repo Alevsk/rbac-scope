@@ -1,11 +1,14 @@
 package formatter
 
 import (
+	"encoding/json"
 	"reflect"
 	"sort"
 	"strings"
 	"testing"
 	"time"
+
+	"gopkg.in/yaml.v3"
 
 	"github.com/alevsk/rbac-ops/internal/config"
 	"github.com/alevsk/rbac-ops/internal/extractor"
@@ -525,3 +528,255 @@ func TestPrepareData(t *testing.T) {
 }
 
 // NOTE: Tests for Format methods, and buildTables will be added in subsequent phases.
+
+func getTestResultData() types.Result {
+	// Helper to create consistent test data
+	timestamp := time.Now().Unix()
+	res := newTestResult("test-app", "v1.0", "test-src", timestamp)
+	addRawIdentityData(&res, "sa1", "ns1", extractor.Identity{Name: "sa1", Namespace: "ns1", AutomountToken: true, Secrets: []string{"s1"}, ImagePullSecrets: []string{"ips1"}})
+	saRBACEntryData := extractor.ServiceAccountRBAC{
+		Roles: []extractor.RBACRole{
+			{
+				Type:      "Role",
+				Name:      "pod-reader",
+				Namespace: "ns1",
+				Permissions: extractor.RuleApiGroup{
+					"": extractor.RuleResource{"pods": extractor.RuleResourceName{"my-pod": extractor.RuleVerb{"get": struct{}{}, "list": struct{}{}}}},
+				},
+			},
+		},
+	}
+	addRawRBACData(&res, "sa1", "ns1", saRBACEntryData)
+	addRawWorkloadData(&res, []extractor.Workload{
+		{Type: "Deployment", Name: "app-dep", Namespace: "ns1", ServiceAccount: "sa1", Containers: []extractor.Container{{Name: "main", Image: "app-image"}}},
+	})
+	return res
+}
+
+func TestFormatters(t *testing.T) {
+	testData := getTestResultData()
+	optsWithMeta := DefaultOptions()
+	optsNoMeta := &Options{IncludeMetadata: false}
+
+	testCases := []struct {
+		name          string
+		formatterType Type
+		opts          *Options
+		expectedError bool
+		checkOutput   func(t *testing.T, output string) // Specific checks for output
+	}{
+		// JSON Formatter Tests
+		{
+			name:          "JSON_WithMetadata",
+			formatterType: TypeJSON,
+			opts:          optsWithMeta,
+			expectedError: false,
+			checkOutput: func(t *testing.T, output string) {
+				var data ParsedData
+				if err := json.Unmarshal([]byte(output), &data); err != nil {
+					t.Fatalf("Failed to unmarshal JSON output: %v. Output:\n%s", err, output)
+				}
+				if data.Metadata == nil {
+					t.Fatal("JSON output with metadata: Metadata field is nil")
+				}
+				if data.Metadata.Name != "test-app" {
+					t.Errorf("JSON Metadata.Name got %s, want test-app", data.Metadata.Name)
+				}
+				if len(data.RBACData) == 0 || data.RBACData[0].ServiceAccountName != "sa1" {
+					t.Errorf("JSON RBACData[0].ServiceAccountName not found or incorrect")
+				}
+			},
+		},
+		{
+			name:          "JSON_NoMetadata",
+			formatterType: TypeJSON,
+			opts:          optsNoMeta,
+			expectedError: false,
+			checkOutput: func(t *testing.T, output string) {
+				var data ParsedData
+				if err := json.Unmarshal([]byte(output), &data); err != nil {
+					t.Fatalf("Failed to unmarshal JSON output: %v. Output:\n%s", err, output)
+				}
+				if data.Metadata != nil {
+					t.Errorf("JSON output without metadata: Metadata field is not nil, got %+v", data.Metadata)
+				}
+				if len(data.RBACData) == 0 || data.RBACData[0].ServiceAccountName != "sa1" {
+					t.Errorf("JSON RBACData[0].ServiceAccountName not found or incorrect (no metadata)")
+				}
+			},
+		},
+		// YAML Formatter Tests
+		{
+			name:          "YAML_WithMetadata",
+			formatterType: TypeYAML,
+			opts:          optsWithMeta,
+			expectedError: false,
+			checkOutput: func(t *testing.T, output string) {
+				var data ParsedData
+				if err := yaml.Unmarshal([]byte(output), &data); err != nil {
+					t.Fatalf("Failed to unmarshal YAML output: %v. Output:\n%s", err, output)
+				}
+				if data.Metadata == nil {
+					t.Fatal("YAML output with metadata: Metadata field is nil")
+				}
+				if data.Metadata.Name != "test-app" {
+					t.Errorf("YAML Metadata.Name got %s, want test-app", data.Metadata.Name)
+				}
+				if len(data.RBACData) == 0 || data.RBACData[0].ServiceAccountName != "sa1" {
+					t.Errorf("YAML RBACData[0].ServiceAccountName not found or incorrect")
+				}
+			},
+		},
+		{
+			name:          "YAML_NoMetadata",
+			formatterType: TypeYAML,
+			opts:          optsNoMeta,
+			expectedError: false,
+			checkOutput: func(t *testing.T, output string) {
+				var data ParsedData
+				if err := yaml.Unmarshal([]byte(output), &data); err != nil {
+					t.Fatalf("Failed to unmarshal YAML output: %v. Output:\n%s", err, output)
+				}
+				if data.Metadata != nil {
+					t.Errorf("YAML output without metadata: Metadata field is not nil, got %+v", data.Metadata)
+				}
+				if len(data.RBACData) == 0 || data.RBACData[0].ServiceAccountName != "sa1" {
+					t.Errorf("YAML RBACData[0].ServiceAccountName not found or incorrect (no metadata)")
+				}
+			},
+		},
+		// Table Formatter Tests
+		{
+			name:          "Table_WithMetadata",
+			formatterType: TypeTable,
+			opts:          optsWithMeta, // buildTables itself uses these opts for PrepareData
+			expectedError: false,
+			checkOutput: func(t *testing.T, output string) {
+				// Metadata table itself is always rendered by buildTables from raw types.Result.
+				// opts.IncludeMetadata affects what PrepareData (called by buildTables for other tables) includes.
+				if !strings.Contains(output, "test-app") {
+					t.Errorf("Table output missing metadata Name 'test-app'")
+				}
+				if !strings.Contains(output, "sa1") || !strings.Contains(output, "pod-reader") {
+					t.Errorf("Table output missing key data elements 'sa1' or 'pod-reader'")
+				}
+			},
+		},
+		{
+			name:          "Table_NoMetadata_EffectOnSubTables",
+			formatterType: TypeTable,
+			opts:          optsNoMeta, // This should mean PrepareData (in buildTables) omits metadata
+			expectedError: false,
+			checkOutput: func(t *testing.T, output string) {
+				// The main metadata table from buildTables might still show basic info from types.Result.
+				// The effect of optsNoMeta is that ParsedData.Metadata (used by buildTables for sub-tables) will be nil.
+				// For tables, the most direct check is that the output is generated.
+				// A truly deep check would involve parsing the table output.
+				if !strings.Contains(output, "sa1") || !strings.Contains(output, "pod-reader") {
+					t.Errorf("Table output (no metadata for sub-tables) missing key data elements 'sa1' or 'pod-reader'")
+				}
+				// Check for absence of metadata *within the ParsedData sections* is harder without parsing table.
+				// We trust PrepareData's own tests for correctly omitting Metadata field in ParsedData.
+			},
+		},
+		// Markdown Formatter Tests
+		{
+			name:          "Markdown_WithMetadata",
+			formatterType: TypeMarkdown,
+			opts:          optsWithMeta,
+			expectedError: false,
+			checkOutput: func(t *testing.T, output string) {
+				if !strings.Contains(output, "test-app") {
+					t.Errorf("Markdown output missing metadata Name 'test-app'")
+				}
+				if !strings.Contains(output, "sa1") || !strings.Contains(output, "pod-reader") {
+					t.Errorf("Markdown output missing key data elements 'sa1' or 'pod-reader'")
+				}
+				// Specific markdown table check for the Name row in the Metadata table
+				// Based on observed output: | NAME | test-app |
+				if !strings.Contains(output, "| NAME | test-app |") {
+					t.Logf("Markdown output for metadata table:\n%s", output)
+					t.Errorf("Markdown output for 'NAME | test-app' row not found as expected in metadata table")
+				}
+			},
+		},
+		// TODO: Add tests for error cases in PrepareData (e.g., malformed input data if possible)
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			formatter, err := NewFormatter(tc.formatterType, tc.opts)
+			if err != nil {
+				t.Fatalf("NewFormatter failed: %v", err)
+			}
+
+			output, err := formatter.Format(testData)
+
+			if tc.expectedError {
+				if err == nil {
+					t.Errorf("Expected an error, but got nil")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Expected no error, but got: %v", err)
+				}
+				if tc.checkOutput != nil {
+					tc.checkOutput(t, output)
+				}
+				if output == "" {
+					t.Errorf("Expected output, but got empty string")
+				}
+			}
+		})
+	}
+
+	// Test error from PrepareData propagation
+	t.Run("JSON_PrepareDataError", func(t *testing.T) {
+		formatter, _ := NewFormatter(TypeJSON, DefaultOptions())
+		badData := types.Result{IdentityData: &types.ExtractedData{Data: map[string]interface{}{"identities": "not-a-map"}}}
+		_, err := formatter.Format(badData)
+		if err == nil {
+			t.Error("Expected error from PrepareData, got nil")
+		} else if !strings.Contains(err.Error(), "invalid Identity data format") {
+			t.Errorf("Unexpected error message: %s", err.Error())
+		}
+	})
+
+	t.Run("YAML_PrepareDataError", func(t *testing.T) {
+		formatter, _ := NewFormatter(TypeYAML, DefaultOptions())
+		badData := types.Result{RBACData: &types.ExtractedData{Data: map[string]interface{}{"rbac": "not-a-map"}}}
+		_, err := formatter.Format(badData)
+		if err == nil {
+			t.Error("Expected error from PrepareData, got nil")
+		} else if !strings.Contains(err.Error(), "invalid RBAC data format") {
+			t.Errorf("Unexpected error message: %s", err.Error())
+		}
+	})
+
+	t.Run("Table_PrepareDataError", func(t *testing.T) {
+		// This test assumes buildTables calls PrepareData and propagates its error.
+		// If buildTables handles errors from PrepareData differently, this test might need adjustment.
+		formatter, _ := NewFormatter(TypeTable, DefaultOptions())
+		// Using WorkloadData for a unique error message source for this test
+		badData := types.Result{WorkloadData: &types.ExtractedData{Data: map[string]interface{}{"workloads": "not-a-map"}}}
+		_, err := formatter.Format(badData)
+		if err == nil {
+			t.Error("Expected error from PrepareData (via buildTables), got nil")
+		} else if !strings.Contains(err.Error(), "invalid Workload data format") {
+			// This error comes from PrepareData
+			t.Errorf("Unexpected error message: %s, expected 'invalid Workload data format'", err.Error())
+		}
+	})
+
+	t.Run("Markdown_PrepareDataError", func(t *testing.T) {
+		formatter, _ := NewFormatter(TypeMarkdown, DefaultOptions())
+		badData := types.Result{IdentityData: &types.ExtractedData{Data: map[string]interface{}{"identities": "not-a-map-for-markdown"}}}
+		_, err := formatter.Format(badData)
+		if err == nil {
+			t.Error("Expected error from PrepareData (via buildTables), got nil")
+		} else if !strings.Contains(err.Error(), "invalid Identity data format") {
+			// This error comes from PrepareData
+			t.Errorf("Unexpected error message: %s, expected 'invalid Identity data format'", err.Error())
+		}
+	})
+}

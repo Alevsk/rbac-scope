@@ -80,6 +80,27 @@ func TestNewRemoteYAMLResolver(t *testing.T) {
 			wantErr:  false,
 			wantOpts: DefaultOptions(),
 		},
+		{
+			name:   "url.Parse fails after isValidURL (e.g. invalid port)",
+			source: "http://example.com:namedport", // url.Parse will fail on "namedport"
+			opts:   nil,
+			client: nil,
+			wantErr: true,
+		},
+		{
+			name:   "valid url, custom options with ValidateYAML true",
+			source: "https://example.com/validate.yaml",
+			opts: &Options{
+				ValidateYAML:   true,
+				FollowSymlinks: false,
+			},
+			client:  nil,
+			wantErr: false,
+			wantOpts: &Options{
+				ValidateYAML:   true,
+				FollowSymlinks: false,
+			},
+		},
 	}
 
 	for _, tt := range tests {

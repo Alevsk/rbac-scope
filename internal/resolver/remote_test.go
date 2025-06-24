@@ -81,10 +81,10 @@ func TestNewRemoteYAMLResolver(t *testing.T) {
 			wantOpts: DefaultOptions(),
 		},
 		{
-			name:   "url.Parse fails after isValidURL (e.g. invalid port)",
-			source: "http://example.com:namedport", // url.Parse will fail on "namedport"
-			opts:   nil,
-			client: nil,
+			name:    "url.Parse fails after isValidURL (e.g. invalid port)",
+			source:  "http://example.com:namedport", // url.Parse will fail on "namedport"
+			opts:    nil,
+			client:  nil,
 			wantErr: true,
 		},
 		{

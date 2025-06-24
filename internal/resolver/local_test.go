@@ -107,7 +107,7 @@ func TestLocalYAMLResolver_Resolve(t *testing.T) {
 		{
 			name:     "source is a directory named .yaml",
 			source:   "testdata/directory.yaml", // This is a directory
-			validate: true, // Does not matter much here as it should fail before validation logic
+			validate: true,                      // Does not matter much here as it should fail before validation logic
 			wantErr:  true,
 			// We expect an error message like "not a regular file"
 		},
@@ -115,7 +115,7 @@ func TestLocalYAMLResolver_Resolve(t *testing.T) {
 			name:     "valid yaml but renderer error",
 			source:   "testdata/render_error.yaml", // Contains a Pod, not an RBAC object
 			validate: true,                         // YAML syntax is valid
-			wantErr:  false, // Changed to false, as the YAML renderer might accept generic K8s objects
+			wantErr:  false,                        // Changed to false, as the YAML renderer might accept generic K8s objects
 			// We expect a specific error from the renderer, not ErrInvalidFormat from basic validation
 		},
 	}

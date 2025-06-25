@@ -48,9 +48,19 @@ func (y *YAML) Format(rawData types.Result) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("error preparing data: %w", err)
 	}
-	bytes, err := yaml.Marshal(data)
-	if err != nil {
-		return "", fmt.Errorf("error formatting as YAML: %w", err)
+	// Use a recover to catch any panics from yaml.Marshal
+	var bytes []byte
+	var marshalErr error
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				marshalErr = fmt.Errorf("error formatting as YAML: %v", r)
+			}
+		}()
+		bytes, err = yaml.Marshal(data)
+	}()
+	if marshalErr != nil {
+		return "", marshalErr
 	}
 	return string(bytes), nil
 }

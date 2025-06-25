@@ -530,10 +530,32 @@ func TestPrepareData(t *testing.T) {
 
 // NOTE: Tests for Format methods, and buildTables will be added in subsequent phases.
 
-func getTestResultData() types.Result {
+func getTestResultData(testCase string) types.Result {
 	// Helper to create consistent test data
 	timestamp := time.Now().Unix()
 	res := newTestResult("test-app", "v1.0", "test-src", timestamp)
+
+	// Create invalid data for specific test cases
+	switch testCase {
+	case "JSON_MarshalError":
+		// Create a circular reference that cannot be marshaled to JSON
+		circular := make(map[string]interface{})
+		circular["self"] = circular
+		res.Extra = circular
+		return res
+	case "YAML_MarshalPanic":
+		// Create a function value that cannot be marshaled to YAML and will panic
+		res.Extra = map[string]interface{}{
+			"fn": func() {},
+		}
+		return res
+	case "YAML_MarshalError":
+		// Create a channel which will cause yaml.Marshal to return an error without panicking
+		res.Extra = map[string]interface{}{
+			"ch": make(chan int),
+		}
+		return res
+	}
 	addRawIdentityData(&res, "sa1", "ns1", extractor.Identity{Name: "sa1", Namespace: "ns1", AutomountToken: true, Secrets: []string{"s1"}, ImagePullSecrets: []string{"ips1"}})
 	saRBACEntryData := extractor.ServiceAccountRBAC{
 		Roles: []extractor.RBACRole{
@@ -555,7 +577,7 @@ func getTestResultData() types.Result {
 }
 
 func TestFormatters(t *testing.T) {
-	testData := getTestResultData()
+	testData := getTestResultData("")
 	optsWithMeta := DefaultOptions()
 	optsNoMeta := &Options{IncludeMetadata: false}
 
@@ -565,6 +587,7 @@ func TestFormatters(t *testing.T) {
 		opts          *Options
 		expectedError bool
 		checkOutput   func(t *testing.T, output string) // Specific checks for output
+		getTestData   func() types.Result               // Optional function to get test data for this case
 	}{
 		// JSON Formatter Tests
 		{
@@ -701,7 +724,46 @@ func TestFormatters(t *testing.T) {
 				}
 			},
 		},
-		// TODO: Add tests for error cases in PrepareData (e.g., malformed input data if possible)
+		// Error cases for JSON and YAML marshaling
+		{
+			name:          "JSON_MarshalError",
+			formatterType: TypeJSON,
+			opts:          optsWithMeta,
+			expectedError: true,
+			checkOutput: func(t *testing.T, output string) {
+				// This should not be called since we expect an error
+				t.Error("checkOutput called when error was expected")
+			},
+			getTestData: func() types.Result {
+				return getTestResultData("JSON_MarshalError")
+			},
+		},
+		// {
+		// 	name:          "YAML_MarshalPanic",
+		// 	formatterType: TypeYAML,
+		// 	opts:          optsWithMeta,
+		// 	expectedError: true,
+		// 	checkOutput: func(t *testing.T, output string) {
+		// 		// This should not be called since we expect an error
+		// 		t.Error("checkOutput called when error was expected")
+		// 	},
+		// 	getTestData: func() types.Result {
+		// 		return getTestResultData("YAML_MarshalPanic")
+		// 	},
+		// },
+		{
+			name:          "YAML_MarshalError",
+			formatterType: TypeYAML,
+			opts:          optsWithMeta,
+			expectedError: true,
+			checkOutput: func(t *testing.T, output string) {
+				// This should not be called since we expect an error
+				t.Error("checkOutput called when error was expected")
+			},
+			getTestData: func() types.Result {
+				return getTestResultData("YAML_MarshalError")
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -711,7 +773,12 @@ func TestFormatters(t *testing.T) {
 				t.Fatalf("NewFormatter failed: %v", err)
 			}
 
-			output, err := formatter.Format(testData)
+			// Use case-specific test data if provided, otherwise use default
+			data := testData
+			if tc.getTestData != nil {
+				data = tc.getTestData()
+			}
+			output, err := formatter.Format(data)
 
 			if tc.expectedError {
 				if err == nil {

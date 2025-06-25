@@ -15,6 +15,8 @@ import (
 	"github.com/alevsk/rbac-ops/internal/logger"
 	"github.com/alevsk/rbac-ops/internal/policyevaluation"
 	"github.com/alevsk/rbac-ops/internal/types"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func TestDefaultOptions(t *testing.T) {
@@ -234,297 +236,296 @@ func sortSARoleBindingEntries(entries []SARoleBindingEntry) {
 }
 
 func TestPrepareData(t *testing.T) {
-
-	// suppress debug logging
-	cfg := &config.Config{
-		Debug: false,
-	}
+	// Common setup for all tests
+	cfg := &config.Config{Debug: false}
 	logger.Init(cfg)
-
 	timestamp := time.Now().Unix()
 
-	t.Run("emptyResult", func(t *testing.T) {
-		res := newTestResult("empty", "v0", "src", timestamp)
-		opts := DefaultOptions()
-		parsed, err := PrepareData(res, opts)
-		if err != nil {
-			t.Fatalf("PrepareData returned error: %v", err)
-		}
-		if parsed.Metadata == nil && opts.IncludeMetadata {
-			t.Errorf("Metadata is nil, want non-nil with default options")
-		} else if parsed.Metadata != nil && !opts.IncludeMetadata {
-			t.Errorf("Metadata is non-nil, want nil with IncludeMetadata=false")
-		}
-		if len(parsed.IdentityData) != 0 {
-			t.Errorf("IdentityData not empty, got %d items", len(parsed.IdentityData))
-		}
-		if len(parsed.RBACData) != 0 {
-			t.Errorf("RBACData not empty, got %d items", len(parsed.RBACData))
-		}
-		if len(parsed.WorkloadData) != 0 {
-			t.Errorf("WorkloadData not empty, got %d items", len(parsed.WorkloadData))
-		}
-	})
-
-	t.Run("noMetadata", func(t *testing.T) {
-		res := newTestResult("test", "v1", "src", timestamp)
-		opts := &Options{IncludeMetadata: false}
-		parsed, err := PrepareData(res, opts)
-		if err != nil {
-			t.Fatalf("PrepareData returned error: %v", err)
-		}
-		if parsed.Metadata != nil {
-			t.Errorf("Metadata is not nil, want nil")
-		}
-	})
-
-	t.Run("withMetadata", func(t *testing.T) {
-		res := newTestResult("app", "v0.1.0", "test-source", timestamp)
-		opts := DefaultOptions()
-		parsed, err := PrepareData(res, opts)
-		if err != nil {
-			t.Fatalf("PrepareData returned error: %v", err)
-		}
-		if parsed.Metadata == nil {
-			t.Fatal("Metadata is nil, want populated")
-		}
-		expectedMeta := &Metadata{Name: "app", Version: "v0.1.0", Source: "test-source", Timestamp: timestamp, Extra: res.Extra}
-		if !reflect.DeepEqual(parsed.Metadata, expectedMeta) {
-			t.Errorf("Metadata content mismatch: got %+v, want %+v", parsed.Metadata, expectedMeta)
-		}
-	})
-
-	t.Run("fullDataWithMetadata", func(t *testing.T) {
-		res := newTestResult("full-app", "v1.1", "full-src", timestamp)
-		addRawIdentityData(&res, "sa1", "ns1", extractor.Identity{Name: "sa1", Namespace: "ns1", AutomountToken: true})
-
-		saRBACEntryData := extractor.ServiceAccountRBAC{
-			Roles: []extractor.RBACRole{
-				{
-					Type:      "Role",
-					Name:      "role1",
-					Namespace: "ns1",
-					Permissions: extractor.RuleApiGroup{
-						"": extractor.RuleResource{
-							"pods": extractor.RuleResourceName{
-								"": extractor.RuleVerb{"get": struct{}{}, "list": struct{}{}},
+	// Define the test table
+	testCases := []struct {
+		name       string
+		inputRes   func(timestamp int64) types.Result
+		inputOpts  *Options
+		wantParsed ParsedData
+		wantErrStr string
+		checkFunc  func(t *testing.T, got ParsedData, want ParsedData)
+	}{
+		{
+			name: "empty result with metadata",
+			inputRes: func(ts int64) types.Result {
+				return newTestResult("empty", "v0", "src", ts)
+			},
+			inputOpts: DefaultOptions(),
+			wantParsed: ParsedData{
+				Metadata: &Metadata{
+					Name:      "empty",
+					Version:   "v0",
+					Source:    "src",
+					Timestamp: timestamp,
+				},
+				IdentityData: []SAIdentityEntry{},
+				RBACData:     []SARoleBindingEntry{},
+				WorkloadData: []SAWorkloadEntry{},
+			},
+		},
+		{
+			name: "no metadata included",
+			inputRes: func(ts int64) types.Result {
+				return newTestResult("test", "v1", "src", ts)
+			},
+			inputOpts: &Options{IncludeMetadata: false},
+			wantParsed: ParsedData{
+				Metadata:     nil,
+				IdentityData: []SAIdentityEntry{},
+				RBACData:     []SARoleBindingEntry{},
+				WorkloadData: []SAWorkloadEntry{},
+			},
+		},
+		{
+			name: "invalid identity data format",
+			inputRes: func(ts int64) types.Result {
+				res := newTestResult("test", "v1", "src", ts)
+				res.IdentityData.Data["identities"] = "this is not a map"
+				return res
+			},
+			inputOpts:  DefaultOptions(),
+			wantErrStr: "invalid Identity data format",
+		},
+		{
+			name: "invalid rbac data format",
+			inputRes: func(ts int64) types.Result {
+				res := newTestResult("test", "v1", "src", ts)
+				res.RBACData.Data["rbac"] = "this is not a map"
+				return res
+			},
+			inputOpts:  DefaultOptions(),
+			wantErrStr: "invalid RBAC data format",
+		},
+		{
+			name: "invalid workload data format",
+			inputRes: func(ts int64) types.Result {
+				res := newTestResult("test", "v1", "src", ts)
+				res.WorkloadData.Data["workloads"] = "this is not a map"
+				return res
+			},
+			inputOpts:  DefaultOptions(),
+			wantErrStr: "invalid Workload data format",
+		},
+		{
+			name: "full data with metadata",
+			inputRes: func(ts int64) types.Result {
+				res := newTestResult("full-app", "v1.1", "full-src", ts)
+				addRawIdentityData(&res, "sa1", "ns1", extractor.Identity{
+					Name:             "sa1",
+					Namespace:        "ns1",
+					AutomountToken:   true,
+					Secrets:          []string{"s1"},
+					ImagePullSecrets: []string{"ips1"},
+				})
+				addRawRBACData(&res, "sa1", "ns1", extractor.ServiceAccountRBAC{
+					Roles: []extractor.RBACRole{
+						{
+							Type:      "Role",
+							Name:      "role1",
+							Namespace: "ns1",
+							Permissions: extractor.RuleApiGroup{
+								"": extractor.RuleResource{
+									"pods": extractor.RuleResourceName{
+										"": extractor.RuleVerb{
+											"get":  {},
+											"list": {},
+										},
+									},
+								},
 							},
 						},
-					},
-				},
-				{
-					Type:      "ClusterRole",
-					Name:      "clusterrole1",
-					Namespace: "*",
-					Permissions: extractor.RuleApiGroup{
-						"apps": extractor.RuleResource{
-							"deployments": extractor.RuleResourceName{
-								"": extractor.RuleVerb{"watch": struct{}{}},
-							},
-						},
-					},
-				},
-			},
-		}
-		addRawRBACData(&res, "sa1", "ns1", saRBACEntryData)
-		addRawWorkloadData(&res, []extractor.Workload{
-			{Type: extractor.WorkloadType("Deployment"), Name: "dep1", Namespace: "ns1", ServiceAccount: "sa1", Containers: []extractor.Container{{Name: "c1", Image: "img1"}}},
-		})
-
-		opts := DefaultOptions()
-		parsed, err := PrepareData(res, opts)
-		if err != nil {
-			t.Fatalf("PrepareData returned error: %v", err)
-		}
-
-		if parsed.Metadata == nil {
-			t.Fatal("Metadata is nil")
-		}
-		if parsed.Metadata.Name != "full-app" {
-			t.Errorf("Metadata.Name got %s, want full-app", parsed.Metadata.Name)
-		}
-
-		if len(parsed.IdentityData) != 1 {
-			t.Fatalf("IdentityData len got %d, want 1", len(parsed.IdentityData))
-		}
-		expectedID := SAIdentityEntry{ServiceAccountName: "sa1", Namespace: "ns1", AutomountToken: true, Secrets: nil, ImagePullSecrets: nil}
-		if !reflect.DeepEqual(parsed.IdentityData[0], expectedID) {
-			t.Errorf("IdentityData[0] got %+v, want %+v", parsed.IdentityData[0], expectedID)
-		}
-
-		if len(parsed.RBACData) != 2 {
-			t.Fatalf("RBACData len got %d, want 2. Got: %+v", len(parsed.RBACData), parsed.RBACData)
-		}
-		expectedRBACEntries := []SARoleBindingEntry{
-			{
-				ServiceAccountName: "sa1",
-				Namespace:          "ns1",
-				RoleType:           "Role",
-				RoleName:           "role1",
-				APIGroup:           "",
-				Resource:           "pods",
-				Verbs:              []string{"get", "list"},
-				RiskLevel:          "Low",
-				Tags:               policyevaluation.RiskTags{},
-			},
-			{
-				ServiceAccountName: "sa1",
-				Namespace:          "ns1",
-				RoleType:           "ClusterRole",
-				RoleName:           "clusterrole1",
-				APIGroup:           "apps",
-				Resource:           "deployments",
-				Verbs:              []string{"watch"},
-				RiskLevel:          "Low",
-				Tags:               policyevaluation.RiskTags{},
-			},
-		}
-
-		sortSARoleBindingEntries(parsed.RBACData)
-		sortSARoleBindingEntries(expectedRBACEntries)
-
-		// More granular comparison
-		for i := 0; i < len(expectedRBACEntries); i++ {
-			if i >= len(parsed.RBACData) {
-				t.Errorf("RBACData missing entry at index %d. Want: %+v", i, expectedRBACEntries[i])
-				continue
-			}
-			gotEntry := parsed.RBACData[i]
-			wantEntry := expectedRBACEntries[i]
-
-			if !reflect.DeepEqual(gotEntry.ServiceAccountName, wantEntry.ServiceAccountName) {
-				t.Errorf("idx %d: ServiceAccountName mismatch: got %s, want %s", i, gotEntry.ServiceAccountName, wantEntry.ServiceAccountName)
-			}
-			if !reflect.DeepEqual(gotEntry.Namespace, wantEntry.Namespace) {
-				t.Errorf("idx %d: Namespace mismatch: got %s, want %s", i, gotEntry.Namespace, wantEntry.Namespace)
-			}
-			if !reflect.DeepEqual(gotEntry.RoleType, wantEntry.RoleType) {
-				t.Errorf("idx %d: RoleType mismatch: got %s, want %s", i, gotEntry.RoleType, wantEntry.RoleType)
-			}
-			if !reflect.DeepEqual(gotEntry.RoleName, wantEntry.RoleName) {
-				t.Errorf("idx %d: RoleName mismatch: got %s, want %s", i, gotEntry.RoleName, wantEntry.RoleName)
-			}
-			if !reflect.DeepEqual(gotEntry.APIGroup, wantEntry.APIGroup) {
-				t.Errorf("idx %d: APIGroup mismatch: got %s, want %s", i, gotEntry.APIGroup, wantEntry.APIGroup)
-			}
-			if !reflect.DeepEqual(gotEntry.Resource, wantEntry.Resource) {
-				t.Errorf("idx %d: Resource mismatch: got %s, want %s", i, gotEntry.Resource, wantEntry.Resource)
-			}
-			if !reflect.DeepEqual(gotEntry.Verbs, wantEntry.Verbs) {
-				t.Errorf("idx %d: Verbs mismatch: got %v, want %v", i, gotEntry.Verbs, wantEntry.Verbs)
-			}
-			if !reflect.DeepEqual(gotEntry.RiskLevel, wantEntry.RiskLevel) {
-				t.Errorf("idx %d: RiskLevel mismatch: got %s, want %s", i, gotEntry.RiskLevel, wantEntry.RiskLevel)
-			}
-			if !reflect.DeepEqual(gotEntry.Tags, wantEntry.Tags) {
-				t.Errorf("idx %d: Tags mismatch: got %v, want %v", i, gotEntry.Tags, wantEntry.Tags)
-			}
-		}
-		// The granular checks above are now the sole source of truth for RBACData comparison in this sub-test.
-		// The potentially problematic DeepEqual on the whole slice has been removed.
-
-		if len(parsed.WorkloadData) != 1 {
-			t.Fatalf("WorkloadData len got %d, want 1", len(parsed.WorkloadData))
-		}
-		expectedWkld := SAWorkloadEntry{ServiceAccountName: "sa1", Namespace: "ns1", WorkloadType: "Deployment", WorkloadName: "dep1", ContainerName: "c1", Image: "img1"}
-		if !reflect.DeepEqual(parsed.WorkloadData[0], expectedWkld) {
-			t.Errorf("WorkloadData[0] got %+v, want %+v", parsed.WorkloadData[0], expectedWkld)
-		}
-	})
-
-	t.Run("invalidIdentityDataFormat", func(t *testing.T) {
-		res := newTestResult("test", "v1", "src", timestamp)
-		res.IdentityData.Data["identities"] = "this is not a map"
-		_, err := PrepareData(res, DefaultOptions())
-		if err == nil {
-			t.Fatal("PrepareData expected error for invalid identity format, got nil")
-		}
-		if !strings.Contains(err.Error(), "invalid Identity data format") {
-			t.Errorf("Error message %q does not contain 'invalid Identity data format'", err.Error())
-		}
-	})
-
-	t.Run("invalidRBACDataFormat", func(t *testing.T) {
-		res := newTestResult("test", "v1", "src", timestamp)
-		res.RBACData.Data["rbac"] = "this is not a map"
-		_, err := PrepareData(res, DefaultOptions())
-		if err == nil {
-			t.Fatal("PrepareData expected error for invalid RBAC format, got nil")
-		}
-		if !strings.Contains(err.Error(), "invalid RBAC data format") {
-			t.Errorf("Error message %q does not contain 'invalid RBAC data format'", err.Error())
-		}
-	})
-
-	t.Run("invalidWorkloadDataFormat", func(t *testing.T) {
-		res := newTestResult("test", "v1", "src", timestamp)
-		res.WorkloadData.Data["workloads"] = "this is not a map"
-		_, err := PrepareData(res, DefaultOptions())
-		if err == nil {
-			t.Fatal("PrepareData expected error for invalid workload format, got nil")
-		}
-		if !strings.Contains(err.Error(), "invalid Workload data format") {
-			t.Errorf("Error message %q does not contain 'invalid Workload data format'", err.Error())
-		}
-	})
-
-	t.Run("rbacDataWithRisk", func(t *testing.T) {
-		res := newTestResult("risk-app", "v1", "risk-src", timestamp)
-		saRBACEntry := extractor.ServiceAccountRBAC{
-			Roles: []extractor.RBACRole{
-				{
-					Type:      "ClusterRole",
-					Name:      "super-admin-role",
-					Namespace: "*",
-					Permissions: extractor.RuleApiGroup{
-						"*": extractor.RuleResource{
-							"*": extractor.RuleResourceName{
-								"*": extractor.RuleVerb{
-									"*": struct{}{},
+						{
+							Type:      "ClusterRole",
+							Name:      "clusterrole1",
+							Namespace: "*",
+							Permissions: extractor.RuleApiGroup{
+								"apps": extractor.RuleResource{
+									"deployments": extractor.RuleResourceName{
+										"": extractor.RuleVerb{
+											"watch": {},
+										},
+									},
 								},
 							},
 						},
 					},
+				})
+				addRawWorkloadData(&res, []extractor.Workload{
+					{
+						Type:           "Deployment",
+						Name:           "dep1",
+						Namespace:      "ns1",
+						ServiceAccount: "sa1",
+						Containers: []extractor.Container{
+							{
+								Name:  "c1",
+								Image: "img1",
+							},
+						},
+					},
+				})
+				return res
+			},
+			inputOpts: DefaultOptions(),
+			wantParsed: ParsedData{ // Populate the expected simple parts
+				Metadata: &Metadata{
+					Name:      "full-app",
+					Version:   "v1.1",
+					Source:    "full-src",
+					Timestamp: timestamp,
+				},
+				IdentityData: []SAIdentityEntry{
+					{
+						ServiceAccountName: "sa1",
+						Namespace:          "ns1",
+						AutomountToken:     true,
+						Secrets:            []string{"s1"},
+						ImagePullSecrets:   []string{"ips1"},
+					},
+				},
+				WorkloadData: []SAWorkloadEntry{
+					{
+						ServiceAccountName: "sa1",
+						Namespace:          "ns1",
+						WorkloadType:       "Deployment",
+						WorkloadName:       "dep1",
+						ContainerName:      "c1",
+						Image:              "img1",
+					},
+				},
+				RBACData: []SARoleBindingEntry{ // This part will be checked by the custom checkFunc
+					{
+						ServiceAccountName: "sa1",
+						Namespace:          "ns1",
+						RoleType:           "Role",
+						RoleName:           "role1",
+						APIGroup:           "",
+						Resource:           "pods",
+						Verbs:              []string{"get", "list"},
+						RiskLevel:          "Low",
+						Tags:               policyevaluation.RiskTags{},
+						RiskRules:          []int64{9996},
+					},
+					{
+						ServiceAccountName: "sa1",
+						Namespace:          "ns1",
+						RoleType:           "ClusterRole",
+						RoleName:           "clusterrole1",
+						APIGroup:           "apps",
+						Resource:           "deployments",
+						Verbs:              []string{"watch"},
+						RiskLevel:          "Low",
+						Tags:               policyevaluation.RiskTags{},
+						RiskRules:          []int64{9996},
+					},
 				},
 			},
-		}
-		addRawRBACData(&res, "risk-sa", "default", saRBACEntry)
+			checkFunc: func(t *testing.T, got ParsedData, want ParsedData) {
+				// Custom check for RBAC data due to its complexity and need for sorting.
+				sortSARoleBindingEntries(got.RBACData)
+				sortSARoleBindingEntries(want.RBACData)
 
-		opts := DefaultOptions()
-		parsed, err := PrepareData(res, opts)
-		if err != nil {
-			t.Fatalf("PrepareData returned error: %v", err)
-		}
-		if len(parsed.RBACData) != 1 {
-			t.Fatalf("RBACData len got %d, want 1. Got: %+v", len(parsed.RBACData), parsed.RBACData)
-		}
+				// Use cmp.Diff for a powerful, detailed comparison.
+				// We ignore the RBACData in this top-level diff because we're comparing it manually.
+				if diff := cmp.Diff(want, got, cmpopts.IgnoreFields(ParsedData{}, "RBACData")); diff != "" {
+					t.Errorf("ParsedData mismatch (-want +got):\n%s", diff)
+				}
 
-		entry := parsed.RBACData[0]
-		expectedRiskLevel := "Critical"
-		expectedTagContent := "ClusterAdminAccess"
-		expectedRiskRuleID := []int64{1039, 1047, 1002, 1075, 1073, 1071, 1006, 1078, 1008, 1080, 1010, 1011, 1036, 1013, 1014, 1015, 1016, 1017, 1066, 1102, 1020, 1065, 1064, 1099, 1024, 1063, 1062, 1027, 1028, 1061, 1060, 1031, 1032, 1033, 1059, 1035, 1012, 1081, 1052, 1055, 1092, 1041, 1000, 1043, 1044, 1045, 1046, 1037, 1048, 1098, 1004, 1072, 1038, 1042, 1040, 1076, 1056, 1091, 1001, 1034, 1025, 1097, 1096, 1029, 1009, 1021, 1018, 1067, 1022, 1069, 1007, 1103, 1030, 1026, 1074, 1003, 1053, 1089, 1070, 1079, 1068, 1058, 1005, 1083, 1084, 1085, 1019, 1100, 1023, 1077, 1090, 1057, 1054, 1093, 1094, 1095, 1049, 1050, 1051, 1088, 1087, 1101, 1086, 1082, 9999}
+				// Now compare the sorted RBAC data separately.
+				if diff := cmp.Diff(want.RBACData, got.RBACData); diff != "" {
+					t.Errorf("ParsedData.RBACData mismatch (-want +got):\n%s", diff)
+				}
+			},
+		},
+		{
+			name: "rbac data with risk evaluation",
+			inputRes: func(ts int64) types.Result {
+				res := newTestResult("risk-app", "v1", "risk-src", ts)
+				addRawRBACData(&res, "risk-sa", "default", extractor.ServiceAccountRBAC{
+					Roles: []extractor.RBACRole{{
+						Type: "ClusterRole", Name: "super-admin-role", Namespace: "*",
+						Permissions: extractor.RuleApiGroup{
+							"*": extractor.RuleResource{
+								"*": extractor.RuleResourceName{
+									"*": extractor.RuleVerb{
+										"*": {}},
+								},
+							},
+						},
+					}},
+				})
+				return res
+			},
+			inputOpts: DefaultOptions(),
+			checkFunc: func(t *testing.T, got ParsedData, want ParsedData) {
+				if len(got.RBACData) != 1 {
+					t.Fatalf("RBACData len got %d, want 1. Got: %+v", len(got.RBACData), got.RBACData)
+				}
+				entry := got.RBACData[0]
+				if entry.RiskLevel != "Critical" {
+					t.Errorf("RBACData[0].RiskLevel is %q, want 'Critical'", entry.RiskLevel)
+				}
+				found := false
+				for _, tag := range entry.Tags {
+					if tag == "ClusterAdminAccess" {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("RBACData[0].Tags %v does not contain 'ClusterAdminAccess'", entry.Tags)
+				}
+				// You might want a more robust check for RiskRules, e.g., checking for presence
+				// of a few key rules instead of a brittle deep equal on a long, generated slice.
+				if len(entry.RiskRules) == 0 {
+					t.Error("RBACData[0].RiskRules should not be empty for a critical risk")
+				}
+			},
+		},
+	}
 
-		if entry.RiskLevel != expectedRiskLevel {
-			t.Errorf("RBACData[0].RiskLevel is %q, want %q", entry.RiskLevel, expectedRiskLevel)
-		}
+	// Run the tests
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			res := tc.inputRes(timestamp)
+			opts := tc.inputOpts
 
-		allTags := make(map[string]struct{})
-		for _, rbacEntry := range parsed.RBACData {
-			for _, tag := range rbacEntry.Tags {
-				allTags[string(tag)] = struct{}{}
+			// Act
+			parsed, err := PrepareData(res, opts)
+
+			// Assert
+			if tc.wantErrStr != "" {
+				if err == nil {
+					t.Fatalf("expected an error containing %q, but got nil", tc.wantErrStr)
+				}
+				if !strings.Contains(err.Error(), tc.wantErrStr) {
+					t.Errorf("expected error to contain %q, got %q", tc.wantErrStr, err.Error())
+				}
+				return // Test is done for expected error cases
 			}
-		}
 
-		if _, ok := allTags[expectedTagContent]; !ok {
-			t.Errorf("allTags %v did not contain expected tag %q", allTags, expectedTagContent)
-		}
-		if len(entry.RiskRules) != len(expectedRiskRuleID) {
-			t.Errorf("RBACData[0].RiskRules len got %d, want %d", len(entry.RiskRules), len(expectedRiskRuleID))
-		}
-		if !reflect.DeepEqual(entry.RiskRules, expectedRiskRuleID) {
-			t.Errorf("RBACData[0].RiskRules got %v, want %v", entry.RiskRules, expectedRiskRuleID)
-		}
-	})
+			if err != nil {
+				t.Fatalf("PrepareData() returned an unexpected error: %v", err)
+			}
+
+			if tc.checkFunc != nil {
+				// Use the custom validation function if provided
+				tc.checkFunc(t, parsed, tc.wantParsed)
+			} else {
+				// Otherwise, use a standard deep comparison
+				// Using cmp.Diff provides much better output on failure than reflect.DeepEqual
+				if diff := cmp.Diff(tc.wantParsed, parsed, cmpopts.EquateEmpty()); diff != "" {
+					t.Errorf("PrepareData() mismatch (-want +got):\n%s", diff)
+				}
+			}
+		})
+	}
 }
 
 // NOTE: Tests for Format methods, and buildTables will be added in subsequent phases.

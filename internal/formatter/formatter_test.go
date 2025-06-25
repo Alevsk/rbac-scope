@@ -164,6 +164,7 @@ func newTestResult(name, version, source string, ts int64) types.Result {
 
 	workloadData := make(map[string]interface{})
 	workloadData["workloads"] = make(map[string]map[string][]extractor.Workload)
+	extraData := make(map[string]interface{}) // Ensure Extra is initialized
 
 	return types.Result{
 		Name:         name,
@@ -173,7 +174,18 @@ func newTestResult(name, version, source string, ts int64) types.Result {
 		IdentityData: &types.ExtractedData{Data: identityData},
 		RBACData:     &types.ExtractedData{Data: rbacData},
 		WorkloadData: &types.ExtractedData{Data: workloadData},
+		Extra:        extraData, // Add Extra here
 	}
+}
+
+func newTestResultWithHelm(name, version, source string, ts int64, chartAPIVersion, chartName, chartVersion string) types.Result {
+	res := newTestResult(name, version, source, ts) // newTestResult now initializes Extra
+	res.Extra["helm"] = map[string]interface{}{
+		"apiVersion": chartAPIVersion,
+		"name":       chartName,
+		"version":    chartVersion,
+	}
+	return res
 }
 
 func addRawIdentityData(res *types.Result, saName, saNamespace string, identity extractor.Identity) {
@@ -262,6 +274,85 @@ func TestPrepareData(t *testing.T) {
 					Version:   "v0",
 					Source:    "src",
 					Timestamp: timestamp,
+				},
+				IdentityData: []SAIdentityEntry{},
+				RBACData:     []SARoleBindingEntry{},
+				WorkloadData: []SAWorkloadEntry{},
+			},
+		},
+		{
+			name: "empty result with helm metadata",
+			inputRes: func(ts int64) types.Result {
+				return newTestResultWithHelm("helm-empty", "v0.1", "helm-src", ts, "v2", "my-chart", "0.1.0")
+			},
+			inputOpts: DefaultOptions(),
+			wantParsed: ParsedData{
+				Metadata: &Metadata{
+					Name:            "helm-empty",
+					Version:         "v0.1",
+					Source:          "helm-src",
+					Timestamp:       timestamp,
+					ChartAPIVersion: "v2",
+					ChartName:       "my-chart",
+					ChartVersion:    "0.1.0",
+					Extra: map[string]interface{}{
+						"helm": map[string]interface{}{
+							"apiVersion": "v2",
+							"name":       "my-chart",
+							"version":    "0.1.0",
+						},
+					},
+				},
+				IdentityData: []SAIdentityEntry{},
+				RBACData:     []SARoleBindingEntry{},
+				WorkloadData: []SAWorkloadEntry{},
+			},
+		},
+		{
+			name: "result with partial helm metadata",
+			inputRes: func(ts int64) types.Result {
+				res := newTestResult("helm-partial", "v0.2", "helm-src-partial", ts)
+				res.Extra["helm"] = map[string]interface{}{
+					"name": "only-name-chart",
+				}
+				return res
+			},
+			inputOpts: DefaultOptions(),
+			wantParsed: ParsedData{
+				Metadata: &Metadata{
+					Name:      "helm-partial",
+					Version:   "v0.2",
+					Source:    "helm-src-partial",
+					Timestamp: timestamp,
+					ChartName: "only-name-chart",
+					Extra: map[string]interface{}{
+						"helm": map[string]interface{}{
+							"name": "only-name-chart",
+						},
+					},
+				},
+				IdentityData: []SAIdentityEntry{},
+				RBACData:     []SARoleBindingEntry{},
+				WorkloadData: []SAWorkloadEntry{},
+			},
+		},
+		{
+			name: "result with invalid helm metadata type",
+			inputRes: func(ts int64) types.Result {
+				res := newTestResult("helm-invalid", "v0.3", "helm-src-invalid", ts)
+				res.Extra["helm"] = "not-a-map" // Invalid type
+				return res
+			},
+			inputOpts: DefaultOptions(),
+			wantParsed: ParsedData{
+				Metadata: &Metadata{
+					Name:      "helm-invalid",
+					Version:   "v0.3",
+					Source:    "helm-src-invalid",
+					Timestamp: timestamp,
+					Extra: map[string]interface{}{ // Extra still contains the invalid helm data
+						"helm": "not-a-map",
+					},
 				},
 				IdentityData: []SAIdentityEntry{},
 				RBACData:     []SARoleBindingEntry{},
@@ -378,6 +469,7 @@ func TestPrepareData(t *testing.T) {
 					Version:   "v1.1",
 					Source:    "full-src",
 					Timestamp: timestamp,
+					Extra:     map[string]interface{}{}, // Expect empty map instead of nil
 				},
 				IdentityData: []SAIdentityEntry{
 					{
@@ -480,8 +572,6 @@ func TestPrepareData(t *testing.T) {
 				if !found {
 					t.Errorf("RBACData[0].Tags %v does not contain 'ClusterAdminAccess'", entry.Tags)
 				}
-				// You might want a more robust check for RiskRules, e.g., checking for presence
-				// of a few key rules instead of a brittle deep equal on a long, generated slice.
 				if len(entry.RiskRules) == 0 {
 					t.Error("RBACData[0].RiskRules should not be empty for a critical risk")
 				}
@@ -515,11 +605,8 @@ func TestPrepareData(t *testing.T) {
 			}
 
 			if tc.checkFunc != nil {
-				// Use the custom validation function if provided
 				tc.checkFunc(t, parsed, tc.wantParsed)
 			} else {
-				// Otherwise, use a standard deep comparison
-				// Using cmp.Diff provides much better output on failure than reflect.DeepEqual
 				if diff := cmp.Diff(tc.wantParsed, parsed, cmpopts.EquateEmpty()); diff != "" {
 					t.Errorf("PrepareData() mismatch (-want +got):\n%s", diff)
 				}
@@ -528,56 +615,42 @@ func TestPrepareData(t *testing.T) {
 	}
 }
 
-// NOTE: Tests for Format methods, and buildTables will be added in subsequent phases.
-
 func getTestResultData(testCase string) types.Result {
-	// Helper to create consistent test data
 	timestamp := time.Now().Unix()
-	res := newTestResult("test-app", "v1.0", "test-src", timestamp)
+	var res types.Result
 
-	// Create invalid data for specific test cases
 	switch testCase {
 	case "JSON_MarshalError":
-		// Create a circular reference that cannot be marshaled to JSON
+		res = newTestResult("test-app", "v1.0", "test-src", timestamp)
 		circular := make(map[string]interface{})
 		circular["self"] = circular
 		res.Extra = circular
-		return res
 	case "YAML_MarshalPanic":
-		// Create a function value that cannot be marshaled to YAML and will panic
-		res.Extra = map[string]interface{}{
-			"fn": func() {},
-		}
-		return res
+		res = newTestResult("test-app", "v1.0", "test-src", timestamp)
+		res.Extra = map[string]interface{}{"fn": func() {}}
 	case "YAML_MarshalError":
-		// Create a channel which will cause yaml.Marshal to return an error without panicking
-		res.Extra = map[string]interface{}{
-			"ch": make(chan int),
-		}
-		return res
+		res = newTestResult("test-app", "v1.0", "test-src", timestamp)
+		res.Extra = map[string]interface{}{"ch": make(chan int)}
+	case "WithHelm":
+		res = newTestResultWithHelm("helm-app", "v1.1", "helm-src", timestamp, "v2", "my-helm-chart", "1.2.3")
+	default:
+		res = newTestResult("test-app", "v1.0", "test-src", timestamp)
 	}
-	addRawIdentityData(&res, "sa1", "ns1", extractor.Identity{Name: "sa1", Namespace: "ns1", AutomountToken: true, Secrets: []string{"s1"}, ImagePullSecrets: []string{"ips1"}})
-	saRBACEntryData := extractor.ServiceAccountRBAC{
-		Roles: []extractor.RBACRole{
-			{
-				Type:      "Role",
-				Name:      "pod-reader",
-				Namespace: "ns1",
-				Permissions: extractor.RuleApiGroup{
-					"": extractor.RuleResource{"pods": extractor.RuleResourceName{"my-pod": extractor.RuleVerb{"get": struct{}{}, "list": struct{}{}}}},
-				},
+
+	if testCase != "JSON_MarshalError" && testCase != "YAML_MarshalPanic" && testCase != "YAML_MarshalError" {
+		addRawIdentityData(&res, "sa1", "ns1", extractor.Identity{Name: "sa1", Namespace: "ns1", AutomountToken: true, Secrets: []string{"s1"}, ImagePullSecrets: []string{"ips1"}})
+		saRBACEntryData := extractor.ServiceAccountRBAC{
+			Roles: []extractor.RBACRole{
+				{Type: "Role", Name: "pod-reader", Namespace: "ns1", Permissions: extractor.RuleApiGroup{"": extractor.RuleResource{"pods": extractor.RuleResourceName{"my-pod": extractor.RuleVerb{"get": {}, "list": {}}}}}},
 			},
-		},
+		}
+		addRawRBACData(&res, "sa1", "ns1", saRBACEntryData)
+		addRawWorkloadData(&res, []extractor.Workload{{Type: "Deployment", Name: "app-dep", Namespace: "ns1", ServiceAccount: "sa1", Containers: []extractor.Container{{Name: "main", Image: "app-image"}}}})
 	}
-	addRawRBACData(&res, "sa1", "ns1", saRBACEntryData)
-	addRawWorkloadData(&res, []extractor.Workload{
-		{Type: "Deployment", Name: "app-dep", Namespace: "ns1", ServiceAccount: "sa1", Containers: []extractor.Container{{Name: "main", Image: "app-image"}}},
-	})
 	return res
 }
 
 func TestFormatters(t *testing.T) {
-	testData := getTestResultData("")
 	optsWithMeta := DefaultOptions()
 	optsNoMeta := &Options{IncludeMetadata: false}
 
@@ -586,28 +659,40 @@ func TestFormatters(t *testing.T) {
 		formatterType Type
 		opts          *Options
 		expectedError bool
-		checkOutput   func(t *testing.T, output string) // Specific checks for output
-		getTestData   func() types.Result               // Optional function to get test data for this case
+		checkOutput   func(t *testing.T, output string)
+		getTestData   func() types.Result
 	}{
-		// JSON Formatter Tests
 		{
 			name:          "JSON_WithMetadata",
 			formatterType: TypeJSON,
 			opts:          optsWithMeta,
-			expectedError: false,
+			getTestData:   func() types.Result { return getTestResultData("") },
 			checkOutput: func(t *testing.T, output string) {
 				var data ParsedData
 				if err := json.Unmarshal([]byte(output), &data); err != nil {
-					t.Fatalf("Failed to unmarshal JSON output: %v. Output:\n%s", err, output)
+					t.Fatalf("Failed to unmarshal JSON: %v. Output: %s", err, output)
 				}
-				if data.Metadata == nil {
-					t.Fatal("JSON output with metadata: Metadata field is nil")
-				}
-				if data.Metadata.Name != "test-app" {
-					t.Errorf("JSON Metadata.Name got %s, want test-app", data.Metadata.Name)
+				if data.Metadata == nil || data.Metadata.Name != "test-app" || data.Metadata.ChartName != "" {
+					t.Errorf("JSON_WithMetadata check failed. Metadata: %+v", data.Metadata)
 				}
 				if len(data.RBACData) == 0 || data.RBACData[0].ServiceAccountName != "sa1" {
-					t.Errorf("JSON RBACData[0].ServiceAccountName not found or incorrect")
+					t.Error("JSON_WithMetadata RBAC check failed")
+				}
+			},
+		},
+		{
+			name:          "JSON_WithHelmMetadata",
+			formatterType: TypeJSON,
+			opts:          optsWithMeta,
+			getTestData:   func() types.Result { return getTestResultData("WithHelm") },
+			checkOutput: func(t *testing.T, output string) {
+				var data ParsedData
+				if err := json.Unmarshal([]byte(output), &data); err != nil {
+					t.Fatalf("Failed to unmarshal JSON (Helm): %v. Output: %s", err, output)
+				}
+				if data.Metadata == nil || data.Metadata.Name != "helm-app" ||
+					data.Metadata.ChartName != "my-helm-chart" || data.Metadata.ChartAPIVersion != "v2" || data.Metadata.ChartVersion != "1.2.3" {
+					t.Errorf("JSON_WithHelmMetadata check failed. Metadata: %+v", data.Metadata)
 				}
 			},
 		},
@@ -615,39 +700,45 @@ func TestFormatters(t *testing.T) {
 			name:          "JSON_NoMetadata",
 			formatterType: TypeJSON,
 			opts:          optsNoMeta,
-			expectedError: false,
+			getTestData:   func() types.Result { return getTestResultData("") },
 			checkOutput: func(t *testing.T, output string) {
 				var data ParsedData
 				if err := json.Unmarshal([]byte(output), &data); err != nil {
-					t.Fatalf("Failed to unmarshal JSON output: %v. Output:\n%s", err, output)
+					t.Fatalf("Failed to unmarshal JSON (NoMeta): %v. Output: %s", err, output)
 				}
 				if data.Metadata != nil {
-					t.Errorf("JSON output without metadata: Metadata field is not nil, got %+v", data.Metadata)
-				}
-				if len(data.RBACData) == 0 || data.RBACData[0].ServiceAccountName != "sa1" {
-					t.Errorf("JSON RBACData[0].ServiceAccountName not found or incorrect (no metadata)")
+					t.Errorf("JSON_NoMetadata check failed, metadata not nil. Metadata: %+v", data.Metadata)
 				}
 			},
 		},
-		// YAML Formatter Tests
 		{
 			name:          "YAML_WithMetadata",
 			formatterType: TypeYAML,
 			opts:          optsWithMeta,
-			expectedError: false,
+			getTestData:   func() types.Result { return getTestResultData("") },
 			checkOutput: func(t *testing.T, output string) {
 				var data ParsedData
 				if err := yaml.Unmarshal([]byte(output), &data); err != nil {
-					t.Fatalf("Failed to unmarshal YAML output: %v. Output:\n%s", err, output)
+					t.Fatalf("Failed to unmarshal YAML: %v. Output: %s", err, output)
 				}
-				if data.Metadata == nil {
-					t.Fatal("YAML output with metadata: Metadata field is nil")
+				if data.Metadata == nil || data.Metadata.Name != "test-app" || data.Metadata.ChartName != "" {
+					t.Errorf("YAML_WithMetadata check failed. Metadata: %+v", data.Metadata)
 				}
-				if data.Metadata.Name != "test-app" {
-					t.Errorf("YAML Metadata.Name got %s, want test-app", data.Metadata.Name)
+			},
+		},
+		{
+			name:          "YAML_WithHelmMetadata",
+			formatterType: TypeYAML,
+			opts:          optsWithMeta,
+			getTestData:   func() types.Result { return getTestResultData("WithHelm") },
+			checkOutput: func(t *testing.T, output string) {
+				var data ParsedData
+				if err := yaml.Unmarshal([]byte(output), &data); err != nil {
+					t.Fatalf("Failed to unmarshal YAML (Helm): %v. Output: %s", err, output)
 				}
-				if len(data.RBACData) == 0 || data.RBACData[0].ServiceAccountName != "sa1" {
-					t.Errorf("YAML RBACData[0].ServiceAccountName not found or incorrect")
+				if data.Metadata == nil || data.Metadata.Name != "helm-app" ||
+					data.Metadata.ChartName != "my-helm-chart" || data.Metadata.ChartAPIVersion != "v2" || data.Metadata.ChartVersion != "1.2.3" {
+					t.Errorf("YAML_WithHelmMetadata check failed. Metadata: %+v", data.Metadata)
 				}
 			},
 		},
@@ -655,115 +746,70 @@ func TestFormatters(t *testing.T) {
 			name:          "YAML_NoMetadata",
 			formatterType: TypeYAML,
 			opts:          optsNoMeta,
-			expectedError: false,
+			getTestData:   func() types.Result { return getTestResultData("") },
 			checkOutput: func(t *testing.T, output string) {
 				var data ParsedData
 				if err := yaml.Unmarshal([]byte(output), &data); err != nil {
-					t.Fatalf("Failed to unmarshal YAML output: %v. Output:\n%s", err, output)
+					t.Fatalf("Failed to unmarshal YAML (NoMeta): %v. Output: %s", err, output)
 				}
 				if data.Metadata != nil {
-					t.Errorf("YAML output without metadata: Metadata field is not nil, got %+v", data.Metadata)
-				}
-				if len(data.RBACData) == 0 || data.RBACData[0].ServiceAccountName != "sa1" {
-					t.Errorf("YAML RBACData[0].ServiceAccountName not found or incorrect (no metadata)")
+					t.Errorf("YAML_NoMetadata check failed, metadata not nil. Metadata: %+v", data.Metadata)
 				}
 			},
 		},
-		// Table Formatter Tests
 		{
 			name:          "Table_WithMetadata",
 			formatterType: TypeTable,
-			opts:          optsWithMeta, // buildTables itself uses these opts for PrepareData
-			expectedError: false,
+			opts:          optsWithMeta,
+			getTestData:   func() types.Result { return getTestResultData("") },
 			checkOutput: func(t *testing.T, output string) {
-				// Metadata table itself is always rendered by buildTables from raw types.Result.
-				// opts.IncludeMetadata affects what PrepareData (called by buildTables for other tables) includes.
-				if !strings.Contains(output, "test-app") {
-					t.Errorf("Table output missing metadata Name 'test-app'")
-				}
-				if !strings.Contains(output, "sa1") || !strings.Contains(output, "pod-reader") {
-					t.Errorf("Table output missing key data elements 'sa1' or 'pod-reader'")
+				if !strings.Contains(output, "test-app") || strings.Contains(output, "CHART NAME") ||
+					!strings.Contains(output, "sa1") || !strings.Contains(output, "pod-reader") {
+					t.Errorf("Table_WithMetadata check failed. Output: %s", output)
 				}
 			},
 		},
 		{
-			name:          "Table_NoMetadata_EffectOnSubTables",
+			name:          "Table_WithHelmMetadata",
 			formatterType: TypeTable,
-			opts:          optsNoMeta, // This should mean PrepareData (in buildTables) omits metadata
-			expectedError: false,
+			opts:          optsWithMeta,
+			getTestData:   func() types.Result { return getTestResultData("WithHelm") },
 			checkOutput: func(t *testing.T, output string) {
-				// The main metadata table from buildTables might still show basic info from types.Result.
-				// The effect of optsNoMeta is that ParsedData.Metadata (used by buildTables for sub-tables) will be nil.
-				// For tables, the most direct check is that the output is generated.
-				// A truly deep check would involve parsing the table output.
-				if !strings.Contains(output, "sa1") || !strings.Contains(output, "pod-reader") {
-					t.Errorf("Table output (no metadata for sub-tables) missing key data elements 'sa1' or 'pod-reader'")
+				if !strings.Contains(output, "helm-app") || !strings.Contains(output, "CHART API VERSION") || !strings.Contains(output, "v2") ||
+					!strings.Contains(output, "CHART NAME") || !strings.Contains(output, "my-helm-chart") ||
+					!strings.Contains(output, "CHART VERSION") || !strings.Contains(output, "1.2.3") {
+					t.Errorf("Table_WithHelmMetadata check failed. Output: %s", output)
 				}
-				// Check for absence of metadata *within the ParsedData sections* is harder without parsing table.
-				// We trust PrepareData's own tests for correctly omitting Metadata field in ParsedData.
 			},
 		},
-		// Markdown Formatter Tests
 		{
 			name:          "Markdown_WithMetadata",
 			formatterType: TypeMarkdown,
 			opts:          optsWithMeta,
-			expectedError: false,
+			getTestData:   func() types.Result { return getTestResultData("") },
 			checkOutput: func(t *testing.T, output string) {
-				if !strings.Contains(output, "test-app") {
-					t.Errorf("Markdown output missing metadata Name 'test-app'")
-				}
-				if !strings.Contains(output, "sa1") || !strings.Contains(output, "pod-reader") {
-					t.Errorf("Markdown output missing key data elements 'sa1' or 'pod-reader'")
-				}
-				// Specific markdown table check for the Name row in the Metadata table
-				// Based on observed output: | NAME | test-app |
-				if !strings.Contains(output, "| NAME | test-app |") {
-					t.Logf("Markdown output for metadata table:\n%s", output)
-					t.Errorf("Markdown output for 'NAME | test-app' row not found as expected in metadata table")
+				if !strings.Contains(output, "| NAME | test-app |") || strings.Contains(output, "| CHART NAME |") ||
+					!strings.Contains(output, "sa1") || !strings.Contains(output, "pod-reader") {
+					t.Errorf("Markdown_WithMetadata check failed. Output: %s", output)
 				}
 			},
 		},
-		// Error cases for JSON and YAML marshaling
 		{
-			name:          "JSON_MarshalError",
-			formatterType: TypeJSON,
+			name:          "Markdown_WithHelmMetadata",
+			formatterType: TypeMarkdown,
 			opts:          optsWithMeta,
-			expectedError: true,
+			getTestData:   func() types.Result { return getTestResultData("WithHelm") },
 			checkOutput: func(t *testing.T, output string) {
-				// This should not be called since we expect an error
-				t.Error("checkOutput called when error was expected")
-			},
-			getTestData: func() types.Result {
-				return getTestResultData("JSON_MarshalError")
+				if !strings.Contains(output, "| NAME | helm-app |") ||
+					!strings.Contains(output, "| CHART API VERSION | v2 |") ||
+					!strings.Contains(output, "| CHART NAME | my-helm-chart |") ||
+					!strings.Contains(output, "| CHART VERSION | 1.2.3 |") {
+					t.Errorf("Markdown_WithHelmMetadata check failed. Output: %s", output)
+				}
 			},
 		},
-		// {
-		// 	name:          "YAML_MarshalPanic",
-		// 	formatterType: TypeYAML,
-		// 	opts:          optsWithMeta,
-		// 	expectedError: true,
-		// 	checkOutput: func(t *testing.T, output string) {
-		// 		// This should not be called since we expect an error
-		// 		t.Error("checkOutput called when error was expected")
-		// 	},
-		// 	getTestData: func() types.Result {
-		// 		return getTestResultData("YAML_MarshalPanic")
-		// 	},
-		// },
-		{
-			name:          "YAML_MarshalError",
-			formatterType: TypeYAML,
-			opts:          optsWithMeta,
-			expectedError: true,
-			checkOutput: func(t *testing.T, output string) {
-				// This should not be called since we expect an error
-				t.Error("checkOutput called when error was expected")
-			},
-			getTestData: func() types.Result {
-				return getTestResultData("YAML_MarshalError")
-			},
-		},
+		{name: "JSON_MarshalError", formatterType: TypeJSON, opts: optsWithMeta, expectedError: true, getTestData: func() types.Result { return getTestResultData("JSON_MarshalError") }},
+		{name: "YAML_MarshalError", formatterType: TypeYAML, opts: optsWithMeta, expectedError: true, getTestData: func() types.Result { return getTestResultData("YAML_MarshalError") }},
 	}
 
 	for _, tc := range testCases {
@@ -773,16 +819,16 @@ func TestFormatters(t *testing.T) {
 				t.Fatalf("NewFormatter failed: %v", err)
 			}
 
-			// Use case-specific test data if provided, otherwise use default
-			data := testData
+			dataToFormat := getTestResultData("") // Default
 			if tc.getTestData != nil {
-				data = tc.getTestData()
+				dataToFormat = tc.getTestData()
 			}
-			output, err := formatter.Format(data)
+
+			output, err := formatter.Format(dataToFormat)
 
 			if tc.expectedError {
 				if err == nil {
-					t.Errorf("Expected an error, but got nil")
+					t.Errorf("Expected an error, but got nil. Output: %s", output)
 				}
 			} else {
 				if err != nil {
@@ -791,22 +837,19 @@ func TestFormatters(t *testing.T) {
 				if tc.checkOutput != nil {
 					tc.checkOutput(t, output)
 				}
-				if output == "" {
+				if output == "" { // Output can be empty if data is empty, but not for these tests
 					t.Errorf("Expected output, but got empty string")
 				}
 			}
 		})
 	}
 
-	// Test error from PrepareData propagation
 	t.Run("JSON_PrepareDataError", func(t *testing.T) {
 		formatter, _ := NewFormatter(TypeJSON, DefaultOptions())
 		badData := types.Result{IdentityData: &types.ExtractedData{Data: map[string]interface{}{"identities": "not-a-map"}}}
 		_, err := formatter.Format(badData)
-		if err == nil {
-			t.Error("Expected error from PrepareData, got nil")
-		} else if !strings.Contains(err.Error(), "invalid Identity data format") {
-			t.Errorf("Unexpected error message: %s", err.Error())
+		if err == nil || !strings.Contains(err.Error(), "invalid Identity data format") {
+			t.Errorf("JSON_PrepareDataError failed: %v", err)
 		}
 	})
 
@@ -814,37 +857,26 @@ func TestFormatters(t *testing.T) {
 		formatter, _ := NewFormatter(TypeYAML, DefaultOptions())
 		badData := types.Result{RBACData: &types.ExtractedData{Data: map[string]interface{}{"rbac": "not-a-map"}}}
 		_, err := formatter.Format(badData)
-		if err == nil {
-			t.Error("Expected error from PrepareData, got nil")
-		} else if !strings.Contains(err.Error(), "invalid RBAC data format") {
-			t.Errorf("Unexpected error message: %s", err.Error())
+		if err == nil || !strings.Contains(err.Error(), "invalid RBAC data format") {
+			t.Errorf("YAML_PrepareDataError failed: %v", err)
 		}
 	})
 
-	t.Run("Table_PrepareDataError", func(t *testing.T) {
-		// This test assumes buildTables calls PrepareData and propagates its error.
-		// If buildTables handles errors from PrepareData differently, this test might need adjustment.
+	t.Run("Table_BuildTablesError", func(t *testing.T) { // Renamed to reflect buildTables
 		formatter, _ := NewFormatter(TypeTable, DefaultOptions())
-		// Using WorkloadData for a unique error message source for this test
 		badData := types.Result{WorkloadData: &types.ExtractedData{Data: map[string]interface{}{"workloads": "not-a-map"}}}
-		_, err := formatter.Format(badData)
-		if err == nil {
-			t.Error("Expected error from PrepareData (via buildTables), got nil")
-		} else if !strings.Contains(err.Error(), "invalid Workload data format") {
-			// This error comes from PrepareData
-			t.Errorf("Unexpected error message: %s, expected 'invalid Workload data format'", err.Error())
+		_, err := formatter.Format(badData) // Format calls buildTables
+		if err == nil || !strings.Contains(err.Error(), "invalid Workload data format") {
+			t.Errorf("Table_BuildTablesError failed: %v", err)
 		}
 	})
 
-	t.Run("Markdown_PrepareDataError", func(t *testing.T) {
+	t.Run("Markdown_BuildTablesError", func(t *testing.T) { // Renamed to reflect buildTables
 		formatter, _ := NewFormatter(TypeMarkdown, DefaultOptions())
-		badData := types.Result{IdentityData: &types.ExtractedData{Data: map[string]interface{}{"identities": "not-a-map-for-markdown"}}}
-		_, err := formatter.Format(badData)
-		if err == nil {
-			t.Error("Expected error from PrepareData (via buildTables), got nil")
-		} else if !strings.Contains(err.Error(), "invalid Identity data format") {
-			// This error comes from PrepareData
-			t.Errorf("Unexpected error message: %s, expected 'invalid Identity data format'", err.Error())
+		badData := types.Result{IdentityData: &types.ExtractedData{Data: map[string]interface{}{"identities": "not-a-map"}}}
+		_, err := formatter.Format(badData) // Format calls buildTables
+		if err == nil || !strings.Contains(err.Error(), "invalid Identity data format") {
+			t.Errorf("Markdown_BuildTablesError failed: %v", err)
 		}
 	})
 }

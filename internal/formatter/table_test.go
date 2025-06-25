@@ -22,6 +22,7 @@ func newTableTestResult(name, version, source string, ts int64) types.Result {
 
 	workloadData := make(map[string]interface{})
 	workloadData["workloads"] = make(map[string]map[string][]extractor.Workload)
+	extraData := make(map[string]interface{}) // Ensure Extra is initialized
 
 	return types.Result{
 		Name:         name,
@@ -31,7 +32,18 @@ func newTableTestResult(name, version, source string, ts int64) types.Result {
 		IdentityData: &types.ExtractedData{Data: identityData},
 		RBACData:     &types.ExtractedData{Data: rbacData},
 		WorkloadData: &types.ExtractedData{Data: workloadData},
+		Extra:        extraData, // Add Extra here
 	}
+}
+
+func newTableTestResultWithHelm(name, version, source string, ts int64, chartAPIVersion, chartName, chartVersion string) types.Result {
+	res := newTableTestResult(name, version, source, ts) // newTableTestResult now initializes Extra
+	res.Extra["helm"] = map[string]interface{}{
+		"apiVersion": chartAPIVersion,
+		"name":       chartName,
+		"version":    chartVersion,
+	}
+	return res
 }
 
 func addRawIdentityDataForTable(res *types.Result, saName, saNamespace string, identity extractor.Identity) {
@@ -109,6 +121,95 @@ func TestBuildTables(t *testing.T) {
 		}
 	})
 
+	t.Run("fullDataWithHelm", func(t *testing.T) {
+		res := newTableTestResultWithHelm("full-helm-app", "v1.1", "full-helm-src", timestamp,
+			"v2", "my-helm-chart-for-table", "0.2.0")
+		addRawIdentityDataForTable(&res, "sa-helm", "ns-helm", extractor.Identity{Name: "sa-helm", Namespace: "ns-helm", AutomountToken: false})
+		saRBAC := extractor.ServiceAccountRBAC{
+			Roles: []extractor.RBACRole{
+				{Type: "Role", Name: "helm-reader", Namespace: "ns-helm", Permissions: extractor.RuleApiGroup{
+					"": extractor.RuleResource{"configmaps": extractor.RuleResourceName{"": extractor.RuleVerb{"get": struct{}{}}}},
+				}},
+			},
+		}
+		addRawRBACDataForTable(&res, "sa-helm", "ns-helm", saRBAC)
+		addRawWorkloadDataForTable(&res, []extractor.Workload{
+			{Type: "Job", Name: "helm-job", Namespace: "ns-helm", ServiceAccount: "sa-helm", Containers: []extractor.Container{{Name: "worker", Image: "busybox"}}},
+		})
+
+		metadataTable, identityTable, rbacTable, workloadTable, err := buildTables(res)
+		if err != nil {
+			t.Fatalf("buildTables returned error: %v", err)
+		}
+		if metadataTable == nil || identityTable == nil || rbacTable == nil || workloadTable == nil {
+			t.Fatal("One or more tables are nil for Helm test")
+		}
+
+		mdRendered := renderTableForTest(metadataTable)
+		if !strings.Contains(mdRendered, "full-helm-app") {
+			t.Error("Metadata table missing app name for Helm test")
+		}
+		if !strings.Contains(mdRendered, "CHART API VERSION") || !strings.Contains(mdRendered, "v2") {
+			t.Errorf("Metadata table missing 'CHART API VERSION' or its value 'v2'. Output:\n%s", mdRendered)
+		}
+		if !strings.Contains(mdRendered, "CHART NAME") || !strings.Contains(mdRendered, "my-helm-chart-for-table") {
+			t.Errorf("Metadata table missing 'CHART NAME' or its value 'my-helm-chart-for-table'. Output:\n%s", mdRendered)
+		}
+		if !strings.Contains(mdRendered, "CHART VERSION") || !strings.Contains(mdRendered, "0.2.0") {
+			t.Errorf("Metadata table missing 'CHART VERSION' or its value '0.2.0'. Output:\n%s", mdRendered)
+		}
+
+		if identityTable.Length() != 1 {
+			t.Errorf("Expected 1 identity for Helm test, got %d", identityTable.Length())
+		}
+		if rbacTable.Length() != 1 {
+			t.Errorf("Expected 1 RBAC entry for Helm test, got %d", rbacTable.Length())
+		}
+		if workloadTable.Length() != 1 {
+			t.Errorf("Expected 1 workload for Helm test, got %d", workloadTable.Length())
+		}
+	})
+
+	t.Run("partialHelmDataInTable", func(t *testing.T) {
+		res := newTableTestResult("partial-helm-app", "v1.2", "partial-helm-src", timestamp)
+		res.Extra["helm"] = map[string]interface{}{
+			"name": "only-name-chart-for-table",
+		}
+
+		metadataTable, _, _, _, err := buildTables(res)
+		if err != nil {
+			t.Fatalf("buildTables returned error for partial helm: %v", err)
+		}
+		mdRendered := renderTableForTest(metadataTable)
+		if !strings.Contains(mdRendered, "partial-helm-app") {
+			t.Error("Metadata table missing app name for partial Helm test (table)")
+		}
+		if strings.Contains(mdRendered, "CHART API VERSION") {
+			t.Errorf("Metadata table has 'CHART API VERSION' when it was not provided (table). Output:\n%s", mdRendered)
+		}
+		if !strings.Contains(mdRendered, "CHART NAME") || !strings.Contains(mdRendered, "only-name-chart-for-table") {
+			t.Errorf("Metadata table missing 'CHART NAME' or its value 'only-name-chart-for-table' (table). Output:\n%s", mdRendered)
+		}
+		if strings.Contains(mdRendered, "CHART VERSION") {
+			t.Errorf("Metadata table has 'CHART VERSION' when it was not provided (table). Output:\n%s", mdRendered)
+		}
+	})
+
+	t.Run("invalidHelmDataTypeInTable", func(t *testing.T) {
+		res := newTableTestResult("invalid-helm-type-app", "v1.3", "invalid-helm-src", timestamp)
+		res.Extra["helm"] = "this-is-not-a-map-for-table"
+
+		metadataTable, _, _, _, err := buildTables(res)
+		if err != nil {
+			t.Fatalf("buildTables returned error for invalid helm type: %v", err)
+		}
+		mdRendered := renderTableForTest(metadataTable)
+
+		if strings.Contains(mdRendered, "CHART API VERSION") || strings.Contains(mdRendered, "CHART NAME") || strings.Contains(mdRendered, "CHART VERSION") {
+			t.Errorf("Metadata table should not contain any Helm fields for invalid helm data type (table). Output:\n%s", mdRendered)
+		}
+	})
+
 	t.Run("fullData", func(t *testing.T) {
 		res := newTableTestResult("full-data-app", "v1.0", "full-data-src", timestamp)
 		addRawIdentityDataForTable(&res, "sa-1", "ns-a", extractor.Identity{Name: "sa-1", Namespace: "ns-a", AutomountToken: true})
@@ -142,6 +243,10 @@ func TestBuildTables(t *testing.T) {
 		}
 		if !strings.Contains(mdRendered, "v1.0") {
 			t.Error("Metadata table missing version")
+		}
+		// By default, no Helm info, so these should not be present
+		if strings.Contains(mdRendered, "CHART NAME") {
+			t.Errorf("Metadata table contains 'CHART NAME' unexpectedly for non-helm data. Output:\n%s", mdRendered)
 		}
 
 		idRendered := renderTableForTest(identityTable)

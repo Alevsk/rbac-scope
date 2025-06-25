@@ -70,9 +70,12 @@ type SAWorkloadEntry struct {
 type Metadata struct {
 	Version   string                 `json:"version"`
 	Name      string                 `json:"name"`
-	Source    string                 `json:"source"`
-	Timestamp int64                  `json:"timestamp"`
-	Extra     map[string]interface{} `json:"extra,omitempty" yaml:"extra,omitempty"`
+	Source          string                 `json:"source"`
+	Timestamp       int64                  `json:"timestamp"`
+	Extra           map[string]interface{} `json:"extra,omitempty" yaml:"extra,omitempty"`
+	ChartAPIVersion string                 `json:"chartApiVersion,omitempty" yaml:"chartApiVersion,omitempty"`
+	ChartName       string                 `json:"chartName,omitempty" yaml:"chartName,omitempty"`
+	ChartVersion    string                 `json:"chartVersion,omitempty" yaml:"chartVersion,omitempty"`
 }
 
 type ParsedData struct {

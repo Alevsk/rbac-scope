@@ -48,6 +48,28 @@ func buildTables(data types.Result) (table.Writer, table.Writer, table.Writer, t
 		data.Timestamp,
 	})
 
+	// Add Helm chart metadata if available
+	if helmMetadata, ok := data.Extra["helm"].(map[string]interface{}); ok {
+		if apiVersion, ok := helmMetadata["apiVersion"].(string); ok {
+			metadataTable.AppendRow(table.Row{
+				"CHART API VERSION",
+				apiVersion,
+			})
+		}
+		if name, ok := helmMetadata["name"].(string); ok {
+			metadataTable.AppendRow(table.Row{
+				"CHART NAME",
+				name,
+			})
+		}
+		if version, ok := helmMetadata["version"].(string); ok {
+			metadataTable.AppendRow(table.Row{
+				"CHART VERSION",
+				version,
+			})
+		}
+	}
+
 	// Create Identity table
 	identityTable := table.NewWriter()
 	identityTable.SetOutputMirror(nil)

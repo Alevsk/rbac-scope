@@ -17,13 +17,17 @@ The Identity Extractor (`IdentityExtractor`) analyzes ServiceAccount resources t
 ```json
 {
   "identities": {
-    "default": {
-      "my-service-account": {
+    "my-service-account": {
+      "default": {
         "name": "my-service-account",
         "namespace": "default",
         "automountToken": false,
-        "secrets": ["my-secret"],
-        "imagePullSecrets": ["registry-secret"],
+        "secrets": [
+          "my-secret"
+        ],
+        "imagePullSecrets": [
+          "registry-secret"
+        ],
         "labels": {
           "app": "my-app"
         },
@@ -59,38 +63,42 @@ For each workload, it extracts:
 
 ```json
 {
-  "workloads": [
-    {
-      "type": "Deployment",
-      "name": "my-app",
-      "namespace": "default",
-      "serviceAccount": "my-service-account",
-      "labels": {
-        "app": "my-app"
-      },
-      "annotations": {
-        "description": "My application deployment"
-      },
-      "securityContext": {
-        "runAsNonRoot": true
-      },
-      "containers": [
+  "workloads": {
+    "my-service-account": {
+      "default": [
         {
-          "name": "app",
-          "image": "my-app:1.0.0",
-          "securityContext": {
-            "readOnlyRootFilesystem": true
+          "type": "Deployment",
+          "name": "my-app",
+          "namespace": "default",
+          "serviceAccount": "my-service-account",
+          "labels": {
+            "app": "my-app"
           },
-          "resources": {
-            "limits": {
-              "cpu": "1",
-              "memory": "1Gi"
+          "annotations": {
+            "description": "My application deployment"
+          },
+          "securityContext": {
+            "runAsNonRoot": true
+          },
+          "containers": [
+            {
+              "name": "app",
+              "image": "my-app:1.0.0",
+              "securityContext": {
+                "readOnlyRootFilesystem": true
+              },
+              "resources": {
+                "limits": {
+                  "cpu": "1",
+                  "memory": "1Gi"
+                }
+              }
             }
-          }
+          ]
         }
       ]
     }
-  ]
+  }
 }
 ```
 
@@ -126,9 +134,11 @@ For each binding, it extracts:
       "permissions": {
         "": {
           "pods": {
-            "get": {},
-            "list": {},
-            "watch": {}
+            "": {
+              "get": {},
+              "list": {},
+              "watch": {}
+            }
           }
         }
       }
@@ -139,10 +149,40 @@ For each binding, it extracts:
       "type": "RoleBinding",
       "name": "read-pods",
       "namespace": "default",
-      "subjects": ["my-service-account"],
+      "subjects": [
+        {
+          "kind": "ServiceAccount",
+          "name": "my-service-account",
+          "namespace": "default"
+        }
+      ],
       "roleRef": "pod-reader"
     }
-  ]
+  ],
+  "rbac": {
+    "my-service-account": {
+      "default": {
+        "roles": [
+          {
+            "type": "Role",
+            "name": "pod-reader",
+            "namespace": "default",
+            "permissions": {
+              "": {
+                "pods": {
+                  "": {
+                    "get": {},
+                    "list": {},
+                    "watch": {}
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
 }
 ```
 

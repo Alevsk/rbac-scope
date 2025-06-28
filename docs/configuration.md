@@ -82,6 +82,12 @@ Flags:
   --server.port int          Server port (default 8080)
   --server.timeout duration  Server timeout (default 30s)
   --server.log-level string  Log level (default "info")
+  --database.host string       Database host (default "localhost")
+  --database.port int          Database port (default 5432)
+  --database.name string       Database name (default "rbac_ops")
+  --database.user string       Database user (default "postgres")
+  --database.password string   Database password
+  --database.ssl-mode string   Database SSL mode (default "disable")
 ```
 
 ## Configuration Precedence Example

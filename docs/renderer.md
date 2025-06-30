@@ -1,6 +1,6 @@
 # Renderers
 
-The `rbac-ops` tool supports multiple renderers to process different types of Kubernetes manifest sources. Each renderer is specialized in handling specific formats and converting them into a unified set of YAML manifests.
+The `rbac-scope` tool supports multiple renderers to process different types of Kubernetes manifest sources. Each renderer is specialized in handling specific formats and converting them into a unified set of YAML manifests.
 
 ## Available Renderers
 

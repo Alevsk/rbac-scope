@@ -10,11 +10,11 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/alevsk/rbac-ops/internal/config"
-	"github.com/alevsk/rbac-ops/internal/extractor"
-	"github.com/alevsk/rbac-ops/internal/logger"
-	"github.com/alevsk/rbac-ops/internal/policyevaluation"
-	"github.com/alevsk/rbac-ops/internal/types"
+	"github.com/alevsk/rbac-scope/internal/config"
+	"github.com/alevsk/rbac-scope/internal/extractor"
+	"github.com/alevsk/rbac-scope/internal/logger"
+	"github.com/alevsk/rbac-scope/internal/policyevaluation"
+	"github.com/alevsk/rbac-scope/internal/types"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )

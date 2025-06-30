@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/alevsk/rbac-ops/internal/renderer"
+	"github.com/alevsk/rbac-scope/internal/renderer"
 )
 
 // Options holds configuration for the resolver

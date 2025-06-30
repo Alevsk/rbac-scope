@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alevsk/rbac-ops/internal/renderer"
+	"github.com/alevsk/rbac-scope/internal/renderer"
 )
 
 func TestNewRemoteYAMLResolver(t *testing.T) {

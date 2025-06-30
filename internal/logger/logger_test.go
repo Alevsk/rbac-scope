@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/alevsk/rbac-ops/internal/config"
+	"github.com/alevsk/rbac-scope/internal/config"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )

@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/alevsk/rbac-ops/internal/ingestor"
+	"github.com/alevsk/rbac-scope/internal/ingestor"
 	"github.com/spf13/cobra"
 )
 
@@ -20,16 +20,16 @@ or directories containing Kubernetes manifests.
 
 Examples:
   # Analyze from a local YAML file
-  rbac-ops analyze operator.yaml
+  rbac-scope analyze operator.yaml
 
   # Analyze from a remote URL
-  rbac-ops analyze https://raw.githubusercontent.com/org/repo/main/deploy/rbac.yaml
+  rbac-scope analyze https://raw.githubusercontent.com/org/repo/main/deploy/rbac.yaml
 
   # Analyze from a directory
-  rbac-ops analyze ./deploy/operators/
+  rbac-scope analyze ./deploy/operators/
 
   # Analyze from a helm chart
-  rbac-ops analyze ./deploy/operators/ -f values.yaml`,
+  rbac-scope analyze ./deploy/operators/ -f values.yaml`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		source = args[0]

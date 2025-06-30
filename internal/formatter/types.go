@@ -1,6 +1,6 @@
 package formatter
 
-import "github.com/alevsk/rbac-ops/internal/policyevaluation"
+import "github.com/alevsk/rbac-scope/internal/policyevaluation"
 
 // Type represents the type of formatter
 type Type string

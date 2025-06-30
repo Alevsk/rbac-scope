@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/alevsk/rbac-ops/internal/renderer"
+	"github.com/alevsk/rbac-scope/internal/renderer"
 )
 
 // FolderResolver implements SourceResolver for directories containing YAML files

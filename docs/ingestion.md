@@ -1,6 +1,6 @@
 # RBAC Policy Ingestion
 
-RBAC-Ops supports ingesting RBAC policies from various sources. This document describes the supported sources and their configuration options.
+RBAC-Scope supports ingesting RBAC policies from various sources. This document describes the supported sources and their configuration options.
 
 ## Supported Sources
 
@@ -9,7 +9,7 @@ RBAC-Ops supports ingesting RBAC policies from various sources. This document de
 Single YAML files containing RBAC policies can be loaded directly:
 
 ```bash
-rbac-ops analyze /path/to/policy.yaml
+rbac-scope analyze /path/to/policy.yaml
 ```
 
 Supported extensions: `.yaml`, `.yml`
@@ -19,7 +19,7 @@ Supported extensions: `.yaml`, `.yml`
 RBAC policies can be loaded from remote HTTP/HTTPS URLs:
 
 ```bash
-rbac-ops analyze https://example.com/policy.yaml
+rbac-scope analyze https://example.com/policy.yaml
 ```
 
 Requirements:
@@ -33,7 +33,7 @@ Requirements:
 Recursively scan a directory for YAML files:
 
 ```bash
-rbac-ops analyze /path/to/policies/
+rbac-scope analyze /path/to/policies/
 ```
 
 Features:
@@ -58,19 +58,19 @@ The following options can be configured when ingesting RBAC policies:
 1. Analyze a single policy file:
 
 ```bash
-rbac-ops analyze ./examples/cluster-role.yaml
+rbac-scope analyze ./examples/cluster-role.yaml
 ```
 
 1. Analyze policies from a remote repository:
 
 ```bash
-rbac-ops analyze https://raw.githubusercontent.com/org/repo/main/rbac.yaml
+rbac-scope analyze https://raw.githubusercontent.com/org/repo/main/rbac.yaml
 ```
 
 1. Analyze all policies in a directory with symlink following:
 
 ```bash
-rbac-ops analyze ./policies/ --follow-symlinks
+rbac-scope analyze ./policies/ --follow-symlinks
 ```
 
 ## Error Handling

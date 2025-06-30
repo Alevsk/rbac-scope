@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/alevsk/rbac-ops/internal/renderer"
+	"github.com/alevsk/rbac-scope/internal/renderer"
 )
 
 func TestLocalYAMLResolver_CanResolve(t *testing.T) {

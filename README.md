@@ -1,4 +1,4 @@
-# RBAC-Ops
+# RBAC-Scope
 
 A curated database of RBAC policies used by popular Kubernetes Operators, with security annotations highlighting their permissions, potential risks, and abuse scenarios.
 
@@ -22,8 +22,8 @@ A curated database of RBAC policies used by popular Kubernetes Operators, with s
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/rbac-ops.git
-cd rbac-ops
+git clone https://github.com/yourusername/rbac-scope.git
+cd rbac-scope
 
 # Install dependencies
 make install-deps
@@ -47,10 +47,10 @@ make test
 
 ```bash
 # Run the CLI tool
-./bin/rbac-ops --help
+./bin/rbac-scope --help
 
 # Start the API server
-./bin/rbac-ops serve
+./bin/rbac-scope serve
 ```
 
 ## Development

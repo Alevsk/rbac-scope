@@ -21,7 +21,7 @@ server:
 database:
   host: "localhost"
   port: 5432
-  name: "rbac_ops"
+  name: "rbac_scope"
   user: "postgres"
   password: "secret"
   ssl_mode: "disable"
@@ -31,10 +31,10 @@ database:
 	}
 
 	// Set environment variables (should override config file)
-	os.Setenv("RBAC_OPS_SERVER_PORT", "9091")
-	os.Setenv("RBAC_OPS_DATABASE_PASSWORD", "env-password")
-	defer os.Unsetenv("RBAC_OPS_SERVER_PORT")
-	defer os.Unsetenv("RBAC_OPS_DATABASE_PASSWORD")
+	os.Setenv("RBAC_SCOPE_SERVER_PORT", "9091")
+	os.Setenv("RBAC_SCOPE_DATABASE_PASSWORD", "env-password")
+	defer os.Unsetenv("RBAC_SCOPE_SERVER_PORT")
+	defer os.Unsetenv("RBAC_SCOPE_DATABASE_PASSWORD")
 
 	// Load the configuration
 	cfg, err := Load(configPath)
@@ -119,8 +119,8 @@ server:
 	}
 
 	// Test invalid port
-	os.Setenv("RBAC_OPS_SERVER_PORT", "invalid")
-	defer os.Unsetenv("RBAC_OPS_SERVER_PORT")
+	os.Setenv("RBAC_SCOPE_SERVER_PORT", "invalid")
+	defer os.Unsetenv("RBAC_SCOPE_SERVER_PORT")
 
 	_, err := Load(configPath)
 	if err == nil {

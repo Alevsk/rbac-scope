@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/alevsk/rbac-ops/internal/logger"
+	"github.com/alevsk/rbac-scope/internal/logger"
 )
 
 // isResourceNamesPresent checks if policy.ResourceNames is present and not empty or "*"

@@ -6,7 +6,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/alevsk/rbac-ops/internal/types"
+	"github.com/alevsk/rbac-scope/internal/types"
 )
 
 // Options contains configuration options for renderers

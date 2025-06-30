@@ -25,7 +25,7 @@ WORKDIR /app
 RUN apk add --no-cache ca-certificates
 
 # Copy the binary from builder
-COPY --from=builder /app/bin/rbac-ops /app/rbac-ops
+COPY --from=builder /app/bin/rbac-scope /app/rbac-scope
 
 # Set the entry point
-ENTRYPOINT ["/app/rbac-ops"]
+ENTRYPOINT ["/app/rbac-scope"]

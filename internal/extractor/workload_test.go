@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/alevsk/rbac-ops/internal/renderer"
+	"github.com/alevsk/rbac-scope/internal/renderer"
 	"gopkg.in/yaml.v3"
 )
 

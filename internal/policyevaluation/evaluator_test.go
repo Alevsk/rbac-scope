@@ -6,8 +6,8 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/alevsk/rbac-ops/internal/config"
-	"github.com/alevsk/rbac-ops/internal/logger"
+	"github.com/alevsk/rbac-scope/internal/config"
+	"github.com/alevsk/rbac-scope/internal/logger"
 	"gopkg.in/yaml.v3"
 )
 

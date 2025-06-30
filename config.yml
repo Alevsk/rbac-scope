@@ -9,7 +9,7 @@ server:
 database:
   host: "localhost"
   port: 5432
-  name: "rbac_ops"
+  name: "rbac_scope"
   user: "postgres"
-  password: "" # Set via environment variable RBAC_OPS_DATABASE_PASSWORD
+  password: "" # Set via environment variable RBAC_SCOPE_DATABASE_PASSWORD
   ssl_mode: "disable"

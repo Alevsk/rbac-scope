@@ -102,7 +102,7 @@ To specify the output format, use the `--output-format` flag with one of the fol
 
 Example:
 ```bash
-rbac-ops analyze --output-format markdown ./manifests/
+rbac-scope analyze --output-format markdown ./manifests/
 ```
 
 ## Configuration

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/alevsk/rbac-ops/internal/renderer"
+	"github.com/alevsk/rbac-scope/internal/renderer"
 )
 
 // defaultHTTPClient is the default HTTP client used by RemoteYAMLResolver
@@ -115,7 +115,7 @@ func (r *RemoteYAMLResolver) Resolve(ctx context.Context) (*renderer.Result, *Re
 
 	// Add appropriate headers
 	req.Header.Set("Accept", "application/yaml,text/yaml,text/plain")
-	req.Header.Set("User-Agent", "rbac-ops/1.0")
+	req.Header.Set("User-Agent", "rbac-scope/1.0")
 
 	// Perform the request
 	resp, err := r.client.Do(req)

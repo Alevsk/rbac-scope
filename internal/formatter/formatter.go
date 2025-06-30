@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/alevsk/rbac-ops/internal/extractor"
-	"github.com/alevsk/rbac-ops/internal/policyevaluation"
-	"github.com/alevsk/rbac-ops/internal/types"
+	"github.com/alevsk/rbac-scope/internal/extractor"
+	"github.com/alevsk/rbac-scope/internal/policyevaluation"
+	"github.com/alevsk/rbac-scope/internal/types"
 	"gopkg.in/yaml.v3"
 )
 

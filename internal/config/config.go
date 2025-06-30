@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	RbacOpsConfigPathEnvVar = "RBAC_OPS_CONFIG_PATH" // Environment variable for config path
+	RbacOpsConfigPathEnvVar = "RBAC_SCOPE_CONFIG_PATH" // Environment variable for config path
 )
 
 // Config holds all configuration for the application
@@ -38,7 +38,7 @@ type Config struct {
 
 // Load initializes and returns the configuration from all sources:
 // 1. Command-line flags (highest priority)
-// 2. Environment variables (prefixed with RBAC_OPS_)
+// 2. Environment variables (prefixed with RBAC_SCOPE_)
 // 3. Configuration file (lowest priority)
 func Load(configPath string) (*Config, error) {
 	// Check for environment variable config path if not explicitly provided
@@ -74,7 +74,7 @@ func Load(configPath string) (*Config, error) {
 	}
 
 	// Read environment variables
-	v.SetEnvPrefix("RBAC_OPS")
+	v.SetEnvPrefix("RBAC_SCOPE")
 	v.AutomaticEnv()
 	// Replace dots with underscores in env vars
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
@@ -111,7 +111,7 @@ func setDefaults(v *viper.Viper) {
 	// Database defaults
 	v.SetDefault("database.host", "localhost")
 	v.SetDefault("database.port", 5432)
-	v.SetDefault("database.name", "rbac_ops")
+	v.SetDefault("database.name", "rbac_scope")
 	v.SetDefault("database.user", "postgres")
 	v.SetDefault("database.ssl_mode", "disable")
 

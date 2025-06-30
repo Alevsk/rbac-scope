@@ -1,5 +1,5 @@
 # Build variables
-BINARY_NAME=rbac-ops
+BINARY_NAME=rbac-scope
 VERSION?=0.1.0
 BUILD_DIR=bin
 DOCKER_REGISTRY=docker.io
@@ -23,7 +23,7 @@ all: clean install-deps fmt lint test build
 
 build:
 	mkdir -p $(BUILD_DIR)
-	$(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/rbac-ops
+	$(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/rbac-scope
 
 clean:
 	$(GOCLEAN)

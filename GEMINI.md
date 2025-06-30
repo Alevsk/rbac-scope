@@ -31,8 +31,8 @@
 - Use `make test` to run the full test suite with coverage
 - For faster development, run specific tests, here are some examples:
   - Test a specific package: `go test -v ./internal/policyevaluation`
-  - Test a specific test function: `go test -timeout 30s -run ^TestMatchRiskRules$ github.com/alevsk/rbac-ops/internal/policyevaluation`
-  - Test a specific test case: `go test -timeout 30s -run ^TestMatchRiskRules/Resource_with_specific_resourceName_restriction$ github.com/alevsk/rbac-ops/internal/policyevaluation`
+  - Test a specific test function: `go test -timeout 30s -run ^TestMatchRiskRules$ github.com/alevsk/rbac-scope/internal/policyevaluation`
+  - Test a specific test case: `go test -timeout 30s -run ^TestMatchRiskRules/Resource_with_specific_resourceName_restriction$ github.com/alevsk/rbac-scope/internal/policyevaluation`
 - Check coverage reports with `make cover` for areas needing testing
 - Build and test Docker images locally with `make docker` before pushing
 - Use semantic versioning for releases (VERSION variable in Makefile)

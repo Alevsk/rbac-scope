@@ -5,8 +5,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/alevsk/rbac-ops/internal/renderer"
-	"github.com/alevsk/rbac-ops/internal/types"
+	"github.com/alevsk/rbac-scope/internal/renderer"
+	"github.com/alevsk/rbac-scope/internal/types"
 )
 
 // Options contains configuration options for extractors

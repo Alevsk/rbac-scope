@@ -7,7 +7,7 @@ import (
 	"strings" // Added import
 	"testing"
 
-	"github.com/alevsk/rbac-ops/internal/renderer" // Added import
+	"github.com/alevsk/rbac-scope/internal/renderer" // Added import
 )
 
 func TestFolderResolver_CanResolve(t *testing.T) {

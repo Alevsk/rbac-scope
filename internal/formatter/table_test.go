@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alevsk/rbac-ops/internal/extractor"
-	"github.com/alevsk/rbac-ops/internal/types"
+	"github.com/alevsk/rbac-scope/internal/extractor"
+	"github.com/alevsk/rbac-scope/internal/types"
 	"github.com/jedib0t/go-pretty/v6/table"
 )
 

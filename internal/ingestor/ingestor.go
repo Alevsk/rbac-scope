@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/alevsk/rbac-ops/internal/extractor"
-	"github.com/alevsk/rbac-ops/internal/formatter"
-	"github.com/alevsk/rbac-ops/internal/resolver"
-	"github.com/alevsk/rbac-ops/internal/types"
+	"github.com/alevsk/rbac-scope/internal/extractor"
+	"github.com/alevsk/rbac-scope/internal/formatter"
+	"github.com/alevsk/rbac-scope/internal/resolver"
+	"github.com/alevsk/rbac-scope/internal/types"
 )
 
 // Options holds configuration for the ingestor

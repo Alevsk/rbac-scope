@@ -14,16 +14,16 @@ var completionCmd = &cobra.Command{
 	Long: `To load completions:
 
 Bash:
-  $ source <(rbac-ops completion bash)
+  $ source <(rbac-scope completion bash)
 
 Zsh:
-  $ source <(rbac-ops completion zsh)
+  $ source <(rbac-scope completion zsh)
 
 fish:
-  $ rbac-ops completion fish | source
+  $ rbac-scope completion fish | source
 
 PowerShell:
-  PS> rbac-ops completion powershell | Out-String | Invoke-Expression
+  PS> rbac-scope completion powershell | Out-String | Invoke-Expression
 `,
 	ValidArgs: []string{"bash", "zsh", "fish", "powershell"},
 	Args:      cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),

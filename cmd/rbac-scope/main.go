@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/alevsk/rbac-ops/internal/config"
-	"github.com/alevsk/rbac-ops/internal/logger"
+	"github.com/alevsk/rbac-scope/internal/config"
+	"github.com/alevsk/rbac-scope/internal/logger"
 	"github.com/spf13/cobra"
 )
 
@@ -17,9 +17,9 @@ var (
 var cfg = &config.Config{}
 
 var rootCmd = &cobra.Command{
-	Use:   "rbac-ops",
-	Short: "RBAC-Ops - A Kubernetes RBAC policy analyzer",
-	Long: `RBAC-Ops is a tool for analyzing RBAC policies used by Kubernetes Operators,
+	Use:   "rbac-scope",
+	Short: "RBAC-Scope - A Kubernetes RBAC policy analyzer",
+	Long: `RBAC-Scope is a tool for analyzing RBAC policies used by Kubernetes Operators,
 helping identify permissions, potential risks, and abuse scenarios.`,
 	SilenceErrors: true, // We'll handle error printing ourselves
 	SilenceUsage:  true, // We'll handle usage printing ourselves

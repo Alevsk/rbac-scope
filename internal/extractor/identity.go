@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/alevsk/rbac-ops/internal/renderer"
+	"github.com/alevsk/rbac-scope/internal/renderer"
 )
 
 // Identity represents a service account identity

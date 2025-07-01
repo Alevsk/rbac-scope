@@ -140,6 +140,19 @@ func PrepareData(data types.Result, opts *Options) (ParsedData, error) {
 			Timestamp: data.Timestamp,
 			Extra:     data.Extra,
 		}
+
+		// Populate Helm chart metadata if available
+		if helmMetadata, ok := data.Extra["helm"].(map[string]interface{}); ok {
+			if apiVersion, ok := helmMetadata["apiVersion"].(string); ok {
+				parsedData.Metadata.ChartAPIVersion = apiVersion
+			}
+			if name, ok := helmMetadata["name"].(string); ok {
+				parsedData.Metadata.ChartName = name
+			}
+			if version, ok := helmMetadata["version"].(string); ok {
+				parsedData.Metadata.ChartVersion = version
+			}
+		}
 	}
 
 	// Extract Identity data and create table entries

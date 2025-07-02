@@ -1,4 +1,4 @@
-# RBAC-Ops
+# RBAC-Scope
 
 ## Overview
 
@@ -6,8 +6,8 @@ A curated database of RBAC policies used by popular Kubernetes Operators, with s
 
 ## Objective
 
-- Build an **open-source RBAC knowledge base** for operators.  
-- **Highlight** over-permissioned roles and risky capability combinations (e.g., `list secrets` + `exec`).  
+- Build an **open-source RBAC knowledge base** for operators.
+- **Highlight** over-permissioned roles and risky capability combinations (e.g., `list secrets` + `exec`).
 - Provide **adversary guidance** (“abuse potential”) and **defender guidance** (“hardening advice”).
 
 ---
@@ -18,20 +18,20 @@ A curated database of RBAC policies used by popular Kubernetes Operators, with s
 
 - [x] **C300** Create ingestor package
 - [x] **C301** Create ingest command with the necessary flags
-- [x] **C302** Define `SourceResolver` interface (extensible for new sources)  
-- [x] **C303** Implement **LocalYAMLResolver** (single file)  
-- [x] **C304** Implement **RemoteYAMLResolver** (HTTP/HTTPS)  
-- [x] **C305** Implement **FolderResolver** (recursive directory walk)  
-- [x] **C306** Write unit tests & fixtures for all resolvers  
-- [x] **C307** Document supported sources in `docs/ingestion.md`  
+- [x] **C302** Define `SourceResolver` interface (extensible for new sources)
+- [x] **C303** Implement **LocalYAMLResolver** (single file)
+- [x] **C304** Implement **RemoteYAMLResolver** (HTTP/HTTPS)
+- [x] **C305** Implement **FolderResolver** (recursive directory walk)
+- [x] **C306** Write unit tests & fixtures for all resolvers
+- [x] **C307** Document supported sources in `docs/ingestion.md`
 
 ### 🛠 Renderer
 
 - [x] **D400** Create renderer package
-- [x] **D401** Define `Renderer` interface (input → rendered manifests)  
+- [x] **D401** Define `Renderer` interface (input → rendered manifests)
 - [x] **D402** Implement **YAMLRenderer** (using `yaml`/`json` libs)
-- [x] **D403** Implement **HelmRenderer** (using `chartutil`/`engine`)  
-- [x] **D404** Implement **KustomizeRenderer** (using `kust build` libs)  
+- [x] **D403** Implement **HelmRenderer** (using `chartutil`/`engine`)
+- [x] **D404** Implement **KustomizeRenderer** (using `kust build` libs)
 - [x] **D405** Ingestor integrate **YAMLRenderer** when **LocalYAMLResolver** is used
 - [x] **D406** Ingestor integrate **YAMLRenderer** when **RemoteYAMLResolver** is used
 - [x] **D407** Ingestor integrate **HelmRenderer** when **FolderResolver** is used and folder contains a `Chart.yaml` file
@@ -41,7 +41,7 @@ A curated database of RBAC policies used by popular Kubernetes Operators, with s
 ### 🔍 Extractor
 
 - [x] **E500** Create extractor package
-- [x] **E501** Define `Extractor` interface, the goal is to go from rendered to structured data  
+- [x] **E501** Define `Extractor` interface, the goal is to go from rendered to structured data
 - [x] **E502** Implement **IdentityExtractor**: What service accounts or identities are being defined or used?: Who are the identities? extract ServiceAccounts and their namespaces using Kubernetes standard libraries
 - [x] **E503** Implement **WorkloadExtractor**: Extract Namespace + Pod/Deployment/StatefulSet/ReplicaSet/ReplicationController/Job/CronJob/DaemonSet/etc associated with service accounts and the workload metadata such as container image version and securitycontext and any other associated security configuration for the workload using Kubernetes standard libraries
 - [x] **E504** Implement **RBACExtractor**: Extract Roles, RoleBindings, ClusterRoles + verbs/resources and scopes the service accounts have access to and on which namespaces using Kubernetes standard libraries

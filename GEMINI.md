@@ -1,5 +1,4 @@
-# RBAC-Ops Development Guide
-
+# RBAC-Scope Development Guide
 
 ## Bash commands
 

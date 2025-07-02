@@ -1,6 +1,6 @@
-# Contributing to RBAC-Ops
+# Contributing to RBAC-Scope
 
-We love your input! We want to make contributing to RBAC-Ops as easy and transparent as possible.
+We love your input! We want to make contributing to RBAC-Scope as easy and transparent as possible.
 
 ## Development Process
 
@@ -41,9 +41,9 @@ We use GitHub issues to track public bugs. Report a bug by [opening a new issue]
 
 ## Use a Consistent Coding Style
 
-* Use `go fmt` for Go code
-* Write clear commit messages
-* Comment your code where necessary
+- Use `go fmt` for Go code
+- Write clear commit messages
+- Comment your code where necessary
 
 ## License
 

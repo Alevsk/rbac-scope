@@ -2,7 +2,7 @@
 
 ## Reporting a Vulnerability
 
-The RBAC-Ops team takes security vulnerabilities seriously. We appreciate your efforts to responsibly disclose your findings.
+The RBAC-Scope team takes security vulnerabilities seriously. We appreciate your efforts to responsibly disclose your findings.
 
 ### Please follow these steps
 
@@ -22,7 +22,7 @@ The RBAC-Ops team takes security vulnerabilities seriously. We appreciate your e
 
 ## Security Best Practices
 
-When using RBAC-Ops:
+When using RBAC-Scope:
 
 1. Always review generated RBAC policies before applying them
 2. Follow the principle of least privilege

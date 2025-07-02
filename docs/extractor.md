@@ -1,6 +1,6 @@
 # Extractors
 
-The RBAC-Ops tool includes several extractors that analyze Kubernetes manifests to gather information about identities, workloads, and RBAC configurations.
+The RBAC-Scope tool includes several extractors that analyze Kubernetes manifests to gather information about identities, workloads, and RBAC configurations.
 
 ## Identity Extractor
 
@@ -22,12 +22,8 @@ The Identity Extractor (`IdentityExtractor`) analyzes ServiceAccount resources t
         "name": "my-service-account",
         "namespace": "default",
         "automountToken": false,
-        "secrets": [
-          "my-secret"
-        ],
-        "imagePullSecrets": [
-          "registry-secret"
-        ],
+        "secrets": ["my-secret"],
+        "imagePullSecrets": ["registry-secret"],
         "labels": {
           "app": "my-app"
         },

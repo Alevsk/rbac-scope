@@ -1,5 +1,5 @@
 {
-  "name": "RBAC-Ops DevContainer",
+  "name": "RBAC-Scope DevContainer",
   "image": "mcr.microsoft.com/devcontainers/base:jammy",
   "customizations": {
     "vscode": {

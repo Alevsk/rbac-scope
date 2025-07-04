@@ -67,7 +67,7 @@ func TestBuildTables(t *testing.T) {
 	t.Run("emptyResult", func(t *testing.T) {
 		res := newTableTestResult("empty-app", "v0.0", "empty-src", timestamp)
 
-		metadataTable, identityTable, rbacTable, _, workloadTable, err := buildTables(res) // Pass only res
+		metadataTable, identityTable, rbacTable, potentialAbuseTable, workloadTable, err := buildTables(res) // Pass only res
 		if err != nil {
 			t.Fatalf("buildTables returned error: %v", err)
 		}
@@ -80,6 +80,9 @@ func TestBuildTables(t *testing.T) {
 		}
 		if rbacTable == nil {
 			t.Error("rbacTable is nil")
+		}
+		if potentialAbuseTable == nil {
+			t.Error("potentialAbuseTable is nil")
 		}
 		if workloadTable == nil {
 			t.Error("workloadTable is nil")
@@ -94,6 +97,9 @@ func TestBuildTables(t *testing.T) {
 		if !strings.Contains(renderTableForTest(rbacTable), "SERVICE ACCOUNT BINDINGS") {
 			t.Error("RBAC table missing title")
 		}
+		if !strings.Contains(renderTableForTest(potentialAbuseTable), "POTENTIAL ABUSE") {
+			t.Error("Potential Abuse table missing title")
+		}
 		if !strings.Contains(renderTableForTest(workloadTable), "SERVICE ACCOUNT WORKLOADS") {
 			t.Error("Workload table missing title")
 		}
@@ -103,6 +109,9 @@ func TestBuildTables(t *testing.T) {
 		}
 		if rbacTable.Length() != 0 {
 			t.Errorf("rbacTable should have 0 data rows, got %d", rbacTable.Length())
+		}
+		if potentialAbuseTable.Length() != 0 {
+			t.Errorf("potentialAbuseTable should have 0 data rows, got %d", potentialAbuseTable.Length())
 		}
 		if workloadTable.Length() != 0 {
 			t.Errorf("workloadTable should have 0 data rows, got %d", workloadTable.Length())

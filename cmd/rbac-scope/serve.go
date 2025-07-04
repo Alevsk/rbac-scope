@@ -38,6 +38,8 @@ var serveCmd = &cobra.Command{
 		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {
+		// Always show banner for serve command as it's human-readable output
+		fmt.Print(GetBanner())
 		fmt.Printf("Starting RBAC-Scope API server on %s:%d...\n", cfg.Server.Host, cfg.Server.Port)
 		fmt.Printf("Log level: %s, Timeout: %v\n", cfg.Server.LogLevel, cfg.Server.Timeout)
 		// TODO: Implement API server

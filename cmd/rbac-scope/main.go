@@ -66,9 +66,6 @@ func init() {
 }
 
 func main() {
-	// Display the ASCII art banner
-	fmt.Print(GetBanner())
-
 	// Custom error handling to show usage before error
 	if err := rootCmd.Execute(); err != nil {
 		// Get the most recent command

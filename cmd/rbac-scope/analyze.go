@@ -44,6 +44,11 @@ Examples:
 			return fmt.Errorf("analysis failed: %v", result.Error)
 		}
 
+		// Show banner only for table output
+		if analyzeOpts.OutputFormat == "table" || analyzeOpts.OutputFormat == "" {
+			fmt.Print(GetBanner())
+		}
+
 		fmt.Print(result.OutputFormatted)
 		return nil
 	},

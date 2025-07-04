@@ -67,7 +67,7 @@ func TestBuildTables(t *testing.T) {
 	t.Run("emptyResult", func(t *testing.T) {
 		res := newTableTestResult("empty-app", "v0.0", "empty-src", timestamp)
 
-		metadataTable, identityTable, rbacTable, workloadTable, err := buildTables(res) // Pass only res
+		metadataTable, identityTable, rbacTable, _, workloadTable, err := buildTables(res) // Pass only res
 		if err != nil {
 			t.Fatalf("buildTables returned error: %v", err)
 		}
@@ -128,7 +128,7 @@ func TestBuildTables(t *testing.T) {
 			{Type: "Deployment", Name: "app-deploy", Namespace: "ns-a", ServiceAccount: "sa-1", Containers: []extractor.Container{{Name: "main", Image: "nginx"}}},
 		})
 
-		metadataTable, identityTable, rbacTable, workloadTable, err := buildTables(res) // Pass only res
+		metadataTable, identityTable, rbacTable, _, workloadTable, err := buildTables(res) // Pass only res
 		if err != nil {
 			t.Fatalf("buildTables returned error: %v", err)
 		}
@@ -205,7 +205,7 @@ func TestBuildTables(t *testing.T) {
 		}
 		addRawRBACDataForTable(&res, "risk-sa", "kube-system", saRBAC)
 
-		_, _, rbacTable, _, err := buildTables(res) // Pass only res
+		_, _, rbacTable, _, _, err := buildTables(res) // Pass only res
 		if err != nil {
 			t.Fatalf("buildTables error: %v", err)
 		}
@@ -225,7 +225,7 @@ func TestBuildTables(t *testing.T) {
 	t.Run("invalidIdentityDataFormatInBuild", func(t *testing.T) {
 		res := newTableTestResult("test", "v1", "src", timestamp)
 		res.IdentityData.Data["identities"] = "not-a-map"
-		_, _, _, _, err := buildTables(res)
+		_, _, _, _, _, err := buildTables(res)
 		if err == nil {
 			t.Fatal("buildTables should have failed for invalid identity format")
 		}
@@ -237,7 +237,7 @@ func TestBuildTables(t *testing.T) {
 	t.Run("invalidRBACDataFormatInBuild", func(t *testing.T) {
 		res := newTableTestResult("test", "v1", "src", timestamp)
 		res.RBACData.Data["rbac"] = "not-a-map"
-		_, _, _, _, err := buildTables(res)
+		_, _, _, _, _, err := buildTables(res)
 		if err == nil {
 			t.Fatal("buildTables should have failed for invalid RBAC format")
 		}
@@ -249,7 +249,7 @@ func TestBuildTables(t *testing.T) {
 	t.Run("invalidWorkloadDataFormatInBuild", func(t *testing.T) {
 		res := newTableTestResult("test", "v1", "src", timestamp)
 		res.WorkloadData.Data["workloads"] = "not-a-map"
-		_, _, _, _, err := buildTables(res)
+		_, _, _, _, _, err := buildTables(res)
 		if err == nil {
 			t.Fatal("buildTables should have failed for invalid workload format")
 		}

@@ -12,7 +12,7 @@ import (
 )
 
 // buildTables builds the tables for the given data
-func buildTables(data types.Result) (table.Writer, table.Writer, table.Writer, table.Writer, error) {
+func buildTables(data types.Result) (table.Writer, table.Writer, table.Writer, table.Writer, table.Writer, error) {
 	// Create Metadata table
 	metadataTable := table.NewWriter()
 	metadataTable.SetOutputMirror(nil)
@@ -71,7 +71,7 @@ func buildTables(data types.Result) (table.Writer, table.Writer, table.Writer, t
 		// Get the Identity map that contains service account identities
 		identityMap, ok := data.IdentityData.Data["identities"].(map[string]map[string]extractor.Identity)
 		if !ok {
-			return nil, nil, nil, nil, fmt.Errorf("invalid Identity data format")
+			return nil, nil, nil, nil, nil, fmt.Errorf("invalid Identity data format")
 		}
 
 		// Iterate through each service account
@@ -118,12 +118,29 @@ func buildTables(data types.Result) (table.Writer, table.Writer, table.Writer, t
 		"TAGS",
 	})
 
+	// Create potential abuse table
+	potentialAbuseTable := table.NewWriter()
+	potentialAbuseTable.SetOutputMirror(nil)
+	potentialAbuseTable.SetStyle(table.StyleLight)
+	potentialAbuseTable.Style().Options.SeparateColumns = true
+
+	// Set title for potential abuse table
+	potentialAbuseTable.SetTitle("POTENTIAL ABUSE")
+
+	// Set the headers for potential abuse table
+	potentialAbuseTable.AppendHeader(table.Row{
+		"IDENTITY",
+		"ACTION",
+		"INFO",
+	})
+	addedRules := make(map[string]map[int64]bool)
+
 	// Extract RBAC data and create table entries
 	if data.RBACData != nil {
 		// Get the RBAC map that contains service account permissions
 		rbacMap, ok := data.RBACData.Data["rbac"].(map[string]map[string]extractor.ServiceAccountRBAC)
 		if !ok {
-			return nil, nil, nil, nil, fmt.Errorf("invalid RBAC data format")
+			return nil, nil, nil, nil, nil, fmt.Errorf("invalid RBAC data format")
 		}
 
 		// Create an array to store rows
@@ -181,6 +198,21 @@ func buildTables(data types.Result) (table.Writer, table.Writer, table.Writer, t
 									// Get unique tags
 									for _, rule := range riskRules {
 										tags = append(tags, rule.Tags...)
+
+										// Add rule to potential abuse table if not already added
+										if _, ok := addedRules[saName]; !ok {
+											addedRules[saName] = make(map[int64]bool)
+										}
+										// Skip default rules (Low, Medium, High, Critical)
+										if rule.ID < 9996 && !addedRules[saName][rule.ID] {
+											potentialAbuseTable.AppendRow(table.Row{
+												saName,
+												rule.Name,
+												fmt.Sprintf("https://rbac-atlas.github.io/rules/%d/", rule.ID),
+											})
+											addedRules[saName][rule.ID] = true
+										}
+
 									}
 									tags = policyevaluation.UniqueRiskTags(tags)
 									row = append(row, riskRules[0].RiskLevel, strings.Join(tags.StringSlice(3), ","))
@@ -196,6 +228,11 @@ func buildTables(data types.Result) (table.Writer, table.Writer, table.Writer, t
 				}
 			}
 		}
+
+		// Sort potential abuse table by ID
+		potentialAbuseTable.SortBy([]table.SortBy{
+			{Name: "ID", Mode: table.Asc},
+		})
 
 		// Sort rows by risk level
 		sort.Slice(rows, func(i, j int) bool {
@@ -232,7 +269,7 @@ func buildTables(data types.Result) (table.Writer, table.Writer, table.Writer, t
 		// Get the Workload map that contains service account workloads
 		workloadMap, ok := data.WorkloadData.Data["workloads"].(map[string]map[string][]extractor.Workload)
 		if !ok {
-			return nil, nil, nil, nil, fmt.Errorf("invalid Workload data format")
+			return nil, nil, nil, nil, nil, fmt.Errorf("invalid Workload data format")
 		}
 
 		// Iterate through each service account
@@ -264,5 +301,5 @@ func buildTables(data types.Result) (table.Writer, table.Writer, table.Writer, t
 		{Name: "NAMESPACE", Mode: table.Asc},
 	})
 
-	return metadataTable, identityTable, rbacTable, workloadTable, nil
+	return metadataTable, identityTable, rbacTable, potentialAbuseTable, workloadTable, nil
 }

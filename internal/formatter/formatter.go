@@ -67,22 +67,22 @@ func (y *YAML) Format(rawData types.Result) (string, error) {
 
 // Format formats data as a table using go-pretty/v6/table
 func (t *Table) Format(data types.Result) (string, error) {
-	metadataTable, identityTable, rbacTable, workloadTable, err := buildTables(data)
+	metadataTable, identityTable, rbacTable, workloadTable, potentialAbuseTable, err := buildTables(data)
 	if err != nil {
 		return "", err
 	}
 	// Combine all tables with newline separators
-	return metadataTable.Render() + "\n\n" + identityTable.Render() + "\n\n" + rbacTable.Render() + "\n\n" + workloadTable.Render() + "\n", nil
+	return metadataTable.Render() + "\n\n" + identityTable.Render() + "\n\n" + rbacTable.Render() + "\n\n" + potentialAbuseTable.Render() + "\n\n" + workloadTable.Render() + "\n", nil
 }
 
 // Format formats data as a markdown using go-pretty/v6/table
 func (t *Markdown) Format(data types.Result) (string, error) {
-	metadataTable, identityTable, rbacTable, workloadTable, err := buildTables(data)
+	metadataTable, identityTable, rbacTable, workloadTable, potentialAbuseTable, err := buildTables(data)
 	if err != nil {
 		return "", err
 	}
 	// Combine all tables with newline separators
-	return metadataTable.RenderMarkdown() + "\n\n" + identityTable.RenderMarkdown() + "\n\n" + rbacTable.RenderMarkdown() + "\n\n" + workloadTable.RenderMarkdown() + "\n", nil
+	return metadataTable.RenderMarkdown() + "\n\n" + identityTable.RenderMarkdown() + "\n\n" + rbacTable.RenderMarkdown() + "\n\n" + potentialAbuseTable.RenderMarkdown() + "\n\n" + workloadTable.RenderMarkdown() + "\n", nil
 }
 
 // ParseType converts a string to a Type
@@ -204,7 +204,7 @@ func PrepareData(data types.Result, opts *Options) (ParsedData, error) {
 									Verbs:              verbs,
 									RiskLevel:          "",
 									Tags:               policyevaluation.RiskTags{},
-									RiskRules:          []int64{},
+									MatchedRiskRules:   []SARoleBindingRiskRule{},
 								}
 
 								riskRules, err := policyevaluation.MatchRiskRules(policyevaluation.Policy{
@@ -221,7 +221,11 @@ func PrepareData(data types.Result, opts *Options) (ParsedData, error) {
 								}
 
 								for _, rule := range riskRules {
-									entry.RiskRules = append(entry.RiskRules, rule.ID)
+									entry.MatchedRiskRules = append(entry.MatchedRiskRules, SARoleBindingRiskRule{
+										ID:   rule.ID,
+										Name: rule.Name,
+										Link: fmt.Sprintf("https://rbac-atlas.github.io/rules/%d/", rule.ID),
+									})
 								}
 								if len(riskRules) > 0 {
 									entry.RiskLevel = riskRules[0].RiskLevel.String()

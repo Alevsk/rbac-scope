@@ -55,7 +55,13 @@ type SARoleBindingEntry struct {
 	Verbs              []string                  `json:"verbs" yaml:"verbs"`
 	RiskLevel          string                    `json:"riskLevel" yaml:"riskLevel"`
 	Tags               policyevaluation.RiskTags `json:"tags" yaml:"tags"`
-	RiskRules          []int64                   `json:"riskRules" yaml:"riskRules"`
+	MatchedRiskRules   []SARoleBindingRiskRule   `json:"matchedRiskRules" yaml:"matchedRiskRules"`
+}
+
+type SARoleBindingRiskRule struct {
+	ID   int64  `json:"id" yaml:"id"`
+	Name string `json:"name" yaml:"name"`
+	Link string `json:"link" yaml:"link"`
 }
 
 type SAWorkloadEntry struct {

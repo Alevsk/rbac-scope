@@ -409,7 +409,13 @@ func TestPrepareData(t *testing.T) {
 						Verbs:              []string{"get", "list"},
 						RiskLevel:          "Low",
 						Tags:               policyevaluation.RiskTags{},
-						RiskRules:          []int64{9996},
+						MatchedRiskRules: []SARoleBindingRiskRule{
+							{
+								ID:   9996,
+								Name: "Base Risk Level - Low",
+								Link: "https://rbac-atlas.github.io/rules/9996/",
+							},
+						},
 					},
 					{
 						ServiceAccountName: "sa1",
@@ -421,7 +427,13 @@ func TestPrepareData(t *testing.T) {
 						Verbs:              []string{"watch"},
 						RiskLevel:          "Low",
 						Tags:               policyevaluation.RiskTags{},
-						RiskRules:          []int64{9996},
+						MatchedRiskRules: []SARoleBindingRiskRule{
+							{
+								ID:   9996,
+								Name: "Base Risk Level - Low",
+								Link: "https://rbac-atlas.github.io/rules/9996/",
+							},
+						},
 					},
 				},
 			},
@@ -482,7 +494,7 @@ func TestPrepareData(t *testing.T) {
 				}
 				// You might want a more robust check for RiskRules, e.g., checking for presence
 				// of a few key rules instead of a brittle deep equal on a long, generated slice.
-				if len(entry.RiskRules) == 0 {
+				if len(entry.MatchedRiskRules) == 0 {
 					t.Error("RBACData[0].RiskRules should not be empty for a critical risk")
 				}
 			},

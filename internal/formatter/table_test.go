@@ -137,11 +137,11 @@ func TestBuildTables(t *testing.T) {
 			{Type: "Deployment", Name: "app-deploy", Namespace: "ns-a", ServiceAccount: "sa-1", Containers: []extractor.Container{{Name: "main", Image: "nginx"}}},
 		})
 
-		metadataTable, identityTable, rbacTable, _, workloadTable, err := buildTables(res) // Pass only res
+		metadataTable, identityTable, rbacTable, potentialAbuseTable, workloadTable, err := buildTables(res) // Pass only res
 		if err != nil {
 			t.Fatalf("buildTables returned error: %v", err)
 		}
-		if metadataTable == nil || identityTable == nil || rbacTable == nil || workloadTable == nil {
+		if metadataTable == nil || identityTable == nil || rbacTable == nil || potentialAbuseTable == nil || workloadTable == nil {
 			t.Fatal("One or more tables are nil")
 		}
 

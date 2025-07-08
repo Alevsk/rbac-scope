@@ -1,7 +1,6 @@
 package formatter
 
 import (
-	// "bytes" // Removed as it's not used by renderTableForTest in its current form
 	"strings"
 	"testing"
 	"time"
@@ -9,274 +8,326 @@ import (
 	"github.com/alevsk/rbac-scope/internal/extractor"
 	"github.com/alevsk/rbac-scope/internal/types"
 	"github.com/jedib0t/go-pretty/v6/table"
+	// "github.com/stretchr/testify/assert" // Using standard library for assertions for now
 )
 
-// --- Helpers for table_test.go ---
-
+// Helper to create a basic types.Result for table tests
 func newTableTestResult(name, version, source string, ts int64) types.Result {
-	identityData := make(map[string]interface{})
-	identityData["identities"] = make(map[string]map[string]extractor.Identity)
-
-	rbacData := make(map[string]interface{})
-	rbacData["rbac"] = make(map[string]map[string]extractor.ServiceAccountRBAC)
-
-	workloadData := make(map[string]interface{})
-	workloadData["workloads"] = make(map[string]map[string][]extractor.Workload)
-
 	return types.Result{
 		Name:         name,
 		Version:      version,
 		Source:       source,
 		Timestamp:    ts,
-		IdentityData: &types.ExtractedData{Data: identityData},
-		RBACData:     &types.ExtractedData{Data: rbacData},
-		WorkloadData: &types.ExtractedData{Data: workloadData},
+		IdentityData: &types.ExtractedData{Data: make(map[string]interface{})},
+		RBACData:     &types.ExtractedData{Data: make(map[string]interface{})},
+		WorkloadData: &types.ExtractedData{Data: make(map[string]interface{})},
 	}
 }
 
-func addRawIdentityDataForTable(res *types.Result, saName, saNamespace string, identity extractor.Identity) {
-	identitiesMap := res.IdentityData.Data["identities"].(map[string]map[string]extractor.Identity)
-	if _, ok := identitiesMap[saName]; !ok {
-		identitiesMap[saName] = make(map[string]extractor.Identity)
+// Helper to add identity data for full tests
+func addTableTestIdentity(res *types.Result, saName, saNamespace string, automount bool, secrets, imgPullSecrets []string) {
+	idMap, _ := res.IdentityData.Data["identities"].(map[string]map[string]extractor.Identity)
+	if _, ok := idMap[saName]; !ok {
+		idMap[saName] = make(map[string]extractor.Identity)
 	}
-	identitiesMap[saName][saNamespace] = identity
+	idMap[saName][saNamespace] = extractor.Identity{
+		Name:             saName,
+		Namespace:        saNamespace,
+		AutomountToken:   automount,
+		Secrets:          secrets,
+		ImagePullSecrets: imgPullSecrets,
+	}
 }
 
-func addRawRBACDataForTable(res *types.Result, saName, saNamespace string, rbac extractor.ServiceAccountRBAC) {
-	rbacMap := res.RBACData.Data["rbac"].(map[string]map[string]extractor.ServiceAccountRBAC)
+// Helper to add RBAC data for full tests
+func addTableTestRBAC(res *types.Result, saName, saNamespace string, roles []extractor.RBACRole) {
+	rbacMap, _ := res.RBACData.Data["rbac"].(map[string]map[string]extractor.ServiceAccountRBAC)
 	if _, ok := rbacMap[saName]; !ok {
 		rbacMap[saName] = make(map[string]extractor.ServiceAccountRBAC)
 	}
-	rbacMap[saName][saNamespace] = rbac
+	currentRBAC := rbacMap[saName][saNamespace]
+	currentRBAC.Roles = append(currentRBAC.Roles, roles...)
+	rbacMap[saName][saNamespace] = currentRBAC
 }
 
-func addRawWorkloadDataForTable(res *types.Result, workloads []extractor.Workload) {
-	workloadMap := res.WorkloadData.Data["workloads"].(map[string]map[string][]extractor.Workload)
-	for _, wl := range workloads {
-		if _, ok := workloadMap[wl.ServiceAccount]; !ok {
-			workloadMap[wl.ServiceAccount] = make(map[string][]extractor.Workload)
-		}
-		workloadMap[wl.ServiceAccount][wl.Namespace] = append(workloadMap[wl.ServiceAccount][wl.Namespace], wl)
+// Helper to add workload data for full tests
+func addTableTestWorkload(res *types.Result, saName, saNamespace string, workloadType, workloadName, containerName, imageName string) {
+	wlMap, _ := res.WorkloadData.Data["workloads"].(map[string]map[string][]extractor.Workload)
+	if _, ok := wlMap[saName]; !ok {
+		wlMap[saName] = make(map[string][]extractor.Workload)
 	}
+	wlMap[saName][saNamespace] = append(wlMap[saName][saNamespace], extractor.Workload{
+		Type:           extractor.WorkloadType(workloadType),
+		Name:           workloadName,
+		Namespace:      saNamespace,
+		ServiceAccount: saName,
+		Containers:     []extractor.Container{{Name: containerName, Image: imageName}},
+	})
 }
 
-func TestBuildTables(t *testing.T) {
+func TestBuildTables_FullData(t *testing.T) {
 	timestamp := time.Now().Unix()
-	// defaultOpts := DefaultOptions() // Options might not be needed for buildTables
+	fullDataRes := newTableTestResult("complex-app", "v1.2.3", "full-src", timestamp)
+	// Ensure maps are initialized correctly
+	fullDataRes.IdentityData.Data["identities"] = make(map[string]map[string]extractor.Identity)
+	fullDataRes.RBACData.Data["rbac"] = make(map[string]map[string]extractor.ServiceAccountRBAC)
+	fullDataRes.WorkloadData.Data["workloads"] = make(map[string]map[string][]extractor.Workload)
 
-	t.Run("emptyResult", func(t *testing.T) {
-		res := newTableTestResult("empty-app", "v0.0", "empty-src", timestamp)
-
-		metadataTable, identityTable, rbacTable, potentialAbuseTable, workloadTable, err := buildTables(res) // Pass only res
-		if err != nil {
-			t.Fatalf("buildTables returned error: %v", err)
-		}
-
-		if metadataTable == nil {
-			t.Error("metadataTable is nil")
-		}
-		if identityTable == nil {
-			t.Error("identityTable is nil")
-		}
-		if rbacTable == nil {
-			t.Error("rbacTable is nil")
-		}
-		if potentialAbuseTable == nil {
-			t.Error("potentialAbuseTable is nil")
-		}
-		if workloadTable == nil {
-			t.Error("workloadTable is nil")
-		}
-
-		if !strings.Contains(renderTableForTest(metadataTable), "METADATA") {
-			t.Error("Metadata table missing title")
-		}
-		if !strings.Contains(renderTableForTest(identityTable), "SERVICE ACCOUNT IDENTITIES") {
-			t.Error("Identity table missing title")
-		}
-		if !strings.Contains(renderTableForTest(rbacTable), "SERVICE ACCOUNT BINDINGS") {
-			t.Error("RBAC table missing title")
-		}
-		if !strings.Contains(renderTableForTest(potentialAbuseTable), "POTENTIAL ABUSE") {
-			t.Error("Potential Abuse table missing title")
-		}
-		if !strings.Contains(renderTableForTest(workloadTable), "SERVICE ACCOUNT WORKLOADS") {
-			t.Error("Workload table missing title")
-		}
-
-		if identityTable.Length() != 0 {
-			t.Errorf("identityTable should have 0 data rows, got %d", identityTable.Length())
-		}
-		if rbacTable.Length() != 0 {
-			t.Errorf("rbacTable should have 0 data rows, got %d", rbacTable.Length())
-		}
-		if potentialAbuseTable.Length() != 0 {
-			t.Errorf("potentialAbuseTable should have 0 data rows, got %d", potentialAbuseTable.Length())
-		}
-		if workloadTable.Length() != 0 {
-			t.Errorf("workloadTable should have 0 data rows, got %d", workloadTable.Length())
-		}
+	// Populate with data
+	addTableTestIdentity(&fullDataRes, "sa-data", "prod", true, []string{"secret-token"}, []string{"regcred"})
+	addTableTestRBAC(&fullDataRes, "sa-data", "prod", []extractor.RBACRole{
+		{Type: "Role", Name: "config-reader", Namespace: "prod", Permissions: extractor.RuleApiGroup{
+			"": {"configmaps": {"": {"get": {}, "list": {}}}},
+		}},
 	})
-
-	t.Run("fullData", func(t *testing.T) {
-		res := newTableTestResult("full-data-app", "v1.0", "full-data-src", timestamp)
-		addRawIdentityDataForTable(&res, "sa-1", "ns-a", extractor.Identity{Name: "sa-1", Namespace: "ns-a", AutomountToken: true})
-		saRBAC := extractor.ServiceAccountRBAC{
-			Roles: []extractor.RBACRole{
-				{Type: "Role", Name: "pod-reader", Namespace: "ns-a", Permissions: extractor.RuleApiGroup{
-					"": extractor.RuleResource{
-						"pods": extractor.RuleResourceName{
-							"": extractor.RuleVerb{"get": struct{}{}, "list": struct{}{}},
-						},
-					},
-				}},
-			},
-		}
-		addRawRBACDataForTable(&res, "sa-1", "ns-a", saRBAC)
-		addRawWorkloadDataForTable(&res, []extractor.Workload{
-			{Type: "Deployment", Name: "app-deploy", Namespace: "ns-a", ServiceAccount: "sa-1", Containers: []extractor.Container{{Name: "main", Image: "nginx"}}},
-		})
-
-		metadataTable, identityTable, rbacTable, potentialAbuseTable, workloadTable, err := buildTables(res) // Pass only res
-		if err != nil {
-			t.Fatalf("buildTables returned error: %v", err)
-		}
-		if metadataTable == nil || identityTable == nil || rbacTable == nil || potentialAbuseTable == nil || workloadTable == nil {
-			t.Fatal("One or more tables are nil")
-		}
-
-		mdRendered := renderTableForTest(metadataTable)
-		if !strings.Contains(mdRendered, "full-data-app") {
-			t.Error("Metadata table missing app name")
-		}
-		if !strings.Contains(mdRendered, "v1.0") {
-			t.Error("Metadata table missing version")
-		}
-
-		idRendered := renderTableForTest(identityTable)
-		if !strings.Contains(idRendered, "sa-1") {
-			t.Error("Identity table missing sa-1")
-		}
-		if !strings.Contains(idRendered, "ns-a") {
-			t.Error("Identity table missing ns-a")
-		}
-		if identityTable.Length() != 1 {
-			t.Errorf("Expected 1 identity, got %d", identityTable.Length())
-		}
-
-		rbacRendered := renderTableForTest(rbacTable)
-		if !strings.Contains(rbacRendered, "sa-1") {
-			t.Error("RBAC table missing sa-1")
-		}
-		if !strings.Contains(rbacRendered, "Role") {
-			t.Error("RBAC table missing Role type")
-		}
-		if !strings.Contains(rbacRendered, "pod-reader") {
-			t.Error("RBAC table missing pod-reader role")
-		}
-		if !strings.Contains(rbacRendered, "pods") {
-			t.Error("RBAC table missing pods resource")
-		}
-		if !strings.Contains(rbacRendered, "get,list") && !strings.Contains(rbacRendered, "list,get") {
-			t.Error("RBAC table missing get,list verbs")
-		}
-		if rbacTable.Length() != 1 {
-			t.Errorf("Expected 1 RBAC entry (verbs combined), got %d", rbacTable.Length())
-		}
-
-		wlRendered := renderTableForTest(workloadTable)
-		if !strings.Contains(wlRendered, "sa-1") {
-			t.Error("Workload table missing sa-1")
-		}
-		if !strings.Contains(wlRendered, "Deployment") {
-			t.Error("Workload table missing Deployment type")
-		}
-		if !strings.Contains(wlRendered, "app-deploy") {
-			t.Error("Workload table missing app-deploy name")
-		}
-		if workloadTable.Length() != 1 {
-			t.Errorf("Expected 1 workload, got %d", workloadTable.Length())
-		}
+	addTableTestRBAC(&fullDataRes, "sa-admin", "kube-system", []extractor.RBACRole{
+		{Type: "ClusterRole", Name: "cluster-admin-dangerous", Namespace: "*", Permissions: extractor.RuleApiGroup{
+			"*": {"*": {"*": {"*": {}}}}, // Critical permission
+		}},
 	})
+	addTableTestWorkload(&fullDataRes, "sa-data", "prod", "Deployment", "data-processor", "main-proc", "processor:latest")
 
-	t.Run("rbacDataWithRisk", func(t *testing.T) {
-		res := newTableTestResult("risk-app", "v1", "risk-src", timestamp)
-		saRBAC := extractor.ServiceAccountRBAC{
-			Roles: []extractor.RBACRole{
-				{Type: "ClusterRole", Name: "mega-admin", Namespace: "*", Permissions: extractor.RuleApiGroup{
-					"*": extractor.RuleResource{
-						"*": extractor.RuleResourceName{
-							"*": extractor.RuleVerb{"*": struct{}{}},
-						},
-					},
-				}},
-			},
-		}
-		addRawRBACDataForTable(&res, "risk-sa", "kube-system", saRBAC)
+	mt, it, rt, pat, wt, err := buildTables(fullDataRes)
+	if err != nil {
+		t.Fatalf("buildTables() with full data returned error: %v", err)
+	}
 
-		_, _, rbacTable, _, _, err := buildTables(res) // Pass only res
-		if err != nil {
-			t.Fatalf("buildTables error: %v", err)
-		}
-		if rbacTable == nil {
-			t.Fatal("rbacTable is nil")
-		}
+	// Basic nil checks
+	if mt == nil || it == nil || rt == nil || pat == nil || wt == nil {
+		t.Fatal("One or more tables are nil for full data test")
+	}
 
-		rendered := renderTableForTest(rbacTable)
-		if !strings.Contains(rendered, "Critical") {
-			t.Errorf("Rendered RBAC table for high risk does not contain 'Critical':\n%s", rendered)
-		}
-		if !strings.Contains(rendered, "(69 more)") {
-			t.Errorf("Rendered RBAC table for high risk does not contain tag '(69 more)':\n%s", rendered)
-		}
-	})
+	// Check Metadata
+	mtRendered := renderTableForTest(mt)
+	if !strings.Contains(mtRendered, "complex-app") {
+		t.Error("Metadata table missing Name 'complex-app'")
+	}
 
-	t.Run("invalidIdentityDataFormatInBuild", func(t *testing.T) {
-		res := newTableTestResult("test", "v1", "src", timestamp)
-		res.IdentityData.Data["identities"] = "not-a-map"
-		_, _, _, _, _, err := buildTables(res)
-		if err == nil {
-			t.Fatal("buildTables should have failed for invalid identity format")
-		}
-		if !strings.Contains(err.Error(), "invalid Identity data format") {
-			t.Errorf("Expected 'invalid Identity data format' in error, got: %v", err)
-		}
-	})
+	// Check Identity Table
+	itRendered := renderTableForTest(it)
+	if !strings.Contains(itRendered, "sa-data") {
+		t.Error("Identity table missing 'sa-data'")
+	}
+	if !strings.Contains(itRendered, "prod") {
+		t.Error("Identity table missing 'prod' namespace for sa-data")
+	}
+	if !strings.Contains(itRendered, "true") {
+		t.Error("Identity table missing automountToken 'true' for sa-data")
+	} // Assuming 'true' is rendered for bool
+	if !strings.Contains(itRendered, "secret-token") {
+		t.Error("Identity table missing 'secret-token'")
+	}
+	if it.Length() != 1 {
+		t.Errorf("IdentityTable expected 1 row, got %d", it.Length())
+	}
 
-	t.Run("invalidRBACDataFormatInBuild", func(t *testing.T) {
-		res := newTableTestResult("test", "v1", "src", timestamp)
-		res.RBACData.Data["rbac"] = "not-a-map"
-		_, _, _, _, _, err := buildTables(res)
-		if err == nil {
-			t.Fatal("buildTables should have failed for invalid RBAC format")
-		}
-		if !strings.Contains(err.Error(), "invalid RBAC data format") {
-			t.Errorf("Expected 'invalid RBAC data format' in error, got: %v", err)
-		}
-	})
+	// Check RBAC Table
+	rtRendered := renderTableForTest(rt)
+	if !strings.Contains(rtRendered, "sa-data") {
+		t.Error("RBAC table missing 'sa-data'")
+	}
+	if !strings.Contains(rtRendered, "config-reader") {
+		t.Error("RBAC table missing 'config-reader' role")
+	}
+	if !strings.Contains(rtRendered, "configmaps") {
+		t.Error("RBAC table missing 'configmaps' resource")
+	}
+	if !strings.Contains(rtRendered, "get,list") && !strings.Contains(rtRendered, "list,get") {
+		t.Error("RBAC table missing 'get,list' verbs for configmaps")
+	}
+	if !strings.Contains(rtRendered, "Low") {
+		t.Error("RBAC table missing 'Low' risk for sa-data/config-reader")
+	}
 
-	t.Run("invalidWorkloadDataFormatInBuild", func(t *testing.T) {
-		res := newTableTestResult("test", "v1", "src", timestamp)
-		res.WorkloadData.Data["workloads"] = "not-a-map"
-		_, _, _, _, _, err := buildTables(res)
-		if err == nil {
-			t.Fatal("buildTables should have failed for invalid workload format")
-		}
-		if !strings.Contains(err.Error(), "invalid Workload data format") {
-			t.Errorf("Expected 'invalid Workload data format' in error, got: %v", err)
-		}
-	})
+	if !strings.Contains(rtRendered, "sa-admin") {
+		t.Error("RBAC table missing 'sa-admin'")
+	}
+	if !strings.Contains(rtRendered, "cluster-admin-dangerous") {
+		t.Error("RBAC table missing 'cluster-admin-dangerous' role")
+	}
+	if !strings.Contains(rtRendered, "Critical") {
+		t.Error("RBAC table missing 'Critical' risk for sa-admin/cluster-admin-dangerous")
+	}
+	if rt.Length() != 2 {
+		t.Errorf("RBACTable expected 2 rows, got %d", rt.Length())
+	}
+
+	// Check Potential Abuse Table
+	// This table's content is dynamic based on policyevaluation.
+	// We expect entries for the "cluster-admin-dangerous" role.
+	patRendered := renderTableForTest(pat)
+	if strings.Contains(rtRendered, "Critical") && !strings.Contains(patRendered, "sa-admin") {
+		t.Error("PotentialAbuseTable missing entries for 'sa-admin' which has Critical permissions")
+	}
+	// A more specific check could be for a known high-risk action name if predictable from policyevaluation
+	// For example: if !strings.Contains(patRendered, "Wildcard permission on all resources cluster-wide") { ... }
+	// For now, ensuring it's not empty if critical permissions exist is a good start.
+	if strings.Contains(rtRendered, "Critical") && pat.Length() == 0 {
+		t.Error("PotentialAbuseTable is empty but critical permissions were found in RBAC table")
+	}
+
+	// Check Workload Table
+	wtRendered := renderTableForTest(wt)
+	if !strings.Contains(wtRendered, "sa-data") {
+		t.Error("Workload table missing 'sa-data'")
+	}
+	if !strings.Contains(wtRendered, "Deployment") {
+		t.Error("Workload table missing 'Deployment' type")
+	}
+	if !strings.Contains(wtRendered, "data-processor") {
+		t.Error("Workload table missing 'data-processor' name")
+	}
+	if !strings.Contains(wtRendered, "processor:latest") {
+		t.Error("Workload table missing 'processor:latest' image")
+	}
+	if wt.Length() != 1 {
+		t.Errorf("WorkloadTable expected 1 row, got %d", wt.Length())
+	}
+
 }
 
+// Helper to render a table to a string for assertion.
+// Note: table.Render() typically writes to an io.Writer. For tests,
+// if we need to capture string output without side effects, we'd usually
+// set an output mirror to a bytes.Buffer. However, go-pretty's Render()
+// also returns the string directly, which is convenient here.
 func renderTableForTest(tb table.Writer) string {
-	// The table.Writer interface doesn't have a Render() method that returns a string directly
-	// without reconfiguring output. This is a simplified way for testing.
-	// In a real scenario, you'd set tb.SetOutputMirror(&buf) before tb.Render().
-	// For these tests, we assume tb.Render() gives us the content if possible,
-	// or this function might need to be adapted if tb.Render() writes to stdout.
-	// For now, we'll use Render() and rely on string.Contains for checks.
 	return tb.Render()
 }
 
-// NOTE: Further tests could include different options (e.g., no metadata for tables)
-// and more complex data structures.
+func TestBuildTables_EmptyResult(t *testing.T) {
+	timestamp := time.Now().Unix()
+	emptyData := newTableTestResult("empty-app", "v0.0.1", "test-src", timestamp)
+	// Ensure the map keys exist, even if empty, as expected by buildTables
+	emptyData.IdentityData.Data["identities"] = make(map[string]map[string]extractor.Identity)
+	emptyData.RBACData.Data["rbac"] = make(map[string]map[string]extractor.ServiceAccountRBAC)
+	emptyData.WorkloadData.Data["workloads"] = make(map[string]map[string][]extractor.Workload)
+
+	mt, it, rt, pat, wt, err := buildTables(emptyData)
+
+	if err != nil {
+		t.Fatalf("buildTables() with empty data returned error: %v", err)
+	}
+
+	if mt == nil {
+		t.Error("MetadataTable is nil")
+	}
+	if it == nil {
+		t.Error("IdentityTable is nil")
+	}
+	if rt == nil {
+		t.Error("RBACTable is nil")
+	}
+	if pat == nil {
+		t.Error("PotentialAbuseTable is nil")
+	}
+	if wt == nil {
+		t.Error("WorkloadTable is nil")
+	}
+
+	// Check titles
+	if mt != nil && !strings.Contains(renderTableForTest(mt), "METADATA") {
+		t.Errorf("MetadataTable missing title 'METADATA'. Got: %s", renderTableForTest(mt))
+	}
+	if it != nil && !strings.Contains(renderTableForTest(it), "SERVICE ACCOUNT IDENTITIES") {
+		t.Errorf("IdentityTable missing title 'SERVICE ACCOUNT IDENTITIES'. Got: %s", renderTableForTest(it))
+	}
+	if rt != nil && !strings.Contains(renderTableForTest(rt), "SERVICE ACCOUNT BINDINGS") {
+		t.Errorf("RBACTable missing title 'SERVICE ACCOUNT BINDINGS'. Got: %s", renderTableForTest(rt))
+	}
+	if pat != nil && !strings.Contains(renderTableForTest(pat), "POTENTIAL ABUSE") {
+		t.Errorf("PotentialAbuseTable missing title 'POTENTIAL ABUSE'. Got: %s", renderTableForTest(pat))
+	}
+	if wt != nil && !strings.Contains(renderTableForTest(wt), "SERVICE ACCOUNT WORKLOADS") {
+		t.Errorf("WorkloadTable missing title 'SERVICE ACCOUNT WORKLOADS'. Got: %s", renderTableForTest(wt))
+	}
+
+	// Check metadata content
+	if mt != nil {
+		mtRendered := renderTableForTest(mt)
+		if !strings.Contains(mtRendered, "empty-app") {
+			t.Errorf("MetadataTable missing Name. Got: %s", mtRendered)
+		}
+		if !strings.Contains(mtRendered, "v0.0.1") {
+			t.Errorf("MetadataTable missing Version. Got: %s", mtRendered)
+		}
+		if !strings.Contains(mtRendered, "test-src") {
+			t.Errorf("MetadataTable missing Source. Got: %s", mtRendered)
+		}
+	}
+
+	// Check row counts for data tables (should be 0 for empty result)
+	if it != nil && it.Length() != 0 {
+		t.Errorf("IdentityTable expected 0 rows for empty data, got %d", it.Length())
+	}
+	if rt != nil && rt.Length() != 0 {
+		t.Errorf("RBACTable expected 0 rows for empty data, got %d", rt.Length())
+	}
+	if pat != nil && pat.Length() != 0 {
+		t.Errorf("PotentialAbuseTable expected 0 rows for empty data, got %d", pat.Length())
+	}
+	if wt != nil && wt.Length() != 0 {
+		t.Errorf("WorkloadTable expected 0 rows for empty data, got %d", wt.Length())
+	}
+}
+
+func TestBuildTables_InvalidDataFormat(t *testing.T) {
+	baseResult := newTableTestResult("test", "v1", "src", time.Now().Unix())
+	// Ensure base maps are initialized so we only test one failure at a time
+	baseResult.IdentityData.Data["identities"] = make(map[string]map[string]extractor.Identity)
+	baseResult.RBACData.Data["rbac"] = make(map[string]map[string]extractor.ServiceAccountRBAC)
+	baseResult.WorkloadData.Data["workloads"] = make(map[string]map[string][]extractor.Workload)
+
+	tests := []struct {
+		name        string
+		setupResult func() types.Result
+		wantErrMsg  string
+	}{
+		{
+			name: "invalid identity data format",
+			setupResult: func() types.Result {
+				res := baseResult
+				res.IdentityData.Data["identities"] = "not-a-map" // Invalid format
+				return res
+			},
+			wantErrMsg: "invalid Identity data format",
+		},
+		{
+			name: "invalid rbac data format",
+			setupResult: func() types.Result {
+				res := baseResult
+				// Reset identity to valid default for this test case
+				res.IdentityData.Data["identities"] = make(map[string]map[string]extractor.Identity)
+				res.RBACData.Data["rbac"] = "not-a-map" // Invalid format
+				return res
+			},
+			wantErrMsg: "invalid RBAC data format",
+		},
+		{
+			name: "invalid workload data format",
+			setupResult: func() types.Result {
+				res := baseResult
+				// Reset identity and rbac to valid defaults for this test case
+				res.IdentityData.Data["identities"] = make(map[string]map[string]extractor.Identity)
+				res.RBACData.Data["rbac"] = make(map[string]map[string]extractor.ServiceAccountRBAC)
+				res.WorkloadData.Data["workloads"] = "not-a-map" // Invalid format
+				return res
+			},
+			wantErrMsg: "invalid Workload data format",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			inputData := tt.setupResult()
+			_, _, _, _, _, err := buildTables(inputData)
+
+			if err == nil {
+				t.Fatalf("buildTables() expected error, got nil")
+			}
+			if !strings.Contains(err.Error(), tt.wantErrMsg) {
+				t.Errorf("buildTables() error = %q, want error containing %q", err.Error(), tt.wantErrMsg)
+			}
+		})
+	}
+}

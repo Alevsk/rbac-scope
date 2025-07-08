@@ -127,12 +127,16 @@ func NewFormatter(t Type, opts *Options) (Formatter, error) {
 // PrepareData parses the data removing unnecessary information
 func PrepareData(data types.Result, opts *Options) (ParsedData, error) {
 
+	if opts == nil {
+		opts = DefaultOptions()
+	}
+
 	var parsedData ParsedData
 	parsedData.IdentityData = make([]SAIdentityEntry, 0)
 	parsedData.RBACData = make([]SARoleBindingEntry, 0)
 	parsedData.WorkloadData = make([]SAWorkloadEntry, 0)
 
-	if opts != nil && opts.IncludeMetadata {
+	if opts.IncludeMetadata {
 		parsedData.Metadata = &Metadata{
 			Version:   data.Version,
 			Name:      data.Name,

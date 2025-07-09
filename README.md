@@ -35,6 +35,29 @@ make build
 make test
 ```
 
+## Releases
+
+Official releases are available on the [GitHub Releases page](https://github.com/yourusername/rbac-scope/releases). Each release includes:
+- Pre-compiled binaries for various operating systems and architectures (Linux, macOS, Windows).
+- A multi-architecture Docker image.
+- Release notes detailing changes.
+
+To trigger a new release, maintainers will create and push a new Git tag in the format `vX.Y.Z` (e.g., `v1.0.0`). The release automation will then build and publish the artifacts.
+
+## Container Image
+
+A multi-architecture Docker image is available on Docker Hub. It supports `linux/amd64`, `linux/arm64`, and `linux/arm/v7` platforms.
+
+You can pull the image using:
+```bash
+# For a specific version (recommended)
+docker pull yourusername/rbac-scope:vX.Y.Z
+
+# For the latest version
+docker pull yourusername/rbac-scope:latest
+```
+Replace `yourusername` with the actual Docker Hub username/organization and `vX.Y.Z` with the desired version.
+
 ### Configuration
 
 1. Copy the example environment file:

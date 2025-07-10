@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*.*.*' # Trigger on tags like v1.0.0
+      - "v*.*.*" # Trigger on tags like v1.0.0
 
 env:
   CONTAINER_REGISTRY: docker.io
@@ -21,7 +21,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24.3' # Should match go.mod
+          go-version: "1.24.3" # Should match go.mod
           cache: true
 
       - name: Install dependencies
@@ -50,7 +50,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24.3'
+          go-version: "1.24.3"
           cache: true
 
       - name: Get the version
@@ -123,7 +123,9 @@ jobs:
       contents: write # Required to create releases and upload assets
     steps:
       - name: Get version from artifacts job
-        run: echo "Version from artifacts: ${{ needs.create-release-artifacts.outputs.version }}"
+        shell: bash
+        run: |
+          echo "Version from artifacts - ${{ needs.create-release-artifacts.outputs.version }}"
 
       - name: Get the version
         id: get_version
@@ -162,4 +164,5 @@ jobs:
           files: |
             release-assets/*
       - name: Output Release URL
-        run: echo "Release URL: ${{ steps.create_release.outputs.url }}"
+        run: |
+          echo "Release URL - ${{ steps.create_release.outputs.url }}"

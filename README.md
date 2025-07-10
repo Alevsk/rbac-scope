@@ -22,7 +22,7 @@ A curated database of RBAC policies used by popular Kubernetes Operators, with s
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/rbac-scope.git
+git clone https://github.com/alevsk/rbac-scope.git
 cd rbac-scope
 
 # Install dependencies
@@ -35,12 +35,39 @@ make build
 make test
 ```
 
+## Releases
+
+Official releases are available on the [GitHub Releases page](https://github.com/alevsk/rbac-scope/releases). Each release includes:
+
+- Pre-compiled binaries for various operating systems and architectures (Linux, macOS, Windows).
+- A multi-architecture Docker image.
+- Release notes detailing changes.
+
+To trigger a new release, maintainers will create and push a new Git tag in the format `vX.Y.Z` (e.g., `v1.0.0`). The release automation will then build and publish the artifacts.
+
+## Container Image
+
+A multi-architecture Docker image is available on Docker Hub. It supports `linux/amd64`, `linux/arm64`, and `linux/arm/v7` platforms.
+
+You can pull the image using:
+
+```bash
+# For a specific version (recommended)
+docker pull alevsk/rbac-scope:vX.Y.Z
+
+# For the latest version
+docker pull alevsk/rbac-scope:latest
+```
+
+
 ### Configuration
 
 1. Copy the example environment file:
+
    ```bash
    cp .env.example .env
    ```
+
 2. Edit `.env` with your configuration values
 
 ### Usage

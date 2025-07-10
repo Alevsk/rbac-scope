@@ -1,0 +1,165 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*' # Trigger on tags like v1.0.0
+
+env:
+  CONTAINER_REGISTRY: docker.io
+  IMAGE_OWNER: ${{ secrets.DOCKERHUB_USERNAME }}
+  IMAGE_NAME: rbac-scope
+
+jobs:
+  build-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.3' # Should match go.mod
+          cache: true
+
+      - name: Install dependencies
+        run: make install-deps
+
+      - name: Format Check
+        run: make fmt
+
+      - name: Lint
+        run: make lint
+
+      - name: Test
+        run: make test
+
+  create-release-artifacts:
+    name: Create Release Artifacts
+    needs: build-test
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+      archive_path: ${{ steps.archive_binaries.outputs.archive_path }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.3'
+          cache: true
+
+      - name: Get the version
+        id: get_version
+        # Strip "v" prefix from tag to get version number
+        run: echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      - name: Run cross-compilation
+        run: make build-cross VERSION=${{ steps.get_version.outputs.version }}
+
+      - name: Archive binaries
+        id: archive_binaries
+        run: |
+          tar -czvf release-archives.tar.gz -C bin .
+          echo "archive_path=release-archives.tar.gz" >> $GITHUB_OUTPUT
+      - name: Upload all binaries as a single archive artifact (for release job)
+        uses: actions/upload-artifact@v4
+        with:
+          name: rbac-scope-binaries-${{ steps.get_version.outputs.version }}
+          path: ${{ steps.archive_binaries.outputs.archive_path }}
+          retention-days: 7
+
+  build-push-image:
+    name: Build and Push Multi-Arch Image
+    needs: build-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write #  Required for pushing to GHCR, good to have if switching
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get the version
+        id: get_version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push multi-arch image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          push: true
+          tags: |
+            ${{ env.CONTAINER_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:${{ steps.get_version.outputs.version }}
+            ${{ env.CONTAINER_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # Pass version to Docker build args if Dockerfile uses it
+          build-args: |
+            VERSION=${{ steps.get_version.outputs.version }}
+  github-release:
+    name: Create GitHub Release
+    needs: [create-release-artifacts, build-push-image]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required to create releases and upload assets
+    steps:
+      - name: Get version from artifacts job
+        run: echo "Version from artifacts: ${{ needs.create-release-artifacts.outputs.version }}"
+
+      - name: Get the version
+        id: get_version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      - name: Download all binaries archive
+        uses: actions/download-artifact@v4
+        with:
+          name: rbac-scope-binaries-${{ steps.get_version.outputs.version }}
+
+      - name: Extract Binaries for Upload
+        run: |
+          mkdir -p release-assets
+          tar -xzvf ${{ needs.create-release-artifacts.outputs.archive_path }} -C release-assets/
+          ls -R release-assets/
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          body: |
+            ## Release ${{ github.ref_name }}
+            **Changelog:**
+            (Automated changelog generation can be added here later if a suitable action is chosen, e.g., based on conventional commits)
+            For now, please refer to the commit history or manually update this section after release creation if more details are needed.
+            **Container Image:**
+            `${{ env.CONTAINER_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:${{ steps.get_version.outputs.version }}`
+            `${{ env.CONTAINER_REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:latest`
+            **Binaries:**
+            (Uploaded below)
+          draft: false
+          prerelease: false
+          files: |
+            release-assets/*
+      - name: Output Release URL
+        run: echo "Release URL: ${{ steps.create_release.outputs.url }}"

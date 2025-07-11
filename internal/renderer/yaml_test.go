@@ -258,3 +258,13 @@ func isErrorType(err, target error) bool {
 	}
 	return false
 }
+
+func TestYAMLRendererRenderContextCancel(t *testing.T) {
+	r := NewYAMLRenderer()
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err := r.Render(ctx, []byte("kind: Pod"))
+	if err != context.Canceled {
+		t.Fatalf("expected context canceled, got %v", err)
+	}
+}

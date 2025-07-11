@@ -79,3 +79,60 @@ func TestUniqueRiskTags(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateRiskRule(t *testing.T) {
+	base := RiskRule{ID: 1, Name: "test", RoleType: "Role", RiskLevel: RiskLevelLow}
+	cases := []struct {
+		name    string
+		rule    RiskRule
+		wantErr bool
+	}{
+		{"valid", base, false},
+		{"missing id", RiskRule{Name: "n", RoleType: "Role", RiskLevel: RiskLevelLow}, true},
+		{"missing name", RiskRule{ID: 2, RoleType: "Role", RiskLevel: RiskLevelLow}, true},
+		{"bad role", RiskRule{ID: 3, Name: "n", RoleType: "Bad", RiskLevel: RiskLevelLow}, true},
+		{"bad level", RiskRule{ID: 4, Name: "n", RoleType: "Role", RiskLevel: 99}, true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			err := validateRiskRule(c.rule)
+			if (err != nil) != c.wantErr {
+				t.Fatalf("validateRiskRule() error = %v, wantErr %v", err, c.wantErr)
+			}
+		})
+	}
+}
+
+func TestLoadRiskRules(t *testing.T) {
+	orig := risksYAMLBytes
+	defer func() { risksYAMLBytes = orig }()
+
+	t.Run("invalid yaml", func(t *testing.T) {
+		risksYAMLBytes = []byte("bad:")
+		if err := loadRiskRules(); err == nil {
+			t.Fatal("expected error")
+		}
+	})
+
+	t.Run("invalid rule", func(t *testing.T) {
+		risksYAMLBytes = []byte("- id: 0\n  name: a\n  role_type: Role\n  risk_level: 0")
+		if err := loadRiskRules(); err == nil {
+			t.Fatal("expected error")
+		}
+	})
+
+	t.Run("valid", func(t *testing.T) {
+		risksYAMLBytes = []byte("- id: 1\n  name: a\n  role_type: Role\n  risk_level: RiskLevelLow")
+		if err := loadRiskRules(); err != nil {
+			t.Fatalf("loadRiskRules() error = %v", err)
+		}
+		r := GetRiskRules()
+		if len(r) != 1 {
+			t.Fatalf("expected 1 rule, got %d", len(r))
+		}
+		r[0].Name = "changed"
+		if riskRules[0].Name == "changed" {
+			t.Error("GetRiskRules() returned reference")
+		}
+	})
+}

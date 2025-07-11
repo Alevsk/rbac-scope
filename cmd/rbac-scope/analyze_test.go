@@ -24,7 +24,9 @@ func TestAnalyzeCmd_RunE(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	var buf bytes.Buffer
-	buf.ReadFrom(r)
+	if _, err = buf.ReadFrom(r); err != nil {
+		t.Fatalf("read output: %v", err)
+	}
 	if buf.Len() == 0 {
 		t.Error("no output")
 	}

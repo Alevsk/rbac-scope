@@ -57,9 +57,19 @@ func TestMatchRiskRules(t *testing.T) {
 		wantTag          RiskTag // for resourceNameCheck
 	}
 
-	// Preload rules to use in tests, especially for specific ID matching
-	allRules := GetRiskRules()
-	sampleCustomRuleForResourceNameTest := allRules[11] // Read secrets in a namespace
+	// Define test rule for reading secrets in a namespace
+	readSecretsInNamespace := RiskRule{
+		ID:        1011,
+		Name:      "Read secrets in a namespace",
+		RiskLevel: RiskLevelCritical,
+		RoleType:  "Role",
+		APIGroups: []string{""},
+		Resources: []string{"secrets"},
+		VerbGroups: [][]string{
+			{"get", "list", "watch"},
+			{"list", "watch"},
+		},
+	}
 
 	tests := []matchRiskRulesTest{
 		{
@@ -1676,9 +1686,9 @@ func TestMatchRiskRules(t *testing.T) {
 			policy: Policy{
 				RoleType:     "Role",
 				Namespace:    "default",
-				APIGroup:     sampleCustomRuleForResourceNameTest.APIGroups[0], // ""
-				Resource:     sampleCustomRuleForResourceNameTest.Resources[0], // "secrets"
-				Verbs:        sampleCustomRuleForResourceNameTest.Verbs,        // {"get", "list", "watch"}
+				APIGroup:     readSecretsInNamespace.APIGroups[0],  // ""
+				Resource:     readSecretsInNamespace.Resources[0],  // "secrets"
+				Verbs:        readSecretsInNamespace.VerbGroups[0], // Using first verb group [get list watch]        // {"get", "list", "watch"}
 				ResourceName: "my-secret",
 			},
 			wantErr:       false,
@@ -1687,7 +1697,7 @@ func TestMatchRiskRules(t *testing.T) {
 			// Expecting the custom rule (e.g., 1011) and its corresponding base rule (e.g. 9997 for medium, or 9996 for low if all specific)
 			// Since ResourceNames are present, the custom rule 1011 will be RiskLevelLow.
 			// The base rule determined by determineBaseRiskRule for this policy (specific, namespaced) would be BaseRiskRuleLow (9996).
-			wantRulesIDs:     []int64{sampleCustomRuleForResourceNameTest.ID, BaseRiskRuleLow.ID},
+			wantRulesIDs:     []int64{readSecretsInNamespace.ID, BaseRiskRuleLow.ID},
 			wantResourceName: "my-secret",
 			wantTag:          ResourceNameRestricted,
 			wantCount:        2, // Custom rule + Base rule
@@ -1697,14 +1707,14 @@ func TestMatchRiskRules(t *testing.T) {
 			policy: Policy{
 				RoleType:     "Role",
 				Namespace:    "default",
-				APIGroup:     sampleCustomRuleForResourceNameTest.APIGroups[0],
-				Resource:     sampleCustomRuleForResourceNameTest.Resources[0],
-				Verbs:        sampleCustomRuleForResourceNameTest.Verbs,
-				ResourceName: "", // Empty slice
+				APIGroup:     readSecretsInNamespace.APIGroups[0],
+				Resource:     readSecretsInNamespace.Resources[0],
+				Verbs:        readSecretsInNamespace.VerbGroups[0], // Using first verb group [get list watch]
+				ResourceName: "",                                   // Empty slice
 			},
 			wantErr:       false,
-			wantRiskLevel: sampleCustomRuleForResourceNameTest.RiskLevel, // Should be original risk of custom rule
-			testType:      "exact",                                       // Or "count" if IDs are not stable/known for this test setup
+			wantRiskLevel: readSecretsInNamespace.RiskLevel, // Should be original risk of custom rule
+			testType:      "exact",                          // Or "count" if IDs are not stable/known for this test setup
 			// Expecting custom rule + original base rule.
 			// Original rule 1011 is Critical. Base rule for this (namespaced, specific) is Low (9996)
 			// This seems off, "Read secrets in a namespace" (1011) is Critical, but base rule for specific namespaced is Low.
@@ -1714,7 +1724,7 @@ func TestMatchRiskRules(t *testing.T) {
 			// This implies the base rule is also critical or the custom rule is the only one determining the highest.
 			// The base rule for (Role, default, "", secrets, [get,list,watch]) is BaseRiskRuleLow (9996).
 			// So, if 1011 (Critical) matches, results are [1011, 9996]. Highest is Critical.
-			wantRulesIDs: []int64{sampleCustomRuleForResourceNameTest.ID, BaseRiskRuleLow.ID},
+			wantRulesIDs: []int64{readSecretsInNamespace.ID, BaseRiskRuleLow.ID},
 			wantCount:    2,
 		},
 		{
@@ -1722,15 +1732,15 @@ func TestMatchRiskRules(t *testing.T) {
 			policy: Policy{
 				RoleType:     "Role",
 				Namespace:    "default",
-				APIGroup:     sampleCustomRuleForResourceNameTest.APIGroups[0],
-				Resource:     sampleCustomRuleForResourceNameTest.Resources[0],
-				Verbs:        sampleCustomRuleForResourceNameTest.Verbs,
-				ResourceName: "", // Slice with one empty string
+				APIGroup:     readSecretsInNamespace.APIGroups[0],
+				Resource:     readSecretsInNamespace.Resources[0],
+				Verbs:        readSecretsInNamespace.VerbGroups[0], // Using first verb group [get list watch]
+				ResourceName: "",                                   // Slice with one empty string
 			},
 			wantErr:       false,
-			wantRiskLevel: sampleCustomRuleForResourceNameTest.RiskLevel,
+			wantRiskLevel: readSecretsInNamespace.RiskLevel,
 			testType:      "exact",
-			wantRulesIDs:  []int64{sampleCustomRuleForResourceNameTest.ID, BaseRiskRuleLow.ID},
+			wantRulesIDs:  []int64{readSecretsInNamespace.ID, BaseRiskRuleLow.ID},
 			wantCount:     2,
 		},
 		{
@@ -1738,15 +1748,15 @@ func TestMatchRiskRules(t *testing.T) {
 			policy: Policy{
 				RoleType:     "Role",
 				Namespace:    "default",
-				APIGroup:     sampleCustomRuleForResourceNameTest.APIGroups[0],
-				Resource:     sampleCustomRuleForResourceNameTest.Resources[0],
-				Verbs:        sampleCustomRuleForResourceNameTest.Verbs,
-				ResourceName: "", // Nil slice
+				APIGroup:     readSecretsInNamespace.APIGroups[0],
+				Resource:     readSecretsInNamespace.Resources[0],
+				Verbs:        readSecretsInNamespace.VerbGroups[0], // Using first verb group [get list watch]
+				ResourceName: "",                                   // Nil slice
 			},
 			wantErr:       false,
-			wantRiskLevel: sampleCustomRuleForResourceNameTest.RiskLevel,
+			wantRiskLevel: readSecretsInNamespace.RiskLevel,
 			testType:      "exact",
-			wantRulesIDs:  []int64{sampleCustomRuleForResourceNameTest.ID, BaseRiskRuleLow.ID},
+			wantRulesIDs:  []int64{readSecretsInNamespace.ID, BaseRiskRuleLow.ID},
 			wantCount:     2,
 		},
 		{

@@ -155,22 +155,44 @@ func matchesVerbs(policy *Policy, rule *RiskRule) bool {
 		}
 	}
 
-	// Case 3: No wildcards, check if rule's verbs are a subset of policy's verbs
-	for _, ruleVerb := range rule.Verbs {
-		var found bool
-		for _, policyVerb := range policy.Verbs {
-			if ruleVerb == policyVerb {
-				found = true
+	// Combine rule.Verbs and rule.VerbGroups into a single slice for evaluation
+	allVerbGroups := rule.VerbGroups
+	if len(rule.Verbs) > 0 {
+		allVerbGroups = append(allVerbGroups, rule.Verbs)
+	}
+
+	// No verb groups defined, nothing to match against
+	if len(allVerbGroups) == 0 {
+		logger.Debug().Msg("No verbs or verb_groups defined in rule")
+		return false
+	}
+
+	// Create a set of policy verbs for efficient lookup
+	policyVerbSet := make(map[string]bool)
+	for _, verb := range policy.Verbs {
+		policyVerbSet[verb] = true
+	}
+
+	// Case 3: Try to match against any verb group
+	for _, verbGroup := range allVerbGroups {
+		// Check if all verbs in the group are present in the policy
+		allFound := true
+		for _, groupVerb := range verbGroup {
+			if !policyVerbSet[groupVerb] {
+				allFound = false
 				break
 			}
 		}
-		if !found {
-			logger.Debug().Msgf("Rule's verb %s not found in policy's verbs %v", ruleVerb, policy.Verbs)
-			return false
+
+		// If all verbs in this group are found in the policy verbs, it's a match
+		if allFound {
+			logger.Debug().Msgf("Policy verbs %v contain all verbs from group %v", policy.Verbs, verbGroup)
+			return true
 		}
 	}
-	logger.Debug().Msg("Rule's verbs are a subset of policy's verbs")
-	return true
+
+	logger.Debug().Msg("No verb matches found")
+	return false
 }
 
 // matchesCustomRule checks if a policy matches a custom risk rule

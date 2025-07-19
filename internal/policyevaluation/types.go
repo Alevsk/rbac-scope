@@ -160,18 +160,19 @@ const (
 )
 
 type RiskRule struct {
-	ID           int64     `yaml:"id"`
-	Name         string    `yaml:"name"`
-	Description  string    `yaml:"description"`
-	Category     string    `yaml:"category"`
-	RiskLevel    RiskLevel `yaml:"risk_level"`
-	APIGroups    []string  `yaml:"api_groups"`
-	RoleType     string    `yaml:"role_type"`
-	Resources    []string  `yaml:"resources"`
-	ResourceName string    `yaml:"resource_name"`
-	Verbs        []string  `yaml:"verbs"`
-	Tags         RiskTags  `yaml:"tags"`
-	Commands     []Command `yaml:"commands"`
+	ID           int64      `yaml:"id"`
+	Name         string     `yaml:"name"`
+	Description  string     `yaml:"description"`
+	Category     string     `yaml:"category"`
+	RiskLevel    RiskLevel  `yaml:"risk_level"`
+	APIGroups    []string   `yaml:"api_groups"`
+	RoleType     string     `yaml:"role_type"`
+	Resources    []string   `yaml:"resources"`
+	ResourceName string     `yaml:"resource_name"`
+	Verbs        []string   `yaml:"verbs,omitempty"`
+	VerbGroups   [][]string `yaml:"verb_groups,omitempty"`
+	Tags         RiskTags   `yaml:"tags"`
+	Commands     []Command  `yaml:"commands"`
 }
 
 type Command struct {

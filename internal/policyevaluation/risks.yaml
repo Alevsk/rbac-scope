@@ -291,7 +291,9 @@
   api_groups: [""]
   role_type: "ClusterRole"
   resources: ["secrets"]
-  verbs: ["get", "list", "watch"]
+  verb_groups:
+    - ["get", "list", "watch"]
+    - ["list", "watch"]
   tags:
     [
       "ClusterWideSecretAccess",
@@ -316,7 +318,9 @@
   api_groups: [""]
   role_type: "Role"
   resources: ["secrets"]
-  verbs: ["get", "list", "watch"]
+  verb_groups:
+    - ["get", "list", "watch"]
+    - ["list", "watch"]
   tags:
     [
       "SecretAccess",
@@ -592,7 +596,9 @@
   api_groups: [""]
   role_type: "ClusterRole"
   resources: ["configmaps"]
-  verbs: ["get", "list", "watch"]
+  verb_groups:
+    - ["get", "list", "watch"]
+    - ["list", "watch"]
   tags: ["InformationDisclosure", "ConfigMapAccess", "DataExposure"]
   commands:
     - description: "List all ConfigMaps across all namespaces."
@@ -610,7 +616,9 @@
   api_groups: [""]
   role_type: "Role"
   resources: ["configmaps"]
-  verbs: ["get", "list", "watch"]
+  verb_groups:
+    - ["get", "list", "watch"]
+    - ["list", "watch"]
   tags: ["InformationDisclosure", "ConfigMapAccess", "DataExposure"]
   commands:
     - description: "List all ConfigMaps in a specific namespace."
@@ -2107,7 +2115,9 @@
   api_groups: ["", "events.k8s.io"]
   role_type: "ClusterRole"
   resources: ["events"]
-  verbs: ["get", "list", "watch"]
+  verb_groups:
+    - ["get", "list", "watch"]
+    - ["list", "watch"]
   tags: ["InformationDisclosure", "Reconnaissance", "OperationalData"]
   commands:
     - description: "List all events across all namespaces."
@@ -2334,7 +2344,9 @@
   api_groups: ["rbac.authorization.k8s.io"]
   role_type: "ClusterRole"
   resources: ["clusterroles", "roles", "clusterrolebindings", "rolebindings"]
-  verbs: ["get", "list", "watch"]
+  verb_groups:
+    - ["get", "list", "watch"]
+    - ["list", "watch"]
   tags: ["InformationDisclosure", "RBACQuery", "Reconnaissance"]
   commands:
     - description: "List all ClusterRoles in the cluster."
@@ -2562,7 +2574,9 @@
   api_groups: [""]
   role_type: "Role"
   resources: ["limitranges"]
-  verbs: ["get", "list", "watch"]
+  verb_groups:
+    - ["get", "list", "watch"]
+    - ["list", "watch"]
   tags: ["InformationDisclosure", "Reconnaissance", "ResourceConfiguration"]
   commands:
     - description: "List all LimitRanges in a specific namespace."
@@ -2581,7 +2595,9 @@
   api_groups: [""]
   role_type: "Role"
   resources: ["resourcequotas"]
-  verbs: ["get", "list", "watch"]
+  verb_groups:
+    - ["get", "list", "watch"]
+    - ["list", "watch"]
   tags:
     [
       "InformationDisclosure",
@@ -2606,7 +2622,9 @@
   api_groups: [""]
   role_type: "ClusterRole"
   resources: ["resourcequotas"]
-  verbs: ["get", "list", "watch"]
+  verb_groups:
+    - ["get", "list", "watch"]
+    - ["list", "watch"]
   tags:
     [
       "InformationDisclosure",
@@ -2886,7 +2904,9 @@
   api_groups: ["storage.k8s.io"]
   role_type: "ClusterRole"
   resources: ["csinodes"]
-  verbs: ["get", "list", "watch"]
+  verb_groups:
+    - ["get", "list", "watch"]
+    - ["list", "watch"]
   tags:
     [
       "InformationDisclosure",
@@ -2910,7 +2930,9 @@
   api_groups: ["storage.k8s.io"]
   role_type: "Role"
   resources: ["csistoragecapacities"]
-  verbs: ["get", "list", "watch"]
+  verb_groups:
+    - ["get", "list", "watch"]
+    - ["list", "watch"]
   tags: ["InformationDisclosure", "Reconnaissance", "StorageDetailsDisclosure"]
   commands:
     - description: "List all CSIStorageCapacity objects in a specific namespace."

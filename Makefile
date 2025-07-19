@@ -26,7 +26,10 @@ TARGET_PLATFORMS := \
     windows/amd64
 
 # Build flags
-LDFLAGS=-ldflags "-X main.Version=$(VERSION)"
+VERSION?=$(shell git describe --tags --always --dirty)
+COMMIT_HASH?=$(shell git rev-parse --short HEAD)
+BUILD_TIMESTAMP?=$(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+LDFLAGS=-ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT_HASH) -X main.date=$(BUILD_TIMESTAMP)"
 
 .PHONY: all build build-cross clean test cover fmt lint docker install-deps
 

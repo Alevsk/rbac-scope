@@ -63,6 +63,9 @@ func init() {
 
 	// Add analyze command to root command
 	rootCmd.AddCommand(analyzeCmd)
+
+	// Add version command to root command
+	rootCmd.AddCommand(versionCmd)
 }
 
 func main() {
